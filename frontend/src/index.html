@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur ROV</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Simulateur ROV - Système ROV-Câble-Bateau</h1>
+            <div class="status-bar">
+                <span id="connection-status" class="status disconnected">Déconnecté</span>
+                <span id="simulation-status" class="status stopped">Arrêté</span>
+                <span id="time-display">t = 0.00 s</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Panneau de visualisation -->
+            <div class="visualization-panel">
+                <div id="canvas-container"></div>
+                <div class="camera-controls">
+                    <button id="camera-side">Vue latérale</button>
+                    <button id="camera-top">Vue de dessus</button>
+                    <button id="camera-follow">Suivre ROV</button>
+                </div>
+            </div>
+
+            <!-- Panneaux de contrôle -->
+            <div class="control-panels">
+                <!-- Panneau paramètres -->
+                <div class="panel">
+                    <h2>Paramètres Système</h2>
+                    <div class="form-group">
+                        <label>Masse ROV (kg):</label>
+                        <input type="number" id="param-m-ROV" value="100" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Longueur câble initiale (m):</label>
+                        <input type="number" id="param-L-initial" value="50" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre segments câble:</label>
+                        <input type="number" id="param-N-segments" value="50" step="5" min="10" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label>Pas de temps (s):</label>
+                        <input type="number" id="param-dt" value="0.01" step="0.001" min="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label>Vitesse courant (m/s):</label>
+                        <input type="number" id="param-V-courant" value="0.5" step="0.1">
+                    </div>
+                    <button id="btn-apply-params" class="btn-primary">Appliquer</button>
+                </div>
+
+                <!-- Panneau commandes -->
+                <div class="panel">
+                    <h2>Commandes Temps Réel</h2>
+                    <div class="form-group">
+                        <label>Force ROV X (N):</label>
+                        <input type="number" id="cmd-Fx-ROV" value="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Force ROV Y (N):</label>
+                        <input type="number" id="cmd-Fy-ROV" value="0" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Vitesse bateau (m/s):</label>
+                        <input type="number" id="cmd-vx-bateau" value="0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Déroulement câble (m/s):</label>
+                        <input type="number" id="cmd-dL-dt" value="0" step="0.1">
+                    </div>
+                    <button id="btn-send-command" class="btn-secondary">Envoyer Commande</button>
+                </div>
+
+                <!-- Panneau contrôle simulation -->
+                <div class="panel">
+                    <h2>Contrôle Simulation</h2>
+                    <div class="button-group">
+                        <button id="btn-start" class="btn-success">Démarrer</button>
+                        <button id="btn-stop" class="btn-danger">Arrêter</button>
+                        <button id="btn-reset" class="btn-warning">Réinitialiser</button>
+                    </div>
+                </div>
+
+                <!-- Graphiques -->
+                <div class="panel">
+                    <h2>Graphiques Temps Réel</h2>
+                    <canvas id="chart-trajectory"></canvas>
+                    <canvas id="chart-velocity"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
+
