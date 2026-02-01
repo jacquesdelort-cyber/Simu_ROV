@@ -43,7 +43,7 @@ class Cable:
         self.solver = CableSolver(self.N, params, environment)
     
     def solve_equilibrium(self, x_rov, y_rov, vx_rov, vy_rov,
-                         x_boat, vx_boat, L, x_cable_prev=None, y_cable_prev=None):
+                         x_boat, vx_boat, L, x_cable_prev=None, y_cable_prev=None, rov_m=None, rov_vol=None):
         """
         Résout l'équilibre du câble
         
@@ -70,7 +70,9 @@ class Cable:
         
         if x_cable_prev is None or y_cable_prev is None:
             # Solution statique
-            x_cable, y_cable, T = self.solver.solve_equilibrium_static(x_rov, y_rov, x_boat, L)
+            x_cable, y_cable, T = self.solver.solve_equilibrium_static(
+                x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+            )
             self.x_cable_prev = x_cable.copy()
             self.y_cable_prev = y_cable.copy()
             return x_cable, y_cable, T
@@ -78,7 +80,7 @@ class Cable:
             # Solution dynamique
             x_cable, y_cable, T = self.solver.solve_equilibrium_dynamic(
                 x_rov, y_rov, vx_rov, vy_rov,
-                x_boat, vx_boat, L, x_cable_prev, y_cable_prev
+                x_boat, vx_boat, L, x_cable_prev, y_cable_prev, rov_m=rov_m, rov_vol=rov_vol
             )
             self.x_cable_prev = x_cable.copy()
             self.y_cable_prev = y_cable.copy()

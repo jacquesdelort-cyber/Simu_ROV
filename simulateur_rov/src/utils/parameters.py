@@ -15,6 +15,7 @@ def get_default_parameters():
     return {
         'rov': {
             'm': 100.0,      # Masse du ROV (kg)
+            'vol': None,     # Volume du ROV (m³) - None = utiliser a*b*h
             'a': 0.5,        # Largeur (m)
             'b': 1.0,        # Longueur (m)
             'h': 0.5,        # Hauteur (m)

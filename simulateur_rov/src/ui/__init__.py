@@ -1,3 +1,3 @@
-"""Interface utilisateur"""
-# L'interface Streamlit sera dans streamlit_app.py
+"""Interfaces utilisateur"""
+# Interface disponible : PyQt (pyqt_app.py)
 

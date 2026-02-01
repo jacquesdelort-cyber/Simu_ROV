@@ -1,3 +1,44 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs and local databases
+*.log
+cache/
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Project-specific generated outputs
+results/
+Missions/**/Trace/
+config.json
 # Python
 __pycache__/
 *.py[cod]
@@ -37,9 +78,6 @@ results/*.h5
 results/*.csv
 results/*.npz
 !results/.gitkeep
-
-# Streamlit
-.streamlit/
 
 # OS
 .DS_Store

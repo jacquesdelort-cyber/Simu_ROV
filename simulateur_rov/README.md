@@ -23,15 +23,13 @@ pip install -r requirements.txt
 
 ## 💻 Utilisation
 
-### Interface Web (Streamlit)
+### Interface PyQt (Application Windows)
 
-Lancez l'interface utilisateur interactive :
+Lancez l'interface utilisateur native :
 
 ```bash
-streamlit run src/ui/streamlit_app.py
+python -m src.ui.pyqt_app
 ```
-
-L'application s'ouvrira dans votre navigateur à l'adresse `http://localhost:8501`.
 
 ### Script Python
 
@@ -77,7 +75,7 @@ simulateur_rov/
 │   ├── solvers/         # Solveurs numériques (intégration, câble, forces)
 │   ├── utils/           # Utilitaires (paramètres, I/O, conditions initiales)
 │   ├── visualization/   # Fonctions de visualisation
-│   └── ui/              # Interface utilisateur (Streamlit)
+│   └── ui/              # Interface utilisateur (PyQt)
 ├── tests/               # Tests unitaires
 ├── data/                # Données d'entrée
 ├── results/             # Résultats de simulation
@@ -162,5 +160,5 @@ Simulateur développé dans le cadre du projet ROV.
 
 ## 🔄 Versions
 
-- **v1.0.0** : Version initiale avec interface Streamlit
+- **v1.0.0** : Version initiale de l'interface PyQt
 

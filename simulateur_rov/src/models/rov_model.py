@@ -17,6 +17,7 @@ class ROV:
             - a : largeur (m)
             - b : longueur (m)
             - h : hauteur (m)
+            - vol : volume du ROV (m³) - utilisé pour la poussée d'Archimède
             - Cx : coefficient de traînée horizontal
             - Cy : coefficient de traînée vertical
         """
@@ -25,8 +26,13 @@ class ROV:
         self.b = params.get('b', 1.0)
         self.h = params.get('h', 0.5)
         
-        # Volume et sections
-        self.V = self.a * self.b * self.h
+        # Volume : utiliser vol si spécifié, sinon calculer a*b*h
+        vol_specified = params.get('vol', None)
+        if vol_specified is not None:
+            self.V = vol_specified
+        else:
+            self.V = self.a * self.b * self.h
+        
         self.Sx = self.a * self.h  # Section frontale perpendiculaire à x
         self.Sy = self.a * self.b  # Section frontale perpendiculaire à y
         
@@ -55,7 +61,8 @@ class ROV:
             Forces de traînée horizontale et verticale (N)
         """
         # Vitesse relative horizontale (ROV - courant)
-        v_current = environment.get_current_velocity(y_depth)
+        v_courant = getattr(environment, "v_courant_raw", None)
+        v_current = environment.get_current_velocity(y_depth, v_courant)
         vx_rel = vx - v_current
         
         # Force de traînée horizontale
@@ -80,6 +87,7 @@ class ROV:
         float
             Force de poussée d'Archimède vers le haut (N)
         """
+        # Utiliser le volume du ROV (défini dans les paramètres ROV ou calculé)
         return environment.rho_eau * self.V * environment.g
     
     def compute_weight_force(self, environment):

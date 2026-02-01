@@ -21,7 +21,7 @@ def main():
     y0 = get_initial_state(
         system,
         x_rov=0.0,
-        y_rov=10.0,
+        y_rov=-10.0,  # Profondeur négative (convention : y < 0 = sous la surface)
         x_boat=0.0,
         L=50.0
     )

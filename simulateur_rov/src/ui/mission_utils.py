@@ -1,7 +1,8 @@
-"""Fonctions utilitaires pour la gestion des missions (réutilisables pour Dash)"""
+"""Fonctions utilitaires pour la gestion des missions"""
 from pathlib import Path
 import json
 from datetime import datetime
+from src.utils.logger import trace_print
 
 
 def get_missions_directory():
@@ -61,7 +62,7 @@ def load_environment_params(mission_dir):
                 }
                 return loaded_params
         except Exception as e:
-            print(f"Erreur lors du chargement des paramètres d'environnement: {e}")
+            trace_print(8, f"Erreur lors du chargement des paramètres d'environnement: {e}")
     return None
 
 
@@ -76,7 +77,7 @@ def load_calc_params(mission_dir):
             if 'paramètres_calcul' in data:
                 return data['paramètres_calcul']
         except Exception as e:
-            print(f"Erreur lors du chargement des paramètres de calcul: {e}")
+            trace_print(8, f"Erreur lors du chargement des paramètres de calcul: {e}")
     return None
 
 
@@ -89,7 +90,15 @@ def load_init_params(mission_dir):
                 data = json.load(f)
             
             if 'conditions_initiales' in data:
-                return data['conditions_initiales']
+                init_params = data['conditions_initiales']
+                # Conversion automatique pour compatibilité : y_rov_init positif -> négatif
+                # Convention : y < 0 = profondeur (sous la surface)
+                if init_params and "y_rov_init" in init_params:
+                    y_val = init_params["y_rov_init"]
+                    if isinstance(y_val, (int, float)) and y_val > 0:
+                        init_params["y_rov_init"] = -y_val
+                        trace_print(8, f"⚠️  Conversion automatique : y_rov_init={y_val} -> {init_params['y_rov_init']} (profondeur négative)")
+                return init_params
         except Exception as e:
-            print(f"Erreur lors du chargement des conditions initiales: {e}")
+            trace_print(8, f"Erreur lors du chargement des conditions initiales: {e}")
     return None

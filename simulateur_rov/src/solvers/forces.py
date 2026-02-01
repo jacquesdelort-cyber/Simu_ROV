@@ -48,8 +48,12 @@ def compute_cable_apparent_weight(rho_cable, rho_eau, A_cable, g, ds):
     --------
     float
         Poids apparent vers le bas (N)
+        Pour un câble plus dense que l'eau (rho_cable > rho_eau), retourne une valeur négative
+        car dans le système de coordonnées utilisé, y < 0 signifie "vers le bas"
     """
-    return (rho_cable - rho_eau) * A_cable * g * ds
+    # Le poids apparent est dirigé vers le bas, donc négatif dans le système de coordonnées
+    # où y < 0 signifie "vers le bas"
+    return -(rho_cable - rho_eau) * A_cable * g * ds
 
 
 def compute_cable_forces(x_cable, y_cable, vx_cable, vy_cable, 
@@ -88,7 +92,8 @@ def compute_cable_forces(x_cable, y_cable, vx_cable, vy_cable,
     A_cable = np.pi * (d / 2)**2
     
     # Vitesses du courant à chaque point
-    v_current = np.array([environment.get_current_velocity(y) for y in y_cable])
+    v_courant = getattr(environment, "v_courant_raw", None)
+    v_current = np.array([environment.get_current_velocity(y, v_courant) for y in y_cable])
     
     # Vitesses relatives
     vx_rel = v_current - vx_cable

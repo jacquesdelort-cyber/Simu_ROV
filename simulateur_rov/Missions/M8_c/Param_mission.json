@@ -1,0 +1,46 @@
+{
+    "date_sauvegarde": "2026-01-20T19:00:10.494856",
+    "mission": "M8_c",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.029268293,
+            "a": 0.5,
+            "b": 1.0,
+            "h": 0.5,
+            "Cx": 0.8,
+            "Cy": 1.0
+        },
+        "cable": {
+            "d": 0.01,
+            "rho_cable": 1500.0,
+            "Cx_cable": 1.2
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5
+        },
+        "environment": {
+            "rho_eau": 1025.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 120.0,
+        "steps_per_update": 5,
+        "N_segments": 50
+    },
+    "init_params": {
+        "x_rov_init": 4.0,
+        "y_rov_init": 0.0,
+        "x_boat_init": 0.0,
+        "L_init": 40.0,
+        "v_courant": "0:0; 20:1"
+    }
+}
