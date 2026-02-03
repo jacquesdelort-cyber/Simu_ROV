@@ -1,0 +1,42 @@
+Je souhaite faire évoluer les fichier trace de la manière suivante:
+Un ficher trace est créé pour chaque simulation dans le répertoire trace de la mission concernée avec le nom xxx_date ou xxx est le nom de la mission et date la date (au format YYYY-MM-DD:hh:mm:ss) 
+Si le répertoire trace associé à la mission n'existe pas, il est créé.
+C'est un fichier au format csv avec les colonnes suivantes:
+
+Modifier la structure du fichier trace comme suit:
+J'ai ajouté les colonnes Tbat, Trov, Tmax et supprimé les colonnes vides.
+
+t			Le temps
+x _bat			La position du bateau sur l'axe des abscisses
+L0			La valeur du paramètre de configuration e la longueur initiale
+L			La longueur du câble résultant de l'action de la commande ds/dt du moulinet		
+L_seg			La somme des longueur des segments du câble
+ds_dL			La valeur de la variable de commande de vitesse de déroulement du câble 
+Tbat			La tension du câble au contact du ROV (toujours positive ou nulle)
+Trov			La tension du câble au contact du ROV (toujours positive ou nulle)
+Tmax			La tension maximale du câble (toujours positive ou nulle)
+U_bat_x			La première coordonnée du vecteur unitaire tangent au câble, dans le sens ds croissant, au niveau du bateau
+U_bat_y			La deuxième coordonnée du vecteur unitaire tangent au câble, dans le sens ds croissant, au niveau du bateau
+U_rov_x			La première coordonnée du vecteur unitaire tangent au câble, dans le sens ds croissant, au niveau du rov
+U_rov_y			La deuxième coordonnée du vecteur unitaire tangent au câble, dans le sens ds croissant, au niveau du rov
+x_rov			La position du rov sur l'axe des abscisses
+y_rov			La position du rov sur l'axe des ordonnées
+Fx_rov			La force de traction horizontale du ROV résultant de la commande Fx
+Fy_rov			La force de traction verticale du ROV résultant de la commande Fy
+Tr_cable_rov_x		La composante horizontale de la force de traction du câble sur le rov
+Tr_cable_rov_y		La composante verticale de la force de traction du câble sur le rov
+Trainée_rov_x		La composante horizontale de la force de traînée exercée sur le rov
+Trainée_rov_y		La composante verticale de la force de traînée exercée sur le rov
+Poids_app_rov		Le poids apparent du rov (positif si le rov a une flottabilité positive)
+Sigma_f_rov_x		La composante horizontale de la somme des forces exercées sur le rov
+Sigma_f_rov_y		La composante verticale de la somme des forces exercées sur le rov
+Tr_bat_cable_x		La composante horizontale de la force de traction exercée par le bateau sur le cable
+Tr_bat_cable_y		La composante verticale de la force de traction exercée par le bateau sur le cable
+Tr_rov_cable_x		La composante horizontale de la force de traction exercée par le rov sur le cable
+Tr_rov_cable_x		La composante verticale de la force de traction exercée par le rov sur le cable
+Poids_app_cable_y	Le poids apparent du cable (positif si le cable a une flottabilité positive)
+Trainée_cable_x		La composante horizontale de la force de traînée exercée sur le cable
+Trainée_cable_y		La composante verticale de la force de traînée exercée sur le cable
+Sigma_f_cable_x		La composante horizontale de la somme des forces exercées sur le câble
+Sigma_f_cable_y		La composante verticale de la somme des forces exercées sur le câble
+

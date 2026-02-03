@@ -1,0 +1,53 @@
+{
+    "date_sauvegarde": "2026-02-03T16:18:42.406551",
+    "mission": "M100",
+    "description": "Position initiale à -100 m, ROV avec une flottabilité légèrement négative.\nScénario : on part légèrement à droite, on descend à -200 m et on remonte. Le betau se déplace lèrement sur la doite.",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.035,
+            "a": 0.4,
+            "b": 0.7,
+            "h": 0.4,
+            "Cx": 0.9,
+            "Cy": 0.9
+        },
+        "cable": {
+            "d": 0.001,
+            "rho_cable": 1500.0,
+            "Cx_cable": 1.2,
+            "tension_rupture": 20.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5
+        },
+        "environment": {
+            "rho_eau": 1030.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 360.0,
+        "steps_per_update": 5,
+        "N_segments": 50,
+        "sc_fx_rov": "(t>0:10) (p<-30:0)  (e_prof:10)(:ex)(ex>20:-5)",
+        "sc_fy_rov": "(t>0:-5)(t>10: -10) (t >20:-50) (p< -100: 0)(:e_prof) (e_prof>30:50)(p>-1:0)(:e_surf)",
+        "sc_v_bateau": "(t>25:1) (t>30:0)",
+        "sc_v_moulinet": "(t>0:0.1) (p<-200:-1)",
+        "auto_L": 2
+    },
+    "init_params": {
+        "x_rov_init": 2.0,
+        "y_rov_init": -10.0,
+        "x_boat_init": 0.0,
+        "L_init": 12.0,
+        "v_courant": "0.0"
+    }
+}

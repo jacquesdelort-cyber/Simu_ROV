@@ -1,0 +1,26 @@
+{
+    "rov": {
+        "m": 30.0,
+        "a": 0.5,
+        "b": 0.3,
+        "h": 0.2,
+        "Cx": 0.8,
+        "Cy": 1.0
+    },
+    "cable": {
+        "d": 0.01,
+        "rho_cable": 1500.0,
+        "Cx_cable": 1.2
+    },
+    "boat": {
+        "m": 10000.0,
+        "drag_coefficient": 0.5
+    },
+    "environment": {
+        "rho_eau": 1025.0,
+        "g": 9.81,
+        "mu": 0.001,
+        "current_profile": null
+    }
+}
+

@@ -1,0 +1,13 @@
+Je souhaite disposer d'une documentation complète du projet ROV. Je suggère qu'elle soit structurée en plusieurs documents, de la manière suivante:
+
+- Contexte projet: ce document expose le contexte et les objectifs du projet.
+
+- Modélisation : ce document décrit la modélisation complète du système bateau / treuil / câble / ROV. Il  décrit  l'ensemble des équations du modèle ainsi que les constantes physiques utilisées et les conditions aux limites de chacun des sous systèmes.
+
+- Résolution numérique: ce document décrit les méthodes numériques mises en œuvre et leurs limites éventuelles. Il faudra bien décrire la méthode de normalisation de la longueur du câble.
+
+- Implémentation: ce document constitue la documentation technique et informatique du projet. Il décrit l'architecture générale du programme, l'organisation des fichiers et modules et toutes les informations nécessaires à la maintenance des programmes.
+
+La taille attendue de tous ces documents est entre 3 à 10 pages par documents, à l'exception du document d'implémentation qui pourra être un peu plus long.
+
+Tous ces documents sont à produire au format ML.
