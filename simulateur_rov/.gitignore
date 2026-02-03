@@ -83,3 +83,5 @@ results/*.npz
 .DS_Store
 Thumbs.db
 
+Missions/**/Trace
+Missions/**/trace/*.csv
