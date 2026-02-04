@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Détaillé - Simulateur ROV</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            }
+        };
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        h4 {
+            color: #666;
+            margin-top: 15px;
+        }
+        .tech-box {
+            background-color: #e8f4f8;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+            border-radius: 5px;
+        }
+        .code-block {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .architecture-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+        }
+        .recommendation {
+            background-color: #fff3cd;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+            border-radius: 5px;
+        }
+        .warning {
+            background-color: #f8d7da;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #dc3545;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #28a745;
+            border-radius: 5px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        li {
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        table th {
+            background-color: #3498db;
+            color: white;
+        }
+        table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .mermaid {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .toc {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .toc li {
+            margin: 5px 0;
+        }
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Design Détaillé - Simulateur ROV</h1>
+        <p style="font-size: 1.1em; color: #7f8c8d;">
+            <em>Document de spécification technique pour l'implémentation d'un simulateur de ROV (Remotely Operated Vehicle) avec modélisation physique complète du système ROV-Câble-Bateau.</em>
+        </p>
+
+        <div class="toc">
+            <h2>Table des matières</h2>
+            <ul>
+                <li><a href="#architecture">1. Architecture générale</a></li>
+                <li><a href="#technologies">2. Technologies logicielles</a></li>
+                <li><a href="#structure">3. Structure du projet</a></li>
+                <li><a href="#details-techniques">4. Détails techniques</a></li>
+                <li><a href="#flux-donnees">5. Flux de données</a></li>
+                <li><a href="#exemples-code">6. Exemples de code</a></li>
+                <li><a href="#implementation">7. Guide d'implémentation</a></li>
+            </ul>
+        </div>
+
+        <div class="section" id="architecture">
+            <h2>1. Architecture générale</h2>
+            
+            <p>Le simulateur ROV est conçu comme une <strong>application web hybride</strong> avec une séparation claire entre le moteur de calcul (backend) et l'interface utilisateur (frontend).</p>
+
+            <h3>1.1. Composants principaux</h3>
+            <ul>
+                <li><strong>Backend Python</strong> : moteur de calcul numérique pour la résolution des équations différentielles</li>
+                <li><strong>Frontend Web</strong> : interface utilisateur et visualisation (HTML/CSS/JavaScript)</li>
+                <li><strong>Communication temps réel</strong> : WebSocket pour le streaming des données de simulation</li>
+            </ul>
+
+            <h3>1.2. Diagramme d'architecture système</h3>
+            <div class="mermaid">
+graph TB
+    subgraph Frontend["Frontend Web (Navigateur)"]
+        UI["Interface Utilisateur<br/>React/Vue ou Vanilla JS"]
+        Viz["Visualisation 3D/2D<br/>Three.js ou Canvas"]
+        Controls["Contrôles<br/>Paramètres & Commandes"]
+    end
+    
+    subgraph Backend["Backend Python (Serveur)"]
+        API["API REST/WebSocket<br/>FastAPI ou Flask"]
+        Engine["Moteur de Simulation<br/>Solver numérique"]
+        Model["Modèle Physique<br/>ROV-Câble-Bateau"]
+    end
+    
+    subgraph Compute["Calcul Numérique"]
+        NumPy["NumPy<br/>Arrays & Calculs"]
+        SciPy["SciPy<br/>Intégration & ODE"]
+        DiffFinies["Différences Finies<br/>EDP Câble"]
+    end
+    
+    UI -->|Commandes| API
+    API -->|Données temps réel| UI
+    API --> Engine
+    Engine --> Model
+    Engine --> NumPy
+    Engine --> SciPy
+    Engine --> DiffFinies
+    Viz -->|Rendu| Engine
+            </div>
+
+            <h3>1.3. Flux de communication</h3>
+            <div class="architecture-box">
+                <h4>Flux de commande (Frontend → Backend)</h4>
+                <ol>
+                    <li>Utilisateur modifie les paramètres ou commandes dans l'IHM</li>
+                    <li>Frontend envoie les commandes via WebSocket ou API REST</li>
+                    <li>Backend reçoit et valide les commandes</li>
+                    <li>Moteur de simulation intègre les nouvelles commandes</li>
+                </ol>
+
+                <h4>Flux de données (Backend → Frontend)</h4>
+                <ol>
+                    <li>Moteur de simulation calcule l'état du système à chaque pas de temps</li>
+                    <li>Backend sérialise l'état (positions, vitesses, tensions, etc.)</li>
+                    <li>Données envoyées via WebSocket en streaming (~30-60 Hz)</li>
+                    <li>Frontend reçoit et met à jour la visualisation</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="section" id="technologies">
+            <h2>2. Technologies logicielles</h2>
+
+            <h3>2.1. Backend Python</h3>
+
+            <h4>2.1.1. Framework web</h4>
+            <div class="tech-box">
+                <h4>FastAPI (Recommandé)</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥0.104.0</li>
+                    <li><strong>Utilisation</strong> : API REST pour configuration et contrôle</li>
+                    <li><strong>Avantages</strong> :
+                        <ul>
+                            <li>Support natif WebSocket</li>
+                            <li>Validation automatique des données (Pydantic)</li>
+                            <li>Documentation automatique (OpenAPI/Swagger)</li>
+                            <li>Performance élevée (basé sur Starlette)</li>
+                            <li>Support asynchrone</li>
+                        </ul>
+                    </li>
+                    <li><strong>Alternative</strong> : Flask avec Flask-SocketIO</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <strong>Recommandation</strong> : Utiliser FastAPI pour sa performance, son support WebSocket natif et sa documentation automatique.
+            </div>
+
+            <h4>2.1.2. Bibliothèques de calcul numérique</h4>
+
+            <div class="tech-box">
+                <h4>NumPy</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥1.24.0</li>
+                    <li><strong>Utilisation</strong> :
+                        <ul>
+                            <li>Arrays multidimensionnels pour variables d'état</li>
+                            <li>Opérations vectorisées sur les positions du câble</li>
+                            <li>Gestion des matrices pour résolution système</li>
+                            <li>Opérations mathématiques de base</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>SciPy</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥1.10.0</li>
+                    <li><strong>Modules utilisés</strong> :
+                        <ul>
+                            <li><code>scipy.integrate.solve_ivp</code> : intégration temporelle pour ODE (Runge-Kutta adaptatif)</li>
+                            <li><code>scipy.optimize.root</code> ou <code>scipy.optimize.fsolve</code> : résolution des équations non-linéaires du câble</li>
+                            <li><code>scipy.interpolate</code> : interpolation pour visualisation lisse</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Pandas</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥2.0.0</li>
+                    <li><strong>Utilisation</strong> :
+                        <ul>
+                            <li>Gestion des données de simulation (export CSV)</li>
+                            <li>Analyse post-simulation</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Matplotlib (Optionnel)</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥3.7.0</li>
+                    <li><strong>Utilisation</strong> : Génération de graphiques pour analyse post-simulation</li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Numba (Optionnel - Optimisation)</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥0.57.0</li>
+                    <li><strong>Utilisation</strong> : Compilation JIT pour accélérer les boucles critiques</li>
+                    <li><strong>Exemple</strong> : Calcul de traînée sur le câble</li>
+                </ul>
+            </div>
+
+            <h4>2.1.3. Méthodes de résolution numérique</h4>
+
+            <h4>Pour les équations différentielles ordinaires (ROV, Bateau)</h4>
+            <div class="tech-box">
+                <h4>Runge-Kutta d'ordre 4 (RK4) - Méthode explicite</h4>
+                <ul>
+                    <li><strong>Précision</strong> : Ordre 4 (erreur locale O(h⁵))</li>
+                    <li><strong>Stabilité</strong> : Bonne pour systèmes non-raides</li>
+                    <li><strong>Implémentation</strong> : Via <code>scipy.integrate.solve_ivp</code> avec méthode 'RK45'</li>
+                </ul>
+
+                <h4>Runge-Kutta adaptatif (Dormand-Prince)</h4>
+                <ul>
+                    <li><strong>Précision</strong> : Ordre 5, contrôle d'erreur automatique</li>
+                    <li><strong>Avantage</strong> : Pas de temps adaptatif selon la précision requise</li>
+                    <li><strong>Implémentation</strong> : Méthode par défaut de <code>solve_ivp</code></li>
+                </ul>
+            </div>
+
+            <h4>Pour les équations aux dérivées partielles (Câble)</h4>
+            <div class="recommendation">
+                <strong>Recommandation initiale</strong> : Utiliser l'approche <strong>Quasi-statique avec différences finies</strong> pour débuter. C'est stable, rapide et offre un bon compromis précision/performance.
+            </div>
+
+            <div class="tech-box">
+                <h4>Option A - Différences Finies + Quasi-statique (Recommandé)</h4>
+                <ul>
+                    <li><strong>Discrétisation spatiale</strong> : N segments du câble (N=20 à 100)</li>
+                    <li><strong>Méthode</strong> : Résolution quasi-statique à chaque pas de temps</li>
+                    <li><strong>Résolution</strong> : Méthode de Newton pour conditions aux limites</li>
+                    <li><strong>Avantages</strong> :
+                        <ul>
+                            <li>Stable et rapide</li>
+                            <li>Bon compromis précision/performance</li>
+                            <li>Moins de complexité que méthode dynamique complète</li>
+                        </ul>
+                    </li>
+                    <li><strong>Inconvénient</strong> : Ne capture pas la dynamique rapide du câble</li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Option B - Différences Finies + Dynamique</h4>
+                <ul>
+                    <li><strong>Discrétisation spatiale</strong> : Différences finies pour ∂/∂s</li>
+                    <li><strong>Intégration temporelle</strong> : Méthode d'Euler ou RK4 pour ∂/∂t</li>
+                    <li><strong>Méthode</strong> : Système couplé ROV-Câble-Bateau résolu simultanément</li>
+                    <li><strong>Avantage</strong> : Plus précis pour dynamique rapide</li>
+                    <li><strong>Inconvénient</strong> : Plus complexe, plus coûteux en calcul</li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Option C - Méthode des lignes (Method of Lines)</h4>
+                <ul>
+                    <li><strong>Principe</strong> : Transformation EDP → système d'ODE via discrétisation spatiale</li>
+                    <li><strong>Résolution</strong> : <code>solve_ivp</code> sur le système d'ODE couplé</li>
+                    <li><strong>Avantage</strong> : Bon compromis précision/complexité</li>
+                </ul>
+            </div>
+
+            <h3>2.2. Frontend Web</h3>
+
+            <h4>2.2.1. Framework d'IHM</h4>
+            <div class="tech-box">
+                <h4>Option A - Vanilla JavaScript + Web Components</h4>
+                <ul>
+                    <li><strong>Avantages</strong> :
+                        <ul>
+                            <li>Pas de dépendances lourdes</li>
+                            <li>Léger et rapide</li>
+                            <li>Contrôles personnalisés avec Web Components</li>
+                            <li>Bon pour prototype rapide</li>
+                        </ul>
+                    </li>
+                    <li><strong>Inconvénient</strong> : Gestion d'état manuelle</li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Option B - React (Recommandé pour IHM complexe)</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥18.0.0</li>
+                    <li><strong>Avantages</strong> :
+                        <ul>
+                            <li>Composants réutilisables pour contrôles</li>
+                            <li>État géré via hooks</li>
+                            <li>Écosystème riche (Three.js React renderer)</li>
+                            <li>Grande communauté</li>
+                        </ul>
+                    </li>
+                    <li><strong>Bibliothèques complémentaires</strong> :
+                        <ul>
+                            <li><code>react-three-fiber</code> : Intégration Three.js avec React</li>
+                            <li><code>zustand</code> ou <code>redux</code> : Gestion d'état global</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Option C - Vue.js</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥3.3.0</li>
+                    <li><strong>Avantages</strong> :
+                        <ul>
+                            <li>Syntaxe simple, courbe d'apprentissage douce</li>
+                            <li>Intégration facile avec Three.js</li>
+                            <li>Performance élevée</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <strong>Recommandation</strong> : Pour une IHM simple, commencer avec Vanilla JavaScript. Pour une IHM complexe avec de nombreux contrôles, utiliser React.
+            </div>
+
+            <h4>2.2.2. Bibliothèque graphique de visualisation</h4>
+            <div class="tech-box">
+                <h4>Three.js (Recommandé pour visualisation 3D)</h4>
+                <ul>
+                    <li><strong>Version</strong> : ≥0.150.0</li>
+                    <li><strong>Utilisation</strong> :
+                        <ul>
+                            <li>Rendu 3D du ROV, câble et environnement sous-marin</li>
+                            <li>Animation fluide de la simulation</li>
+                            <li>Caméras multiples (vue de côté, vue de dessus, vue suivante)</li>
+                            <li>Support WebGL pour performance</li>
+                        </ul>
+                    </li>
+                    <li><strong>Bibliothèques complémentaires</strong> :
+                        <ul>
+                            <li><code>three/examples/jsm/controls/OrbitControls.js</code> : Contrôles caméra</li>
+                            <li><code>three/examples/jsm/helpers/GridHelper.js</code> : Grille de profondeur</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Alternatives</h4>
+                <ul>
+                    <li><strong>Canvas 2D</strong> : Simple pour visualisation 2D si 3D n'est pas nécessaire</li>
+                    <li><strong>D3.js</strong> : Pour graphiques de données (traces temporelles)</li>
+                    <li><strong>Babylon.js</strong> : Alternative à Three.js, plus orienté jeu</li>
+                </ul>
+            </div>
+
+            <h4>2.2.3. Bibliothèques UI</h4>
+            <div class="tech-box">
+                <h4>Bootstrap ou Tailwind CSS</h4>
+                <ul>
+                    <li><strong>Utilisation</strong> : Styles et composants UI pour panneaux de contrôle</li>
+                    <li><strong>Bootstrap</strong> : Composants pré-fabriqués, facile à utiliser</li>
+                    <li><strong>Tailwind CSS</strong> : Utilitaire-first, plus flexible</li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Chart.js ou Plotly.js</h4>
+                <ul>
+                    <li><strong>Utilisation</strong> : Graphiques temps réel (trajectoire, tensions, vitesses)</li>
+                    <li><strong>Chart.js</strong> : Léger, simple à utiliser</li>
+                    <li><strong>Plotly.js</strong> : Plus puissant, interactif</li>
+                </ul>
+            </div>
+
+            <h4>2.2.4. Communication WebSocket</h4>
+            <div class="tech-box">
+                <h4>Native WebSocket API</h4>
+                <ul>
+                    <li><strong>Côté client</strong> : API WebSocket native du navigateur</li>
+                    <li><strong>Côté serveur</strong> : FastAPI WebSocket ou <code>python-websockets</code></li>
+                    <li><strong>Avantage</strong> : Standard, léger, performant</li>
+                </ul>
+            </div>
+
+            <div class="tech-box">
+                <h4>Socket.IO (Optionnel)</h4>
+                <ul>
+                    <li><strong>Avantage</strong> : Plus de fonctionnalités (reconnexion automatique, rooms, etc.)</li>
+                    <li><strong>Inconvénient</strong> : Plus lourd que WebSocket natif</li>
+                    <li><strong>Recommandation</strong> : Utiliser uniquement si fonctionnalités avancées nécessaires</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="structure">
+            <h2>3. Structure du projet</h2>
+
+            <div class="code-block">
+rov-simulator/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py              # FastAPI application
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── rov_model.py     # Modèle physique ROV
+│   │   │   ├── cable_model.py   # Modèle physique câble
+│   │   │   └── boat_model.py    # Modèle physique bateau
+│   │   ├── solvers/
+│   │   │   ├── __init__.py
+│   │   │   ├── ode_solver.py    # Solveur ODE (Runge-Kutta)
+│   │   │   ├── pde_solver.py    # Solveur EDP (différences finies)
+│   │   │   └── coupled_solver.py # Solveur système couplé
+│   │   ├── utils/
+│   │   │   ├── __init__.py
+│   │   │   ├── physics.py       # Constantes physiques, forces
+│   │   │   ├── interpolation.py # Interpolation courants, etc.
+│   │   │   └── config.py        # Configuration par défaut
+│   │   └── api/
+│   │       ├── __init__.py
+│   │       ├── routes.py        # Routes REST API
+│   │       └── websocket.py     # WebSocket handlers
+│   ├── tests/
+│   │   ├── test_rov_model.py
+│   │   ├── test_cable_model.py
+│   │   └── test_solver.py
+│   ├── requirements.txt
+│   └── README.md
+├── frontend/
+│   ├── src/
+│   │   ├── index.html
+│   │   ├── js/
+│   │   │   ├── main.js          # Point d'entrée
+│   │   │   ├── visualization/
+│   │   │   │   ├── renderer.js  # Three.js renderer
+│   │   │   │   ├── scene.js     # Scène 3D
+│   │   │   │   ├── camera.js    # Gestion caméras
+│   │   │   │   └── objects.js   # ROV, câble, bateau 3D
+│   │   │   ├── controls/
+│   │   │   │   ├── parameterPanel.js
+│   │   │   │   └── commandPanel.js
+│   │   │   ├── communication/
+│   │   │   │   └── websocket.js # Client WebSocket
+│   │   │   └── charts/
+│   │   │       └── dataChart.js # Graphiques temps réel
+│   │   └── css/
+│   │       └── styles.css
+│   ├── package.json
+│   └── README.md
+├── docs/
+│   ├── design.html              # Ce document
+│   └── api.md                   # Documentation API
+└── README.md
+            </div>
+
+            <h3>3.1. Description des modules principaux</h3>
+
+            <h4>Backend</h4>
+            <table>
+                <tr>
+                    <th>Module</th>
+                    <th>Responsabilité</th>
+                </tr>
+                <tr>
+                    <td><code>main.py</code></td>
+                    <td>Point d'entrée FastAPI, configuration serveur, montage des routes</td>
+                </tr>
+                <tr>
+                    <td><code>models/rov_model.py</code></td>
+                    <td>Classe ROV avec calcul des forces, équations différentielles</td>
+                </tr>
+                <tr>
+                    <td><code>models/cable_model.py</code></td>
+                    <td>Classe Cable avec discrétisation, calcul de tension, résolution quasi-statique</td>
+                </tr>
+                <tr>
+                    <td><code>models/boat_model.py</code></td>
+                    <td>Classe Boat avec dynamique du bateau</td>
+                </tr>
+                <tr>
+                    <td><code>solvers/ode_solver.py</code></td>
+                    <td>Wrapper autour de scipy.integrate.solve_ivp pour intégration temporelle</td>
+                </tr>
+                <tr>
+                    <td><code>solvers/pde_solver.py</code></td>
+                    <td>Résolution EDP du câble (différences finies, méthode de Newton)</td>
+                </tr>
+                <tr>
+                    <td><code>solvers/coupled_solver.py</code></td>
+                    <td>Orchestration de la résolution du système couplé ROV-Câble-Bateau</td>
+                </tr>
+                <tr>
+                    <td><code>utils/physics.py</code></td>
+                    <td>Constantes physiques (g, ρ_eau), fonctions de calcul de traînée</td>
+                </tr>
+                <tr>
+                    <td><code>api/routes.py</code></td>
+                    <td>Routes REST pour configuration, démarrage/arrêt simulation</td>
+                </tr>
+                <tr>
+                    <td><code>api/websocket.py</code></td>
+                    <td>Handler WebSocket pour streaming des données de simulation</td>
+                </tr>
+            </table>
+
+            <h4>Frontend</h4>
+            <table>
+                <tr>
+                    <th>Module</th>
+                    <th>Responsabilité</th>
+                </tr>
+                <tr>
+                    <td><code>main.js</code></td>
+                    <td>Initialisation application, coordination des modules</td>
+                </tr>
+                <tr>
+                    <td><code>visualization/renderer.js</code></td>
+                    <td>Three.js WebGLRenderer, boucle de rendu</td>
+                </tr>
+                <tr>
+                    <td><code>visualization/scene.js</code></td>
+                    <td>Création scène 3D, éclairage, environnement</td>
+                </tr>
+                <tr>
+                    <td><code>visualization/objects.js</code></td>
+                    <td>Géométries 3D du ROV, câble (courbe), bateau</td>
+                </tr>
+                <tr>
+                    <td><code>controls/parameterPanel.js</code></td>
+                    <td>Interface de saisie des paramètres (masses, dimensions, etc.)</td>
+                </tr>
+                <tr>
+                    <td><code>controls/commandPanel.js</code></td>
+                    <td>Interface de commande temps réel (forces ROV, vitesse bateau)</td>
+                </tr>
+                <tr>
+                    <td><code>communication/websocket.js</code></td>
+                    <td>Client WebSocket, gestion connexion, envoi commandes, réception données</td>
+                </tr>
+                <tr>
+                    <td><code>charts/dataChart.js</code></td>
+                    <td>Graphiques temps réel (Chart.js ou Plotly.js)</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section" id="details-techniques">
+            <h2>4. Détails techniques</h2>
+
+            <h3>4.1. Discrétisation du câble</h3>
+            <div class="architecture-box">
+                <p>Le câble de longueur <code>L(t)</code> est discrétisé en <code>N</code> segments :</p>
+                <ul>
+                    <li><strong>Positions nodales</strong> : <code>x[i](t)</code>, <code>y[i](t)</code> pour <code>i = 0..N</code></li>
+                    <li><strong>i=0</strong> : point d'attache ROV</li>
+                    <li><strong>i=N</strong> : point d'attache bateau (moulinet)</li>
+                    <li><strong>Pas spatial</strong> : <code>Δs = L(t) / N</code> (adaptatif si L variable)</li>
+                    <li><strong>Recommandation N</strong> : 20 à 100 segments selon précision requise</li>
+                </ul>
+            </div>
+
+            <h3>4.2. Schéma numérique pour le câble</h3>
+            <div class="architecture-box">
+                <h4>Approche quasi-statique (recommandée initialement)</h4>
+                <pre>
+À chaque pas de temps t :
+  1. Résoudre équations d'équilibre du câble (système non-linéaire)
+     - Utiliser scipy.optimize.root avec méthode de Newton
+     - Variables : tensions T[i], angles θ[i] pour i=0..N
+  2. Calculer T(s), θ(s) et positions x(s), y(s) par intégration
+  3. Extraire T(0,t) et θ(0,t) au niveau ROV
+  4. Intégrer ODE ROV avec T(0,t) comme force appliquée
+  5. Extraire T(L,t) et θ(L,t) au niveau bateau
+  6. Intégrer ODE Bateau avec T(L,t) comme force
+                </pre>
+            </div>
+
+            <div class="architecture-box">
+                <h4>Méthode des différences finies</h4>
+                <ul>
+                    <li><strong>Dérivées spatiales</strong> : 
+                        <ul>
+                            <li><code>∂f/∂s ≈ (f[i+1] - f[i]) / Δs</code> (différence avant)</li>
+                            <li><code>∂f/∂s ≈ (f[i+1] - f[i-1]) / (2Δs)</code> (différence centrée, plus précis)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Pour équations d'équilibre</strong> : système non-linéaire à résoudre (Newton-Raphson)</li>
+                    <li><strong>Conditions aux limites</strong> : 
+                        <ul>
+                            <li>ROV : <code>x[0]=x_ROV</code>, <code>y[0]=y_ROV</code></li>
+                            <li>Bateau : <code>x[N]=x_bateau</code>, <code>y[N]=0</code></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <h3>4.3. Intégration temporelle système complet</h3>
+            <div class="architecture-box">
+                <h4>Schéma d'intégration couplé</h4>
+                <pre>
+1. État initial :
+   - Positions : x_ROV(0), y_ROV(0), x_bateau(0)
+   - Vitesses : vx_ROV(0), vy_ROV(0), vx_bateau(0)
+   - Configuration câble : L(0), configuration initiale (caténaire statique)
+
+2. Pour chaque pas de temps Δt :
+   a. Calculer forces sur câble :
+      - Traînée à chaque segment : F_drag[i] = f(v_rel[i])
+      - Poids apparent : w[i] = (ρ_cable - ρ_eau) * A_cable * g * Δs
+   
+   b. Résoudre équations câble (quasi-statique ou dynamique) :
+      - Résoudre système non-linéaire pour T[i], θ[i]
+      - Calculer positions x[i], y[i] par intégration
+   
+   c. Extraire T(0,t), θ(0,t) au niveau ROV
+   
+   d. Calculer forces sur ROV :
+      - Traînée : F_drag,ROV
+      - Tension câble : T(0,t) * [cos(θ(0,t)), sin(θ(0,t))]
+      - Forces propulsion : Fx_ROV, Fy_ROV
+      - Poussée Archimède
+   
+   e. Intégrer ODE ROV (RK4) :
+      - dvx_ROV/dt = Fx_total / m_ROV
+      - dvy_ROV/dt = Fy_total / m_ROV
+      - dx_ROV/dt = vx_ROV
+      - dy_ROV/dt = vy_ROV
+   
+   f. Extraire T(L,t), θ(L,t) au niveau bateau
+   
+   g. Calculer forces sur bateau :
+      - Tension câble : T(L,t) * cos(θ(L,t))
+      - Force propulsion : F_prop,bateau (pour atteindre vx_bateau_cmd)
+   
+   h. Intégrer ODE Bateau :
+      - dvx_bateau/dt = Fx_total / m_bateau
+      - dx_bateau/dt = vx_bateau
+   
+   i. Mettre à jour L(t) si commande dL_dt ≠ 0 :
+      - L(t+Δt) = L(t) + dL_dt * Δt
+   
+   j. Envoyer état via WebSocket (si temps d'affichage)
+                </pre>
+            </div>
+
+            <h3>4.4. Format de données WebSocket</h3>
+
+            <h4>Message de configuration initiale</h4>
+            <div class="code-block">
+{
+  "type": "config",
+  "params": {
+    "m_ROV": 100,
+    "a": 0.5,
+    "b": 0.8,
+    "h": 0.6,
+    "Cx_ROV": 0.8,
+    "Cy_ROV": 0.8,
+    "m_bateau": 10000,
+    "d": 0.02,
+    "rho_cable": 1800,
+    "Cx_cable": 1.2,
+    "L_initial": 50,
+    "N_segments": 50,
+    "dt": 0.01,
+    "rho_eau": 1025,
+    "g": 9.81,
+    "mu": 0.001,
+    "V_courant_type": "uniform",
+    "V_courant_value": 0.5
+  }
+}
+            </div>
+
+            <h4>Message de commande</h4>
+            <div class="code-block">
+{
+  "type": "command",
+  "t": 1.23,
+  "Fx_ROV": 10.0,
+  "Fy_ROV": -5.0,
+  "vx_bateau_cmd": 2.0,
+  "dL_dt": 0.1
+}
+            </div>
+
+            <h4>Message de données simulation (streaming)</h4>
+            <div class="code-block">
+{
+  "type": "state",
+  "t": 1.23,
+  "rov": {
+    "x": 5.2,
+    "y": 10.5,
+    "vx": 0.5,
+    "vy": -0.2
+  },
+  "boat": {
+    "x": 0.0,
+    "vx": 1.8
+  },
+  "cable": {
+    "L": 50.5,
+    "nodes": [
+      {"x": 5.2, "y": 10.5, "T": 120.5, "theta": -1.2},
+      {"x": 4.8, "y": 9.2, "T": 118.3, "theta": -1.15},
+      {"x": 4.3, "y": 8.1, "T": 116.1, "theta": -1.1},
+      ...
+    ]
+  }
+}
+            </div>
+
+            <h3>4.5. Performance et optimisation</h3>
+            <div class="architecture-box">
+                <h4>Points critiques</h4>
+                <ul>
+                    <li><strong>Résolution équations câble</strong> : Préférer méthode quasi-statique pour performance</li>
+                    <li><strong>Vectorisation NumPy</strong> : Éviter boucles Python, utiliser opérations vectorielles</li>
+                    <li><strong>Pas de temps adaptatif</strong> : <code>solve_ivp</code> gère automatiquement</li>
+                    <li><strong>WebSocket</strong> : Envoyer états à ~30-60 Hz (fréquence d'affichage, pas nécessairement fréquence de calcul)</li>
+                </ul>
+
+                <h4>Optimisations possibles</h4>
+                <ul>
+                    <li><strong>Numba JIT</strong> : Compiler fonctions critiques (calcul traînée sur câble, etc.)</li>
+                    <li><strong>Résolution câble en parallèle</strong> : Si multi-threading disponible</li>
+                    <li><strong>Interpolation</strong> : Réduire nombre de noeuds câble pour visualisation (garder tous les noeuds pour calcul)</li>
+                    <li><strong>Cache</strong> : Mettre en cache résultats de calculs coûteux (courant en fonction de y)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="flux-donnees">
+            <h2>5. Flux de données</h2>
+
+            <h3>5.1. Diagramme de flux de données</h3>
+            <div class="mermaid">
+sequenceDiagram
+    participant U as Utilisateur
+    participant IHM as Interface IHM
+    participant WS as WebSocket Client
+    participant API as Backend API
+    participant Engine as Moteur Simulation
+    participant Solver as Solveur Numérique
+    participant Model as Modèles Physiques
+
+    U->>IHM: Modifie paramètres/commandes
+    IHM->>WS: Envoie commande
+    WS->>API: Message WebSocket
+    API->>Engine: Met à jour commandes
+    Engine->>Solver: Résout équations
+    Solver->>Model: Calcul forces/positions
+    Model-->>Solver: Retourne résultats
+    Solver-->>Engine: État système
+    Engine->>API: Sérialise état
+    API->>WS: Envoie données
+    WS->>IHM: Reçoit état
+    IHM->>U: Met à jour visualisation
+            </div>
+
+            <h3>5.2. Cycle de simulation</h3>
+            <div class="architecture-box">
+                <h4>Boucle principale de simulation</h4>
+                <pre>
+1. Initialisation :
+   - Charger paramètres système
+   - Initialiser état initial (positions, vitesses)
+   - Créer discrétisation câble
+   - Se connecter WebSocket
+
+2. Boucle de simulation (si running) :
+   WHILE running:
+     a. Lire commandes en attente (Fx_ROV, Fy_ROV, vx_bateau_cmd, dL_dt)
+     
+     b. Résoudre système couplé pour un pas de temps Δt :
+        - Résoudre câble (quasi-statique)
+        - Intégrer ODE ROV
+        - Intégrer ODE Bateau
+        - Mettre à jour L(t)
+     
+     c. Si temps d'affichage (1/30 ou 1/60 Hz) :
+        - Sérialiser état complet
+        - Envoyer via WebSocket
+     
+     d. Vérifier conditions d'arrêt (timeout, erreur, etc.)
+     
+     e. Attendre Δt (ou utiliser boucle non-bloquante)
+
+3. Arrêt :
+   - Sauvegarder dernières données
+   - Fermer WebSocket
+   - Libérer ressources
+                </pre>
+            </div>
+        </div>
+
+        <div class="section" id="exemples-code">
+            <h2>6. Exemples de code</h2>
+
+            <h3>6.1. Backend - Modèle ROV (Python)</h3>
+            <div class="code-block">
+import numpy as np
+from scipy.integrate import solve_ivp
+
+class ROVModel:
+    def __init__(self, params):
+        self.m_ROV = params['m_ROV']
+        self.a = params['a']
+        self.b = params['b']
+        self.h = params['h']
+        self.V_ROV = self.a * self.b * self.h
+        self.Sx_ROV = self.a * self.h
+        self.Sy_ROV = self.a * self.b
+        self.Cx_ROV = params['Cx_ROV']
+        self.Cy_ROV = params['Cy_ROV']
+        self.rho_eau = params['rho_eau']
+        self.g = params['g']
+        
+    def compute_drag_force(self, vx, vy, V_courant_y):
+        """Calcule la force de traînée"""
+        vx_rel = vx - V_courant_y
+        vy_rel = vy
+        
+        F_drag_x = -0.5 * self.rho_eau * self.Cx_ROV * self.Sx_ROV * \
+                   vx_rel * abs(vx_rel)
+        F_drag_y = -0.5 * self.rho_eau * self.Cy_ROV * self.Sy_ROV * \
+                   vy_rel * abs(vy_rel)
+        
+        return np.array([F_drag_x, F_drag_y])
+    
+    def compute_buoyancy_force(self):
+        """Calcule la poussée d'Archimède"""
+        F_buoy = self.rho_eau * self.V_ROV * self.g
+        return np.array([0, F_buoy])
+    
+    def compute_gravity_force(self):
+        """Calcule le poids"""
+        F_weight = -self.m_ROV * self.g
+        return np.array([0, F_weight])
+    
+    def derivative(self, t, state, T0, theta0, F_prop, V_courant_func):
+        """
+        Calcule les dérivées pour solve_ivp
+        state = [x_ROV, y_ROV, vx_ROV, vy_ROV]
+        """
+        x_ROV, y_ROV, vx_ROV, vy_ROV = state
+        
+        # Forces
+        F_drag = self.compute_drag_force(vx_ROV, vy_ROV, V_courant_func(y_ROV))
+        F_buoy = self.compute_buoyancy_force()
+        F_weight = self.compute_gravity_force()
+        F_cable = np.array([
+            T0 * np.cos(theta0),
+            T0 * np.sin(theta0)
+        ])
+        
+        F_total = F_drag + F_buoy + F_weight + F_cable + F_prop
+        
+        # Dérivées
+        dvx_dt = F_total[0] / self.m_ROV
+        dvy_dt = F_total[1] / self.m_ROV
+        dx_dt = vx_ROV
+        dy_dt = vy_ROV
+        
+        return np.array([dx_dt, dy_dt, dvx_dt, dvy_dt])
+            </div>
+
+            <h3>6.2. Backend - Modèle Câble (Python)</h3>
+            <div class="code-block">
+import numpy as np
+from scipy.optimize import root
+
+class CableModel:
+    def __init__(self, params):
+        self.d = params['d']
+        self.rho_cable = params['rho_cable']
+        self.Cx_cable = params['Cx_cable']
+        self.rho_eau = params['rho_eau']
+        self.g = params['g']
+        self.A_cable = np.pi * (self.d / 2)**2
+        self.N = params['N_segments']
+        
+    def discretize(self, L):
+        """Crée la discrétisation du câble"""
+        self.ds = L / self.N
+        self.s = np.linspace(0, L, self.N + 1)
+        
+    def compute_drag_distributed(self, v_rel_func):
+        """Calcule la traînée distribuée"""
+        F_drag = np.zeros((self.N + 1, 2))
+        for i in range(self.N + 1):
+            v_rel = v_rel_func(self.s[i])
+            v_rel_norm = np.linalg.norm(v_rel)
+            if v_rel_norm > 0:
+                F_drag[i] = -0.5 * self.rho_eau * self.Cx_cable * \
+                           self.d * v_rel_norm * v_rel
+        return F_drag
+    
+    def compute_apparent_weight(self):
+        """Calcule le poids apparent par unité de longueur"""
+        w = (self.rho_cable - self.rho_eau) * self.A_cable * self.g
+        return w
+    
+    def solve_quasi_static(self, x_ROV, y_ROV, x_boat, y_boat, V_courant_func):
+        """
+        Résout les équations d'équilibre du câble (quasi-statique)
+        Retourne T, theta, x, y pour chaque noeud
+        """
+        # Variables : T[i], theta[i] pour i=0..N
+        n_vars = 2 * (self.N + 1)
+        
+        def residuals(vars):
+            T = vars[:self.N+1]
+            theta = vars[self.N+1:]
+            
+            # Conditions aux limites position
+            x = np.zeros(self.N + 1)
+            y = np.zeros(self.N + 1)
+            x[0] = x_ROV
+            y[0] = y_ROV
+            x[-1] = x_boat
+            y[-1] = y_boat
+            
+            # Résidus pour équations d'équilibre
+            res = np.zeros(n_vars)
+            
+            # Intégration des équations d'équilibre
+            w = self.compute_apparent_weight()
+            for i in range(self.N):
+                # Équation horizontale
+                res[i] = (T[i+1] * np.cos(theta[i+1]) - 
+                         T[i] * np.cos(theta[i])) / self.ds
+                # Ajouter traînée si nécessaire
+                
+                # Équation verticale
+                res[i + self.N + 1] = (T[i+1] * np.sin(theta[i+1]) - 
+                                      T[i] * np.sin(theta[i])) / self.ds - w
+                
+                # Géométrie
+                x[i+1] = x[i] + np.cos(theta[i]) * self.ds
+                y[i+1] = y[i] + np.sin(theta[i]) * self.ds
+            
+            # Conditions aux limites position
+            res[self.N] = x[-1] - x_boat
+            res[2*self.N + 1] = y[-1] - y_boat
+            
+            return res
+        
+        # Estimation initiale (caténaire)
+        T0 = np.ones(self.N + 1) * 100  # Tension initiale
+        theta0 = np.linspace(np.arctan2(y_boat - y_ROV, x_boat - x_ROV), 
+                           0, self.N + 1)
+        x0 = np.concatenate([T0, theta0])
+        
+        # Résolution
+        sol = root(residuals, x0, method='lm')
+        
+        if not sol.success:
+            raise ValueError("Échec résolution équations câble")
+        
+        T = sol.x[:self.N+1]
+        theta = sol.x[self.N+1:]
+        
+        # Recalculer positions
+        x = np.zeros(self.N + 1)
+        y = np.zeros(self.N + 1)
+        x[0] = x_ROV
+        y[0] = y_ROV
+        for i in range(self.N):
+            x[i+1] = x[i] + np.cos(theta[i]) * self.ds
+            y[i+1] = y[i] + np.sin(theta[i]) * self.ds
+        
+        return T, theta, x, y
+            </div>
+
+            <h3>6.3. Backend - API FastAPI avec WebSocket</h3>
+            <div class="code-block">
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
+import asyncio
+import json
+
+app = FastAPI()
+
+class SimulationParams(BaseModel):
+    m_ROV: float
+    L_initial: float
+    N_segments: int
+    dt: float
+    # ... autres paramètres
+
+class SimulationCommand(BaseModel):
+    t: float
+    Fx_ROV: float = 0.0
+    Fy_ROV: float = 0.0
+    vx_bateau_cmd: float = 0.0
+    dL_dt: float = 0.0
+
+class SimulationManager:
+    def __init__(self):
+        self.running = False
+        self.params = None
+        self.current_state = None
+        
+    async def run_simulation(self, websocket: WebSocket):
+        """Boucle principale de simulation"""
+        while self.running:
+            # Calculer un pas de temps
+            # ... résolution système couplé ...
+            
+            # Envoyer état
+            state_data = {
+                "type": "state",
+                "t": self.current_state['t'],
+                "rov": {
+                    "x": self.current_state['rov']['x'],
+                    "y": self.current_state['rov']['y'],
+                    "vx": self.current_state['rov']['vx'],
+                    "vy": self.current_state['rov']['vy']
+                },
+                # ... autres données
+            }
+            
+            await websocket.send_json(state_data)
+            await asyncio.sleep(1/30)  # ~30 Hz
+
+sim_manager = SimulationManager()
+
+@app.post("/api/config")
+async def configure_simulation(params: SimulationParams):
+    """Configure la simulation"""
+    sim_manager.params = params
+    return {"status": "configured"}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            
+            if data["type"] == "config":
+                # Configurer simulation
+                pass
+            elif data["type"] == "command":
+                # Traiter commande
+                cmd = SimulationCommand(**data)
+                # ... appliquer commande ...
+            elif data["type"] == "start":
+                sim_manager.running = True
+                await sim_manager.run_simulation(websocket)
+            elif data["type"] == "stop":
+                sim_manager.running = False
+                
+    except WebSocketDisconnect:
+        sim_manager.running = False
+            </div>
+
+            <h3>6.4. Frontend - Client WebSocket (JavaScript)</h3>
+            <div class="code-block">
+class WebSocketClient {
+    constructor(url) {
+        this.url = url;
+        this.ws = null;
+        this.callbacks = {
+            onState: null,
+            onError: null
+        };
+    }
+    
+    connect() {
+        this.ws = new WebSocket(this.url);
+        
+        this.ws.onopen = () => {
+            console.log("WebSocket connecté");
+        };
+        
+        this.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === "state" && this.callbacks.onState) {
+                this.callbacks.onState(data);
+            }
+        };
+        
+        this.ws.onerror = (error) => {
+            console.error("WebSocket erreur:", error);
+            if (this.callbacks.onError) {
+                this.callbacks.onError(error);
+            }
+        };
+        
+        this.ws.onclose = () => {
+            console.log("WebSocket fermé");
+        };
+    }
+    
+    sendCommand(command) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                type: "command",
+                ...command
+            }));
+        }
+    }
+    
+    sendConfig(params) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                type: "config",
+                params: params
+            }));
+        }
+    }
+    
+    start() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: "start" }));
+        }
+    }
+    
+    stop() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: "stop" }));
+        }
+    }
+}
+
+// Utilisation
+const wsClient = new WebSocketClient("ws://localhost:8000/ws");
+wsClient.callbacks.onState = (data) => {
+    // Mettre à jour visualisation
+    updateVisualization(data);
+};
+wsClient.connect();
+            </div>
+
+            <h3>6.5. Frontend - Visualisation Three.js (JavaScript)</h3>
+            <div class="code-block">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+class Visualization3D {
+    constructor(container) {
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(
+            75, 
+            container.clientWidth / container.clientHeight, 
+            0.1, 
+            1000
+        );
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(this.renderer.domElement);
+        
+        // Contrôles caméra
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.camera.position.set(0, 10, 20);
+        this.controls.update();
+        
+        // Créer objets
+        this.createScene();
+        
+        // Animation loop
+        this.animate();
+    }
+    
+    createScene() {
+        // Éclairage
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        this.scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 10, 5);
+        this.scene.add(directionalLight);
+        
+        // Grille de profondeur
+        const gridHelper = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
+        this.scene.add(gridHelper);
+        
+        // ROV
+        const rovGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.5);
+        const rovMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+        this.rovMesh = new THREE.Mesh(rovGeometry, rovMaterial);
+        this.scene.add(this.rovMesh);
+        
+        // Bateau
+        const boatGeometry = new THREE.BoxGeometry(5, 1, 2);
+        const boatMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+        this.boatMesh = new THREE.Mesh(boatGeometry, boatMaterial);
+        this.scene.add(this.boatMesh);
+        
+        // Câble (tube)
+        this.cableGeometry = new THREE.TubeGeometry(
+            new THREE.CatmullRomCurve3([]), 
+            50, 
+            0.02, 
+            8, 
+            false
+        );
+        const cableMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        this.cableMesh = new THREE.Mesh(this.cableGeometry, cableMaterial);
+        this.scene.add(this.cableMesh);
+    }
+    
+    updateState(state) {
+        // Mettre à jour ROV
+        this.rovMesh.position.set(state.rov.x, state.rov.y, 0);
+        
+        // Mettre à jour bateau
+        this.boatMesh.position.set(state.boat.x, 0, 0);
+        
+        // Mettre à jour câble
+        const points = state.cable.nodes.map(node => 
+            new THREE.Vector3(node.x, node.y, 0)
+        );
+        const curve = new THREE.CatmullRomCurve3(points);
+        this.scene.remove(this.cableMesh);
+        this.cableGeometry = new THREE.TubeGeometry(curve, 50, 0.02, 8, false);
+        this.cableMesh = new THREE.Mesh(this.cableGeometry, 
+                                       this.cableMesh.material);
+        this.scene.add(this.cableMesh);
+    }
+    
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+            </div>
+        </div>
+
+        <div class="section" id="implementation">
+            <h2>7. Guide d'implémentation étape par étape</h2>
+
+            <h3>Phase 1 - Prototype backend : Modèle ROV seul</h3>
+            <div class="architecture-box">
+                <h4>Objectifs</h4>
+                <ul>
+                    <li>Implémenter modèle physique ROV</li>
+                    <li>Résoudre ODE ROV avec solve_ivp</li>
+                    <li>Valider calculs forces (traînée, poids, poussée Archimède)</li>
+                </ul>
+
+                <h4>Étapes</h4>
+                <ol>
+                    <li>Créer classe <code>ROVModel</code> avec paramètres</li>
+                    <li>Implémenter calcul des forces</li>
+                    <li>Implémenter fonction dérivée pour solve_ivp</li>
+                    <li>Résoudre ODE pour cas simple (sans câble, sans courant)</li>
+                    <li>Ajouter courant et validation</li>
+                </ol>
+
+                <h4>Tests</h4>
+                <ul>
+                    <li>ROV en chute libre verticale (sans propulsion)</li>
+                    <li>ROV avec flottabilité neutre (équilibre vertical)</li>
+                    <li>ROV avec propulsion horizontale constante</li>
+                </ul>
+            </div>
+
+            <h3>Phase 2 - Câble statique</h3>
+            <div class="architecture-box">
+                <h4>Objectifs</h4>
+                <ul>
+                    <li>Implémenter modèle câble avec différences finies</li>
+                    <li>Résoudre équations d'équilibre (caténaire statique)</li>
+                    <li>Valider forme caténaire pour cas connu</li>
+                </ul>
+
+                <h4>Étapes</h4>
+                <ol>
+                    <li>Créer classe <code>CableModel</code></li>
+                    <li>Implémenter discrétisation</li>
+                    <li>Implémenter résolution quasi-statique (Newton)</li>
+                    <li>Valider avec cas caténaire classique (deux points fixes, poids uniquement)</li>
+                    <li>Ajouter traînée</li>
+                </ol>
+            </div>
+
+            <h3>Phase 3 - Couplage ROV-Câble-Bateau</h3>
+            <div class="architecture-box">
+                <h4>Objectifs</h4>
+                <ul>
+                    <li>Coupler résolution câble et ODE ROV/Bateau</li>
+                    <li>Implémenter solveur système couplé</li>
+                    <li>Valider conservation énergie/momentum</li>
+                </ul>
+
+                <h4>Étapes</h4>
+                <ol>
+                    <li>Créer classe <code>CoupledSolver</code></li>
+                    <li>Implémenter boucle d'intégration temporelle</li>
+                    <li>À chaque pas de temps :
+                        <ol>
+                            <li>Résoudre câble (quasi-statique)</li>
+                            <li>Extraire T(0), θ(0) pour ROV</li>
+                            <li>Intégrer ODE ROV</li>
+                            <li>Extraire T(L), θ(L) pour bateau</li>
+                            <li>Intégrer ODE Bateau</li>
+                        </ol>
+                    </li>
+                    <li>Valider avec simulation complète</li>
+                </ol>
+            </div>
+
+            <h3>Phase 4 - Frontend basique : Visualisation 2D</h3>
+            <div class="architecture-box">
+                <h4>Objectifs</h4>
+                <ul>
+                    <li>Créer interface HTML basique</li>
+                    <li>Implémenter visualisation 2D avec Canvas</li>
+                    <li>Connecter WebSocket et afficher données</li>
+                </ul>
+
+                <h4>Étapes</h4>
+                <ol>
+                    <li>Créer page HTML avec Canvas</li>
+                    <li>Implémenter client WebSocket</li>
+                    <li>Dessiner ROV, câble, bateau en 2D</li>
+                    <li>Animer avec données reçues</li>
+                    <li>Ajouter contrôles basiques (start/stop)</li>
+                </ol>
+            </div>
+
+            <h3>Phase 5 - Frontend avancé : Visualisation 3D</h3>
+            <div class="architecture-box">
+                <h4>Objectifs</h4>
+                <ul>
+                    <li>Migrer vers Three.js</li>
+                    <li>Créer visualisation 3D</li>
+                    <li>Ajouter contrôles caméra</li>
+                    <li>Implémenter panneau de contrôle complet</li>
+                </ul>
+
+                <h4>Étapes</h4>
+                <ol>
+                    <li>Intégrer Three.js</li>
+                    <li>Créer scène 3D (ROV, câble, bateau)</li>
+                    <li>Implémenter contrôles caméra (OrbitControls)</li>
+                    <li>Ajouter panneau paramètres</li>
+                    <li>Ajouter panneau commandes temps réel</li>
+                    <li>Ajouter graphiques temps réel (Chart.js)</li>
+                </ol>
+            </div>
+
+            <h3>Phase 6 - Optimisation et finalisation</h3>
+            <div class="architecture-box">
+                <h4>Objectifs</h4>
+                <ul>
+                    <li>Optimiser performance</li>
+                    <li>Gérer erreurs et cas limites</li>
+                    <li>Ajouter tests unitaires</li>
+                    <li>Documentation utilisateur</li>
+                </ul>
+
+                <h4>Étapes</h4>
+                <ol>
+                    <li>Profiler et optimiser boucles critiques</li>
+                    <li>Ajouter gestion erreurs (connexion perdue, divergence simulation, etc.)</li>
+                    <li>Implémenter tests unitaires pour modèles</li>
+                    <li>Ajouter export données (CSV)</li>
+                    <li>Créer documentation utilisateur</li>
+                </ol>
+            </div>
+
+            <h3>7.1. Checklist d'implémentation</h3>
+            <div class="architecture-box">
+                <h4>Backend</h4>
+                <ul>
+                    <li>□ Classe ROVModel implémentée et testée</li>
+                    <li>□ Classe CableModel implémentée et testée</li>
+                    <li>□ Classe BoatModel implémentée</li>
+                    <li>□ Solveur ODE fonctionnel</li>
+                    <li>□ Solveur EDP câble (quasi-statique) fonctionnel</li>
+                    <li>□ Solveur système couplé fonctionnel</li>
+                    <li>□ API FastAPI avec routes REST</li>
+                    <li>□ WebSocket handler implémenté</li>
+                    <li>□ Gestion erreurs et validation</li>
+                    <li>□ Tests unitaires</li>
+                </ul>
+
+                <h4>Frontend</h4>
+                <ul>
+                    <li>□ Page HTML de base</li>
+                    <li>□ Client WebSocket fonctionnel</li>
+                    <li>□ Visualisation 2D (Canvas) ou 3D (Three.js)</li>
+                    <li>□ Panneau de paramètres</li>
+                    <li>□ Panneau de commandes</li>
+                    <li>□ Graphiques temps réel</li>
+                    <li>□ Contrôles caméra (si 3D)</li>
+                    <li>□ Gestion états (connexion, simulation en cours, etc.)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>8. Références et ressources</h2>
+
+            <h3>8.1. Documentation officielle</h3>
+            <ul>
+                <li><a href="https://fastapi.tiangolo.com/">FastAPI Documentation</a></li>
+                <li><a href="https://numpy.org/doc/">NumPy Documentation</a></li>
+                <li><a href="https://docs.scipy.org/doc/scipy/">SciPy Documentation</a></li>
+                <li><a href="https://threejs.org/docs/">Three.js Documentation</a></li>
+                <li><a href="https://react.dev/">React Documentation</a></li>
+            </ul>
+
+            <h3>8.2. Méthodes numériques</h3>
+            <ul>
+                <li>Runge-Kutta methods : <a href="https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods">Wikipedia</a></li>
+                <li>Finite Difference Method : <a href="https://en.wikipedia.org/wiki/Finite_difference_method">Wikipedia</a></li>
+                <li>Method of Lines : <a href="https://en.wikipedia.org/wiki/Method_of_lines">Wikipedia</a></li>
+            </ul>
+
+            <h3>8.3. Modélisation physique</h3>
+            <ul>
+                <li>Catenary equations : <a href="https://en.wikipedia.org/wiki/Catenary">Wikipedia</a></li>
+                <li>Drag force : <a href="https://en.wikipedia.org/wiki/Drag_(physics)">Wikipedia</a></li>
+            </ul>
+        </div>
+
+        <hr>
+        <p style="text-align: center; color: #7f8c8d; margin-top: 40px;">
+            <em>Document de design - Simulateur ROV - Version 1.0</em>
+        </p>
+    </div>
+</body>
+</html>

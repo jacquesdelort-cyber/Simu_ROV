@@ -249,6 +249,7 @@ def commande_scenario(
     L: float,
     p: float,
     T_bat: float | None = None,
+    trigger_sink: list[str] | None = None,
 ) -> float | None:
     """
     Calcule une consigne à partir d'un scénario et d'un paramètre de commande.
@@ -290,6 +291,7 @@ def commande_scenario(
     criterion = criteria[k - 1]
     trigger_key = (param_commande, k)
     scenario_name = _scenario_label(param_commande)
+    trigger_text = f"{scenario_name}:{_format_criterion(criterion)}"
     triggered = commande_scenario._triggered
     kind = criterion[0]
     if kind in {"numeric", "emit"}:
@@ -307,6 +309,8 @@ def commande_scenario(
                         f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                         f"p={p:.2f} L={L:.2f}"
                     )
+                    if trigger_sink is not None:
+                        trigger_sink.append(trigger_text)
                 return float(payload)
             if trigger_key not in triggered:
                 triggered[trigger_key] = float(t)
@@ -316,6 +320,8 @@ def commande_scenario(
                     f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                     f"p={p:.2f} L={L:.2f}"
                 )
+                if trigger_sink is not None:
+                    trigger_sink.append(trigger_text)
             if payload not in commande_scenario._events:
                 commande_scenario._events[payload] = float(t)
         return None
@@ -333,6 +339,8 @@ def commande_scenario(
                     f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                     f"p={p:.2f} L={L:.2f}"
                 )
+                if trigger_sink is not None:
+                    trigger_sink.append(trigger_text)
             return z_val
 
     if kind == "always":
@@ -346,6 +354,8 @@ def commande_scenario(
                 f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                 f"p={p:.2f} L={L:.2f}"
             )
+            if trigger_sink is not None:
+                trigger_sink.append(trigger_text)
         return z_val
 
     if kind == "emit_always":
@@ -359,6 +369,8 @@ def commande_scenario(
                 f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                 f"p={p:.2f} L={L:.2f}"
             )
+            if trigger_sink is not None:
+                trigger_sink.append(trigger_text)
         if evt_name not in commande_scenario._events:
             commande_scenario._events[evt_name] = float(t)
         return None
@@ -377,9 +389,10 @@ def auto_L_1(
     Tcible: float | None = None,
     K: int = 10,
     N: int = 20,
-) -> float:
+) -> tuple[float, str]:
     """
     Calcule une consigne automatique pour dL/dt à partir de l'historique.
+    Retourne (ret, explication).
     """
     if not hasattr(auto_L_1, "_history"):
         auto_L_1._history = []
@@ -414,8 +427,8 @@ def auto_L_1(
     if len(history) > K + 1:
         del history[K + 1 :]
 
-    if len(history) ==1:
-        return 0.0
+    if len(history) == 1:
+        return 0.0, "INIT"
 
 
     curr = history[0]
@@ -427,28 +440,36 @@ def auto_L_1(
 
     
     
-    if abs(T - Tcible)  < 1:
-        return 0.0
+    if abs(T - Tcible) < 1:
+        return 0.0, "T_CLOSE"
     if abs(Tcible - prev["T"]) < 1:
-        return 0.0
+        return 0.0, "TCIBLE_PREV_CLOSE"
 
     z = (T-Tcible)/abs(prev["T"]-Tcible)
     if z < -2:
-        ret = -2 * curr["dL_dt"] -0.1
+        ret = -2 * curr["dL_dt"] - 0.1
+        exp = "Z_LT_-2"
     elif z < -1:
-        ret = -1 * abs(curr["dL_dt"]) -0.1
+        ret = -1 * abs(curr["dL_dt"]) - 0.1
+        exp = "Z_LT_-1"
     elif z < -0.5:
-        ret = -0.5 * abs(curr["dL_dt"]) -0.1
+        ret = -0.5 * abs(curr["dL_dt"]) - 0.1
+        exp = "Z_LT_-0_5"
     elif z < 0:
         ret = -0.25
+        exp = "Z_LT_0"
     elif z < 0.5:
-        ret = 0.25 * abs(curr["dL_dt"]) +0.1
+        ret = 0.25 * abs(curr["dL_dt"]) + 0.1
+        exp = "Z_LT_0_5"
     elif z < 1:
-        ret = 0.5 * abs(curr["dL_dt"]) +0.1
+        ret = 0.5 * abs(curr["dL_dt"]) + 0.1
+        exp = "Z_LT_1"
     elif z < 2:
-        ret = 1 * abs(curr["dL_dt"]) +0.1
+        ret = 1 * abs(curr["dL_dt"]) + 0.1
+        exp = "Z_LT_2"
     else:
-        ret = 2 * abs(curr["dL_dt"]) +0.1
+        ret = 2 * abs(curr["dL_dt"]) + 0.1
+        exp = "Z_GE_2"
    
     ret = ret * 1/abs(ret)
     
@@ -457,7 +478,7 @@ def auto_L_1(
         f"t: {t:.2f}, dt: {curr['dt']:.2f}, dL_dt: {curr['dL_dt']:.2f}, "
         f"T: {T:.2f}, Tcible: {Tcible:.2f}, z: {z:.2f}, ret: {ret:.2f}"
     )
-    return ret
+    return ret, exp
 
 
 def auto_L_2(
@@ -471,9 +492,10 @@ def auto_L_2(
     Tcible: float | None = None,
     K: int = 10,
     N: int = 20,
-) -> float:
+) -> tuple[float, str]:
     """
     Copie de auto_L_1 pour essais de lois de commande alternatives.
+    Retourne (ret, explication).
     """
     if not hasattr(auto_L_2, "_history"):
         auto_L_2._history = []
@@ -517,7 +539,7 @@ def auto_L_2(
         del history[K + 1 :]
 
     if len(history) < 2:
-        return 0.0
+        return 0.0, "HISTORY_LT2"
 
     J = min(K, len(history))
     avg_L = sum(item["L"] for item in history[:J]) / J
@@ -526,20 +548,116 @@ def auto_L_2(
     delta_T = history[-1]["T"] - history[0]["T"]
 
     if abs(delta_L) < 1e-2:
-        if curr["dL_dt"] > 0: 
-            trace_print(10, f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {curr["dL_dt"] - 0.1:.2f}")
-            return curr["dL_dt"] - 0.1
-        else:
-            trace_print(10, f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {curr["dL_dt"] + 0.1:.2f}")
-            return curr["dL_dt"] + 0.11
+        if curr["dL_dt"] > 0:
+            trace_print(
+                10,
+                f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {curr['dL_dt'] - 0.1:.2f}"
+            )
+            return curr["dL_dt"] - 0.1, "DELTA_L_0+"
+        trace_print(
+            10,
+            f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {curr['dL_dt'] + 0.1:.2f}"
+        )
+        return curr["dL_dt"] + 0.11, "DELTA_L_0-"
         
     est_dT_dL = delta_T / delta_L
     
-    ret  = abs((T-Tcible)/Tcible) * ((T - Tcible) / (2*est_dT_dL))
-    ret_corrigé = max(min(ret,2.02), -2.02)
+    ret = abs((T - Tcible) / Tcible) * ((T - Tcible) / (2 * est_dT_dL))
+    ret_corrige = max(min(ret, 2.02), -2.02)
     trace_print(
         10,
         f"t: {t:.2f}, L: {L:.2f}, est_dT_dL: {est_dT_dL:.2f}, "
-        f"T: {T:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrigé: {ret_corrigé:.2f}"
+        f"T: {T:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrige: {ret_corrige:.2f}"
     )
-    return ret_corrigé
+    return ret_corrige, "MAIN"
+
+
+def auto_L_3(
+    t: float,
+    p: float,
+    L: float,
+    Fx_rov: float,
+    Fy_rov: float,
+    T: float | None,
+    Trupt: float | None = None,
+    Tcible: float | None = None,
+    K: int = 10,
+    N: int = 20,
+) -> tuple[float, str]:
+    """
+    Copie de auto_L_2 pour essais de lois de commande alternatives.
+    Retourne (ret, explication).
+    """
+    if not hasattr(auto_L_3, "_history"):
+        auto_L_3._history = []
+
+    if Trupt is None:
+        try:
+            from src.utils.parameters import get_default_parameters
+
+            params = get_default_parameters()
+            Trupt = float(params.get("cable", {}).get("tension_rupture", 50.0))
+        except Exception:
+            Trupt = 50.0
+    if Tcible is None:
+        Tcible = Trupt / 2.0
+
+    history = auto_L_3._history
+    history.insert(
+        0,
+        {
+            "t": float(t),
+            "p": float(p),
+            "L": float(L),
+            "Fx_rov": float(Fx_rov),
+            "Fy_rov": float(Fy_rov),
+            "T": None if T is None else float(T),
+            "dt": None,
+            "dL": None,
+            "dT": None,
+            "dL_dt": None,
+        },
+    )
+
+    curr = history[0]
+    prev = history[1]
+    curr["dL"] = curr["L"] - prev["L"]
+    curr["dT"] = curr["T"] - prev["T"]
+    curr["dt"] = curr["t"] - prev["t"]
+    curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0
+
+    if len(history) > K + 1:
+        del history[K + 1 :]
+
+    if len(history) < 2:
+        return 0.0, "HISTORY_LT2"
+
+    J = min(K, len(history))
+    avg_L = sum(item["L"] for item in history[:J]) / J
+    avg_T = sum(item["T"] for item in history[:J]) / J
+    delta_L = history[-1]["L"] - history[0]["L"]
+    delta_T = history[-1]["T"] - history[0]["T"]
+
+    if abs(delta_L) < 1e-5:
+        if curr["dL_dt"] > 0:
+            trace_print(
+                10,
+                f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {curr['dL_dt'] - 0.1:.2f}"
+            )
+            return curr["dL_dt"] - 0.1, "DELTA_L_0+"
+        trace_print(
+            10,
+            f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {curr['dL_dt'] + 0.1:.2f}"
+        )
+        return curr["dL_dt"] + 0.11, "DELTA_L_0-"
+
+    est_dT_dL = delta_T / delta_L
+
+    ret = abs((T - Tcible) / Tcible) * ((T - Tcible) / (2 * est_dT_dL))
+    ret_corrige = max(min(ret, 2.02), -2.02)
+    trace_print(
+        10,
+        f"t: {t:.2f}, L: {L:.2f}, est_dT_dL: {est_dT_dL:.2f}, "
+        f"T: {T:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrige: {ret_corrige:.2f}"
+    )
+    return ret_corrige, "MAIN"

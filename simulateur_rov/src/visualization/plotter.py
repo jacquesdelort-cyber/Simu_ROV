@@ -489,7 +489,13 @@ def create_tension_plot(time, T, title="Tension du câble"):
     return fig
 
 
-def create_dl_dt_plot(time, dl_dt, title="Commande dL/dt", cable_mode: list[str] | None = None):
+def create_dl_dt_plot(
+    time,
+    dl_dt,
+    title="Commande dL/dt",
+    cable_mode: list[str] | None = None,
+    scenario_triggers: list[list[str]] | None = None,
+):
     """
     Crée un graphique de la commande dL/dt en fonction du temps.
     """
@@ -537,6 +543,31 @@ def create_dl_dt_plot(time, dl_dt, title="Commande dL/dt", cable_mode: list[str]
                 line=dict(color="#d9534f", width=2),
             )
         )
+
+    if scenario_triggers:
+        n_trig = min(len(time), len(scenario_triggers))
+        trig_x = []
+        trig_y = []
+        trig_text = []
+        for i in range(n_trig):
+            triggers = scenario_triggers[i]
+            if triggers:
+                trig_x.append(time[i])
+                trig_y.append(y_top)
+                trig_text.append("<br>".join(triggers))
+        if trig_x:
+            fig.add_trace(
+                go.Scatter(
+                    x=trig_x,
+                    y=trig_y,
+                    mode="markers",
+                    name="",
+                    showlegend=False,
+                    marker=dict(color="black", size=6, symbol="square"),
+                    hovertemplate="%{hovertext}<extra></extra>",
+                    hovertext=trig_text,
+                )
+            )
 
     fig.update_layout(
         xaxis_title="Temps (s)",

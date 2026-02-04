@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend
+node_modules/
+npm-debug.log*
+
+# Cursor IDE
+.cursor/
+
+# System files
+.iphigenie/
+.android/
+.conda/
+.idlerc/
+.ipython/
+.julia/
+.matplotlib/
+.streamlit/
+.jlassetregistry.json
+
+# User files
+*.xlsm
+output.mp4
+
+# Résultats de simulation
+simulateur_rov/results/*.h5
+simulateur_rov/results/*.csv
+simulateur_rov/results/*.npz
+!simulateur_rov/results/.gitkeep

@@ -364,7 +364,8 @@ class SimulationTab(QWidget):
             )
             F_buoyancy = system.rov.compute_buoyancy_force(system.environment)
             F_weight = system.rov.compute_weight_force(system.environment)
-            F_apparent_weight = F_weight - F_buoyancy
+            F_apparent_weight_down = F_weight - F_buoyancy
+            F_buoyancy_net = -F_apparent_weight_down
             
             # Tension au niveau du ROV et du bateau
             # CORRECTION: Après correction de _compute_catenary_tensions :
@@ -403,7 +404,7 @@ class SimulationTab(QWidget):
             
             # Somme des forces ROV
             Fx_total = Fx_drag_rov + Fx_traction + Fx_cmd
-            Fy_total = Fy_drag_rov + Fy_traction + F_apparent_weight + Fy_cmd
+            Fy_total = Fy_drag_rov + Fy_traction + F_apparent_weight_down + Fy_cmd
             
             # Calculer le vecteur unitaire Ubateau au niveau du bateau
             # CORRECTION: Après correction de _compute_catenary_tensions :
@@ -461,7 +462,8 @@ class SimulationTab(QWidget):
                 'Fy_drag': [Fy_drag_rov],
                 'Fx_traction': [Fx_traction],
                 'Fy_traction': [Fy_traction],
-                'F_apparent_weight': [F_apparent_weight],
+                'F_apparent_weight': [F_apparent_weight_down],
+                'F_buoyancy_net': [F_buoyancy_net],
                 'Fx_total': [Fx_total],
                 'Fy_total': [Fy_total],
                 'Fx_traction_boat': [Fx_traction_boat],
@@ -864,7 +866,7 @@ class SimulationTab(QWidget):
         metrics_layout.addWidget(self.apparent_weight_label, 29, 1)
         
         # 10. Somme des forces ROV
-        metrics_layout.addWidget(QLabel("<b>Somme forces ROV:</b>"), 30, 0)
+        metrics_layout.addWidget(QLabel("<b>Somme forces ROV (modèle):</b>"), 30, 0)
         self.total_forces_label = QLabel("(0.00, 0.00) N")
         metrics_layout.addWidget(self.total_forces_label, 30, 1)
         
@@ -1403,6 +1405,7 @@ class SimulationTab(QWidget):
                         data.get('dl_dt_cmd', []),
                         "Commande dL/dt",
                         data.get('cable_mode', []),
+                        data.get('scenario_triggers', []),
                     )
                     self.plotly_widget_dl_dt.update_figure(fig_dl_dt)
                 except Exception as e:
@@ -1632,15 +1635,19 @@ class SimulationTab(QWidget):
                 Fy_drag = 0.0
             
             # Poids apparent (format vectoriel pour cohérence)
+            F_apparent_down = 0.0
             if data.get('F_apparent_weight'):
-                F_apparent = data['F_apparent_weight'][-1] if data['F_apparent_weight'] else 0.0
-                self.apparent_weight_label.setText(f"(0.00, {F_apparent:.2f}) N")
+                F_apparent_down = data['F_apparent_weight'][-1] if data['F_apparent_weight'] else 0.0
+            if data.get('F_buoyancy_net'):
+                F_buoy_display = data['F_buoyancy_net'][-1] if data['F_buoyancy_net'] else 0.0
+                self.apparent_weight_label.setText(f"(0.00, {F_buoy_display:.2f}) N")
             else:
-                F_apparent = 0.0
+                F_buoy_display = -F_apparent_down
+                self.apparent_weight_label.setText(f"(0.00, {F_buoy_display:.2f}) N")
             
             # Somme des forces appliquées au ROV
             Fx_total = Fx_drag + Fx_traction_display + fx_rov_cmd
-            Fy_total = Fy_drag + Fy_traction_display + F_apparent + fy_rov_cmd
+            Fy_total = Fy_drag + Fy_traction_display + F_apparent_down + fy_rov_cmd
             self.total_forces_label.setText(f"({Fx_total:.2f}, {Fy_total:.2f}) N")
             
             # Coordonnées Bateau

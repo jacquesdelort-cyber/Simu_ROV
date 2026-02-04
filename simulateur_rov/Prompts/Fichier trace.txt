@@ -6,12 +6,15 @@ C'est un fichier au format csv avec les colonnes suivantes:
 Modifier la structure du fichier trace comme suit:
 J'ai ajouté les colonnes Tbat, Trov, Tmax et supprimé les colonnes vides.
 
+Merci de  renommer la 6ème colonne en "dL/dt"
+
 t			Le temps
 x _bat			La position du bateau sur l'axe des abscisses
 L0			La valeur du paramètre de configuration e la longueur initiale
 L			La longueur du câble résultant de l'action de la commande ds/dt du moulinet		
 L_seg			La somme des longueur des segments du câble
-ds_dL			La valeur de la variable de commande de vitesse de déroulement du câble 
+dL/dt			La valeur de la variable de commande de vitesse de déroulement du câble 
+mode_câble		Mode du câble (caténaire / Straight)
 Tbat			La tension du câble au contact du ROV (toujours positive ou nulle)
 Trov			La tension du câble au contact du ROV (toujours positive ou nulle)
 Tmax			La tension maximale du câble (toujours positive ou nulle)

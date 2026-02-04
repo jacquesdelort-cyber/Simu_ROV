@@ -157,7 +157,9 @@ class SimulationThread(QThread):
                             "L",
                             "L_seg",
                             "dL/dt",
-                            "mode_cable",
+                            "Explain",
+                            "mode_câble",
+                            "Scénario",
                             "Tbat",
                             "Trov",
                             "Tmax",
@@ -223,6 +225,7 @@ class SimulationThread(QThread):
                 'Fx_total_boat': [],
                 'Fy_total_boat': [],
                 'dl_dt_cmd': [],
+                'dl_dt_auto_explain': [],
                 'x_cable_curr': None,
                 'y_cable_curr': None,
             }
@@ -244,6 +247,7 @@ class SimulationThread(QThread):
                 fy_rov_cmd = None
                 vx_boat_cmd = None
                 dl_dt_cmd = None
+                dl_dt_auto_explain = ""
                 dl_dt_mode = "scen"
                 if isinstance(self.simulation_state, dict):
                     dl_dt_mode = self.simulation_state.get('dl_dt_mode', 'scen')
@@ -254,6 +258,7 @@ class SimulationThread(QThread):
                         t_boat = None
                         if T_current is not None and len(T_current) > 0:
                             t_boat = float(T_current[0])
+                        step_triggers = []
                         if self.sc_fx_rov:
                             fx_rov_cmd = commande_scenario(
                                 "Fx_rov",
@@ -262,6 +267,7 @@ class SimulationThread(QThread):
                                 L_current,
                                 y_rov_current,
                                 t_boat,
+                                step_triggers,
                             )
                         if self.sc_fy_rov:
                             fy_rov_cmd = commande_scenario(
@@ -271,6 +277,7 @@ class SimulationThread(QThread):
                                 L_current,
                                 y_rov_current,
                                 t_boat,
+                                step_triggers,
                             )
                         if self.sc_v_bateau:
                             vx_boat_cmd = commande_scenario(
@@ -280,6 +287,7 @@ class SimulationThread(QThread):
                                 L_current,
                                 y_rov_current,
                                 t_boat,
+                                step_triggers,
                             )
                         if dl_dt_mode == "auto":
                             auto_index = 1
@@ -309,7 +317,7 @@ class SimulationThread(QThread):
                             t_boat = None
                             if T_current is not None and len(T_current) > 0:
                                 t_boat = float(T_current[0])
-                            dl_dt_cmd = auto_func(
+                            auto_result = auto_func(
                                 t_current,
                                 y_rov_current,
                                 L_current,
@@ -319,6 +327,11 @@ class SimulationThread(QThread):
                                 Trupt=trupt,
                                 Tcible=tcible,
                             )
+                            if isinstance(auto_result, tuple) and len(auto_result) >= 2:
+                                dl_dt_cmd = auto_result[0]
+                                dl_dt_auto_explain = str(auto_result[1])
+                            else:
+                                dl_dt_cmd = auto_result
                             trace_print(
                                 1,
                                 f"[AUTO dL/dt] t={t_current:.2f} L={L_current:.2f} "
@@ -334,6 +347,7 @@ class SimulationThread(QThread):
                                 L_current,
                                 y_rov_current,
                                 t_boat,
+                                step_triggers,
                             )
                     except Exception as e:
                         trace_print(8, f"Erreur commande_scenario: {e}")
@@ -459,7 +473,12 @@ class SimulationThread(QThread):
                     data['L'].append(float(L))
                     if isinstance(self.simulation_state, dict):
                         data['dl_dt_cmd'].append(float(self.simulation_state.get('dl_dt', self.dl_dt)))
+                        if dl_dt_mode == "auto":
+                            data['dl_dt_auto_explain'].append(dl_dt_auto_explain)
+                        else:
+                            data['dl_dt_auto_explain'].append("")
                     data.setdefault('cable_mode', []).append(cable_mode)
+                    data.setdefault('scenario_triggers', []).append(step_triggers)
                     
                     # Tensions
                     if T is not None and len(T) > 0:
@@ -509,8 +528,10 @@ class SimulationThread(QThread):
                     F_buoyancy = system.rov.compute_buoyancy_force(system.environment)
                     F_weight = system.rov.compute_weight_force(system.environment)
                     
-                    # Poids apparent (poids - poussée d'Archimède)
-                    F_apparent_weight = F_weight - F_buoyancy
+                    # Poids apparent utilisé pour la dynamique (positif vers le bas)
+                    F_apparent_weight_down = F_weight - F_buoyancy
+                    # Flottabilité nette affichée (positive si flottabilité positive)
+                    F_buoyancy_net = -F_apparent_weight_down
                     
                     # Forces de traction du câble sur le ROV
                     # Force exercée PAR le câble SUR le ROV = -T_rov * Urov (opposée à Urov)
@@ -525,14 +546,15 @@ class SimulationThread(QThread):
                     
                     # Somme des forces appliquées au ROV
                     Fx_total = Fx_drag_rov + Fx_traction + Fx_cmd
-                    Fy_total = Fy_drag_rov + Fy_traction + F_apparent_weight + Fy_cmd
+                    Fy_total = Fy_drag_rov + Fy_traction + F_apparent_weight_down + Fy_cmd
                     
                     # Stocker les forces ROV
                     data.setdefault('Fx_drag', []).append(float(Fx_drag_rov))
                     data.setdefault('Fy_drag', []).append(float(Fy_drag_rov))
                     data.setdefault('Fx_traction', []).append(float(Fx_traction))
                     data.setdefault('Fy_traction', []).append(float(Fy_traction))
-                    data.setdefault('F_apparent_weight', []).append(float(F_apparent_weight))
+                    data.setdefault('F_apparent_weight', []).append(float(F_apparent_weight_down))
+                    data.setdefault('F_buoyancy_net', []).append(float(F_buoyancy_net))
                     data.setdefault('Fx_total', []).append(float(Fx_total))
                     data.setdefault('Fy_total', []).append(float(Fy_total))
                     
@@ -672,7 +694,9 @@ class SimulationThread(QThread):
                                     float(L),
                                     float(l_seg),
                                     float(ds_dl),
+                                    dl_dt_auto_explain,
                                     "caténaire" if cable_mode == "catenary" else "straight",
+                                    " | ".join(step_triggers) if step_triggers else "",
                                     tbat_val,
                                     trov_val,
                                     tmax_val,
@@ -688,7 +712,7 @@ class SimulationThread(QThread):
                                     float(Fy_traction),
                                     float(Fx_drag_rov),
                                     float(Fy_drag_rov),
-                                    float(F_apparent_weight),
+                                    float(F_buoyancy_net),
                                     float(Fx_total),
                                     float(Fy_total),
                                     float(tr_bat_cable_x),
