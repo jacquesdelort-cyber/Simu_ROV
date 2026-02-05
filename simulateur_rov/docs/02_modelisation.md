@@ -82,8 +82,8 @@ F_apparent_weight = F_weight - F_buoyancy
 Avec la tension du câble appliquée selon l’angle local :
 
 ```
-dvx_rov/dt = (Fx_drag + T0 * cos(theta0) + Fx_rov) / m
-dvy_rov/dt = (F_apparent_weight + Fy_drag + T0 * sin(theta0) + Fy_rov) / m
+dvx_rov/dt = (Fx_drag + T_rov * cos(theta0) + Fx_rov) / m
+dvy_rov/dt = (F_apparent_weight + Fy_drag + T_rov * sin(theta0) + Fy_rov) / m
 ```
 
 La direction (cos(theta0), sin(theta0)) est calculée à partir du segment du câble

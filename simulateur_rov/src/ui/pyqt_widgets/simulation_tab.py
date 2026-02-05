@@ -16,6 +16,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from .plotly_widget import PlotlyWidget
 from .simulation_thread import SimulationThread
 from src.utils.logger import trace_print, set_trace_level
+from src.ui.mission_utils import get_missions_directory
+from datetime import datetime
+import csv
 
 
 class CustomToolTip(QLabel):
@@ -239,17 +242,32 @@ class SimulationTab(QWidget):
         restart_row.addWidget(restart_help, 0)
         controls_layout.addLayout(restart_row)
         
-        # Export CSV
+        # Analyse mission
         export_row = QHBoxLayout()
-        self.btn_export = QPushButton("📊 Export CSV")
-        self.btn_export.setStyleSheet("background-color: #6c757d; color: white; padding: 8px;")
-        self.btn_export.setEnabled(False)
-        self.btn_export.clicked.connect(self.export_csv)
+        self.btn_export = QPushButton("📊 Analyse mission")
+        self.btn_export.setStyleSheet("background-color: #d4edda; color: #155724; padding: 8px;")
+        self.btn_export.setEnabled(True)
+        self.btn_export.clicked.connect(self.analyse_mission)
         export_row.addWidget(self.btn_export)
-        export_help = HelpButton("Exporte les données de simulation au format CSV.\n"
-                                 "Les données incluent toutes les métriques enregistrées pendant la simulation.", self)
+        export_help = HelpButton(
+            "Analyse les fichiers trace de la mission et génère un rapport Markdown.\n"
+            "Disponible uniquement après la fin de la simulation.",
+            self,
+        )
         export_row.addWidget(export_help, 0)
         controls_layout.addLayout(export_row)
+
+        # Rafraîchir graphiques
+        refresh_row = QHBoxLayout()
+        self.btn_refresh_graphs = QPushButton("🔄 Rafraîchir graphiques")
+        self.btn_refresh_graphs.setStyleSheet("background-color: #6c757d; color: white; padding: 8px;")
+        self.btn_refresh_graphs.setEnabled(False)
+        self.btn_refresh_graphs.clicked.connect(self.refresh_graphs)
+        refresh_row.addWidget(self.btn_refresh_graphs)
+        refresh_help = HelpButton("Force le rafraîchissement de tous les graphiques.\n"
+                                  "Utile si un graphique ne se met pas à jour.", self)
+        refresh_row.addWidget(refresh_help, 0)
+        controls_layout.addLayout(refresh_row)
 
         # Niveau de trace
         trace_row = QHBoxLayout()
@@ -302,6 +320,7 @@ class SimulationTab(QWidget):
         """Initialise le système ROV et met à jour les métriques temps réel"""
         try:
             import numpy as np  # Import numpy au début de la fonction
+            import copy
             
             # Debug: Afficher le nom de la mission utilisée
             current_mission = self.main_window.mission_data.get('current') if hasattr(self.main_window, 'mission_data') else None
@@ -321,7 +340,12 @@ class SimulationTab(QWidget):
             
             # Créer le système ROV
             N_segments = int(self.main_window.calc_params.get('N_segments', 50))
-            system = ROVSystem(self.main_window.parameters, N_segments=N_segments)
+            params = copy.deepcopy(self.main_window.parameters)
+            params.setdefault('cable', {})
+            params['cable']['straight_blend_alpha'] = float(
+                self.main_window.calc_params.get('straight_blend_alpha', 1.0)
+            )
+            system = ROVSystem(params, N_segments=N_segments)
             
             # Profil de courant (chaîne) depuis les conditions initiales
             v_courant = self.main_window.init_params.get('v_courant', "0.0")
@@ -454,7 +478,6 @@ class SimulationTab(QWidget):
                 'x_boat': [x_boat],
                 'vx_boat': [vx_boat],
                 'L': [L],
-                'T0': [T_rov],
                 'T_rov': [T_rov],
                 'T_boat': [T_boat],
                 'T_max': [T_max],
@@ -488,6 +511,7 @@ class SimulationTab(QWidget):
                 self.btn_start.setEnabled(True)
                 self.btn_pause.setEnabled(False)
                 self.btn_restart.setEnabled(True)
+                self._update_refresh_button_state()
             if hasattr(self, 'status_label'):
                 self.status_label.setText("Lancer la simulation")
                 self.status_label.setStyleSheet("padding: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6;")
@@ -634,7 +658,16 @@ class SimulationTab(QWidget):
         x_rov_init = self.main_window.init_params.get('x_rov_init', 0.0)
         # Le bateau est toujours à la surface (y=0)
         # Passer None pour T_cable pour éviter les problèmes
-        fig = create_system_plot(x_rov_init, y_rov_init, [], [], x_rov_init, 0, "Profil", T_cable=None)
+        fig = create_system_plot(
+            x_rov_init,
+            y_rov_init,
+            [],
+            [],
+            x_rov_init,
+            0,
+            "Profil",
+            T_cable=None,
+        )
         self.plotly_widget.update_figure(fig)
         
         # Onglets en bas de la colonne centrale
@@ -860,35 +893,40 @@ class SimulationTab(QWidget):
         self.drag_label = QLabel("(0.00, 0.00) N")
         metrics_layout.addWidget(self.drag_label, 28, 1)
         
-        # 9. Poids apparent
-        metrics_layout.addWidget(QLabel("<b>Poids apparent:</b>"), 29, 0)
+        # 9. Poids apparent (modèle, vers le bas)
+        metrics_layout.addWidget(QLabel("<b>Poids apparent (modèle):</b>"), 29, 0)
         self.apparent_weight_label = QLabel("(0.00, 0.00) N")
         metrics_layout.addWidget(self.apparent_weight_label, 29, 1)
         
-        # 10. Somme des forces ROV
+        # 10. Somme des forces ROV (modèle)
         metrics_layout.addWidget(QLabel("<b>Somme forces ROV (modèle):</b>"), 30, 0)
         self.total_forces_label = QLabel("(0.00, 0.00) N")
         metrics_layout.addWidget(self.total_forces_label, 30, 1)
+
+        # 11. Gamma ROV (accélération verticale)
+        metrics_layout.addWidget(QLabel("<b>Gamma ROV (y):</b>"), 31, 0)
+        self.gamma_rov_label = QLabel("0.00 m/s²")
+        metrics_layout.addWidget(self.gamma_rov_label, 31, 1)
         
         # Trait de séparation
         separator4 = QLabel("─" * 30)
         separator4.setStyleSheet("color: #ccc;")
-        metrics_layout.addWidget(separator4, 31, 0, 1, 2)
+        metrics_layout.addWidget(separator4, 32, 0, 1, 2)
         
         # Sous-titre "Coordonnées Bateau"
         boat_subtitle = QLabel("<b>Coordonnées Bateau</b>")
         boat_subtitle.setStyleSheet("color: #666; font-size: 10pt; margin-top: 5px;")
-        metrics_layout.addWidget(boat_subtitle, 32, 0, 1, 2)
+        metrics_layout.addWidget(boat_subtitle, 33, 0, 1, 2)
         
         # Bateau
-        metrics_layout.addWidget(QLabel("<b>Bateau:</b>"), 33, 0)
+        metrics_layout.addWidget(QLabel("<b>Bateau:</b>"), 34, 0)
         self.position_boat_label = QLabel("(0.00, 0.00) m")
-        metrics_layout.addWidget(self.position_boat_label, 33, 1)
+        metrics_layout.addWidget(self.position_boat_label, 34, 1)
         
         # Vitesse Bateau
-        metrics_layout.addWidget(QLabel("<b>Vitesse Bateau:</b>"), 34, 0)
+        metrics_layout.addWidget(QLabel("<b>Vitesse Bateau:</b>"), 35, 0)
         self.velocity_boat_label = QLabel("(0.00, 0.00) m/s")
-        metrics_layout.addWidget(self.velocity_boat_label, 34, 1)
+        metrics_layout.addWidget(self.velocity_boat_label, 35, 1)
         
         layout.addWidget(metrics_group)
         
@@ -976,6 +1014,7 @@ class SimulationTab(QWidget):
             self.btn_restart.setEnabled(False)
             self.status_label.setText("▶ Simulation en cours...")
             self.status_label.setStyleSheet("padding: 8px; background-color: #d4edda; border: 1px solid #c3e6cb;")
+            self._update_refresh_button_state()
             
             self.simulation_started.emit()
             
@@ -1004,6 +1043,7 @@ class SimulationTab(QWidget):
         self.btn_pause.setText("⏸ Pause")
         self.status_label.setText("Simulation arrêtée")
         self.status_label.setStyleSheet("padding: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6;")
+        self._update_refresh_button_state()
         
         self.simulation_stopped.emit()
     
@@ -1029,6 +1069,7 @@ class SimulationTab(QWidget):
             self.status_label.setText("▶ Simulation en cours...")
             self.status_label.setStyleSheet("padding: 8px; background-color: #d4edda; border: 1px solid #c3e6cb;")
             self.btn_restart.setEnabled(False)
+        self._update_refresh_button_state()
     
     def restart_simulation(self):
         """Réinitialise la simulation et remet les commandes à zéro."""
@@ -1050,7 +1091,6 @@ class SimulationTab(QWidget):
             'vy_rov': [],
             'x_boat': [],
             'L': [],
-            'T0': [],
             'T_rov': [],
             'T_boat': [],
             'T_max': [],
@@ -1091,10 +1131,222 @@ class SimulationTab(QWidget):
         if hasattr(self, 'progress_bar'):
             self.progress_bar.setValue(0)
     
-    def export_csv(self):
-        """Exporte les données en CSV"""
-        # TODO: Implémenter l'export CSV
-        QMessageBox.information(self, "Export", "Fonctionnalité d'export CSV à implémenter.")
+    def analyse_mission(self):
+        """Analyse les fichiers trace d'une mission et génère un rapport Markdown."""
+        state = self.main_window.get_simulation_state()
+        running = bool(state.get('running'))
+        paused = bool(state.get('paused'))
+        if running and not paused:
+            QMessageBox.warning(
+                self,
+                "Analyse mission",
+                "Analyse disponible uniquement après la fin de la simulation."
+            )
+            return
+        mission_name = None
+        if isinstance(self.main_window.mission_data, dict):
+            mission_name = self.main_window.mission_data.get('current')
+        if not mission_name or not str(mission_name).strip():
+            QMessageBox.warning(self, "Analyse mission", "Aucune mission sélectionnée.")
+            return
+
+        mission_dir = get_missions_directory() / str(mission_name)
+        if not mission_dir.exists():
+            QMessageBox.warning(self, "Analyse mission", f"Répertoire mission introuvable: {mission_dir}")
+            return
+
+        csv_files = sorted(mission_dir.glob("*trace.csv"), key=lambda p: p.stat().st_mtime)
+        msg_files = sorted(mission_dir.glob("*mess.txt"), key=lambda p: p.stat().st_mtime)
+
+        if not csv_files:
+            QMessageBox.warning(self, "Analyse mission", "Aucun fichier trace CSV trouvé.")
+            return
+        if not msg_files:
+            QMessageBox.warning(self, "Analyse mission", "Aucun fichier messages (.txt) trouvé.")
+            return
+
+        trace_csv = csv_files[-1]
+        trace_msg = msg_files[-1]
+
+        # Lire CSV
+        try:
+            with open(trace_csv, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter=",")
+                header = next(reader, [])
+                rows = list(reader)
+        except Exception as e:
+            QMessageBox.critical(self, "Analyse mission", f"Erreur lecture CSV: {e}")
+            return
+
+        def idx(name):
+            try:
+                return header.index(name)
+            except ValueError:
+                return None
+
+        i_t = idx("t")
+        i_dl = idx("dL/dt")
+        i_explain = idx("Explain")
+        i_tbat = idx("Tbat")
+        i_tmax = idx("Tmax")
+        i_trov = idx("Trov")
+
+        def to_float(val):
+            try:
+                return float(val)
+            except Exception:
+                return None
+
+        times = []
+        dl_vals = []
+        tbat_vals = []
+        tmax_vals = []
+        trov_vals = []
+        explain_vals = []
+        for row in rows:
+            if i_t is not None and i_t < len(row):
+                t_val = to_float(row[i_t])
+                if t_val is not None:
+                    times.append(t_val)
+            if i_dl is not None and i_dl < len(row):
+                dl_val = to_float(row[i_dl])
+                if dl_val is not None:
+                    dl_vals.append(dl_val)
+            if i_tbat is not None and i_tbat < len(row):
+                val = to_float(row[i_tbat])
+                if val is not None:
+                    tbat_vals.append(val)
+            if i_tmax is not None and i_tmax < len(row):
+                val = to_float(row[i_tmax])
+                if val is not None:
+                    tmax_vals.append(val)
+            if i_trov is not None and i_trov < len(row):
+                val = to_float(row[i_trov])
+                if val is not None:
+                    trov_vals.append(val)
+            if i_explain is not None and i_explain < len(row):
+                explain_vals.append((row[i_explain] or "").strip())
+
+        if not rows:
+            QMessageBox.warning(self, "Analyse mission", "Le CSV est vide.")
+            return
+
+        # Vérifier si toute la mission est en Auto
+        if not explain_vals or any(val == "" for val in explain_vals):
+            QMessageBox.warning(
+                self,
+                "Analyse mission",
+                "Analyse annulée: la mission n'a pas été exécutée entièrement en mode Auto."
+            )
+            return
+
+        # Calculs simples
+        t_final = times[-1] if times else None
+        max_tbat = max(tbat_vals) if tbat_vals else None
+        max_tmax = max(tmax_vals) if tmax_vals else None
+        max_trov = max(trov_vals) if trov_vals else None
+
+        # Accélération moulinet (|Δ(dL/dt)| / Δt)
+        max_acc = None
+        if len(times) > 1 and len(dl_vals) > 1:
+            acc_vals = []
+            for i in range(1, min(len(times), len(dl_vals))):
+                dt = times[i] - times[i - 1]
+                if dt > 0:
+                    acc_vals.append(abs(dl_vals[i] - dl_vals[i - 1]) / dt)
+            if acc_vals:
+                max_acc = max(acc_vals)
+
+        trupt = None
+        try:
+            trupt = float(self.main_window.parameters.get("cable", {}).get("tension_rupture", None))
+        except Exception:
+            trupt = None
+        tcible = None
+        try:
+            tcible = float(self.main_window.calc_params.get("Tcible", None))
+        except Exception:
+            tcible = None
+        gamma_max = None
+        try:
+            gamma_max = float(self.main_window.calc_params.get("Gamma_moulinet_max", None))
+        except Exception:
+            gamma_max = None
+
+        # Analyse messages
+        error_lines = []
+        try:
+            with open(trace_msg, "r", encoding="utf-8") as f:
+                for line in f:
+                    if "Erreur" in line or "Traceback" in line:
+                        error_lines.append(line.strip())
+        except Exception:
+            error_lines = []
+
+        auto_index = None
+        try:
+            auto_index = int(self.main_window.calc_params.get("auto_L", 1))
+        except Exception:
+            auto_index = 1
+
+        # Rédiger le rapport
+        timestamp_str = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        report_path = mission_dir / f"{mission_name}_{timestamp_str}_analyse.MD"
+
+        lines = []
+        lines.append(f"# Analyse mission {mission_name}")
+        lines.append("")
+        lines.append("## Fichiers analysés")
+        lines.append(f"- CSV: `{trace_csv.name}`")
+        lines.append(f"- Messages: `{trace_msg.name}`")
+        lines.append("")
+        lines.append("## Résumé")
+        lines.append(f"- Durée: {t_final:.2f} s" if t_final is not None else "- Durée: n/a")
+        lines.append(f"- auto_L utilisé: auto_L_{auto_index}")
+        lines.append("")
+        lines.append("## Tension câble")
+        lines.append(f"- Tbat max: {max_tbat:.2f} N" if max_tbat is not None else "- Tbat max: n/a")
+        lines.append(f"- Trov max: {max_trov:.2f} N" if max_trov is not None else "- Trov max: n/a")
+        lines.append(f"- Tmax max: {max_tmax:.2f} N" if max_tmax is not None else "- Tmax max: n/a")
+        if trupt is not None and max_tmax is not None:
+            lines.append(f"- Trupt: {trupt:.2f} N (max/Trupt = {max_tmax / trupt:.3f})")
+        if tcible is not None and max_tbat is not None:
+            lines.append(f"- Tcible: {tcible:.2f} N (écart max = {abs(max_tbat - tcible):.2f} N)")
+        lines.append("")
+        lines.append("## Commande dL/dt")
+        if max_acc is not None:
+            lines.append(f"- Accélération max |d(dL/dt)/dt|: {max_acc:.3f} m/s²")
+            if gamma_max is not None:
+                lines.append(f"- Gamma_moulinet_max: {gamma_max:.3f} m/s²")
+        else:
+            lines.append("- Accélération max: n/a")
+        lines.append("")
+        lines.append("## Messages / erreurs")
+        if error_lines:
+            lines.append(f"- {len(error_lines)} lignes contiennent 'Erreur' ou 'Traceback'")
+            lines.append("- Dernières occurrences:")
+            for line in error_lines[-5:]:
+                lines.append(f"  - {line}")
+        else:
+            lines.append("- Aucun message d'erreur détecté")
+        lines.append("")
+        lines.append("## Pistes d'amélioration auto_L")
+        lines.append("- Si Tmax/Trupt est trop élevé: augmenter l'agressivité de la libération du câble.")
+        lines.append("- Si l'accélération dépasse Gamma_moulinet_max: renforcer la limitation d'accélération.")
+        lines.append("- Flèche du câble: non analysable sans la profondeur minimale du câble dans le CSV.")
+
+        try:
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+        except Exception as e:
+            QMessageBox.critical(self, "Analyse mission", f"Erreur écriture rapport: {e}")
+            return
+
+        QMessageBox.information(
+            self,
+            "Analyse mission",
+            f"Rapport créé: {report_path.name}"
+        )
     
     def on_simulation_updated(self, data):
         """Appelé quand la simulation met à jour les données"""
@@ -1264,6 +1516,77 @@ class SimulationTab(QWidget):
         """Appelé en cas d'erreur dans la simulation"""
         QMessageBox.critical(self, "Erreur de simulation", f"Une erreur est survenue:\n{error_msg}")
         self.stop_simulation()
+
+    def _update_refresh_button_state(self):
+        state = self.main_window.get_simulation_state()
+        running = bool(state.get('running'))
+        paused = bool(state.get('paused'))
+        self.btn_refresh_graphs.setEnabled(running or paused)
+
+    def refresh_graphs(self):
+        """Force le rafraîchissement de tous les graphiques."""
+        try:
+            for widget in (
+                getattr(self, 'plotly_widget', None),
+                getattr(self, 'plotly_widget_tension', None),
+                getattr(self, 'plotly_widget_current', None),
+                getattr(self, 'plotly_widget_dl_dt', None),
+            ):
+                if widget is not None:
+                    widget.is_first_update = True
+            if hasattr(self, '_tension_graph_initialized'):
+                delattr(self, '_tension_graph_initialized')
+            self.last_plot_update_time = None
+            self.update_display()
+            state = self.main_window.get_simulation_state()
+            self._refresh_tension_vs_target_plot(state.get('data', {}))
+        except Exception as e:
+            trace_print(8, f"Erreur lors du rafraîchissement des graphiques: {e}")
+
+    def _refresh_tension_vs_target_plot(self, data):
+        if not data.get('time'):
+            return
+        try:
+            from src.visualization.plotter import create_tension_vs_target_plot
+
+            times = data.get('time', [])
+            t_rupture = None
+            try:
+                t_rupture = float(self.main_window.parameters.get('cable', {}).get('tension_rupture', 50.0))
+            except Exception:
+                t_rupture = 50.0
+            t_cible = t_rupture / 2.0 if t_rupture is not None else None
+
+            t_boat = data.get('T_boat', []) or []
+            t_rov = data.get('T_rov', []) or []
+            t_max = data.get('T_max', []) or []
+
+            min_len = min(len(times), len(t_boat), len(t_rov), len(t_max))
+            if min_len == 0:
+                return
+            times = times[:min_len]
+            t_boat = t_boat[:min_len]
+            t_rov = t_rov[:min_len]
+            t_max = t_max[:min_len]
+
+            max_points = 1500
+            step = max(1, len(times) // max_points)
+            times_ds = times[::step]
+            t_rupture_series = [t_rupture] * len(times_ds) if t_rupture is not None else []
+            t_cible_series = [t_cible] * len(times_ds) if t_cible is not None else []
+
+            fig_tension_vs_target = create_tension_vs_target_plot(
+                times_ds,
+                t_rupture_series,
+                t_cible_series,
+                t_boat[::step],
+                t_rov[::step],
+                t_max[::step],
+                "Tension vs cible",
+            )
+            self.plotly_widget_tension_vs_target.update_figure(fig_tension_vs_target)
+        except Exception as e:
+            trace_print(8, f"Erreur lors de la mise à jour du graphique Tension vs cible: {e}")
     
     def update_current_profile_plot(self, y_ref=None):
         """Met à jour le graphique du profil de courant"""
@@ -1413,46 +1736,7 @@ class SimulationTab(QWidget):
 
             if data.get('time'):
                 try:
-                    from src.visualization.plotter import create_tension_vs_target_plot
-
-                    times = data.get('time', [])
-                    t_rupture = None
-                    try:
-                        t_rupture = float(self.main_window.parameters.get('cable', {}).get('tension_rupture', 50.0))
-                    except Exception:
-                        t_rupture = 50.0
-                    t_cible = t_rupture / 2.0 if t_rupture is not None else None
-
-                    t_boat = data.get('T_boat', []) or []
-                    t_rov = data.get('T_rov', []) or []
-                    t_max = data.get('T_max', []) or []
-
-                    # Aligner les longueurs pour éviter les erreurs de rafraîchissement
-                    min_len = min(len(times), len(t_boat), len(t_rov), len(t_max))
-                    if min_len == 0:
-                        return
-                    times = times[:min_len]
-                    t_boat = t_boat[:min_len]
-                    t_rov = t_rov[:min_len]
-                    t_max = t_max[:min_len]
-
-                    # Réduire le nombre de points pour éviter les rafraîchissements lents
-                    max_points = 1500
-                    step = max(1, len(times) // max_points)
-                    times_ds = times[::step]
-                    t_rupture_series = [t_rupture] * len(times_ds) if t_rupture is not None else []
-                    t_cible_series = [t_cible] * len(times_ds) if t_cible is not None else []
-
-                    fig_tension_vs_target = create_tension_vs_target_plot(
-                        times_ds,
-                        t_rupture_series,
-                        t_cible_series,
-                        t_boat[::step],
-                        t_rov[::step],
-                        t_max[::step],
-                        "Tension vs cible",
-                    )
-                    self.plotly_widget_tension_vs_target.update_figure(fig_tension_vs_target)
+                    self._refresh_tension_vs_target_plot(data)
                 except Exception as e:
                     trace_print(8, f"Erreur lors de la mise à jour du graphique Tension vs cible: {e}")
             
@@ -1634,21 +1918,28 @@ class SimulationTab(QWidget):
                 Fx_drag = 0.0
                 Fy_drag = 0.0
             
-            # Poids apparent (format vectoriel pour cohérence)
+            # Poids apparent (modèle, vers le bas)
             F_apparent_down = 0.0
             if data.get('F_apparent_weight'):
                 F_apparent_down = data['F_apparent_weight'][-1] if data['F_apparent_weight'] else 0.0
-            if data.get('F_buoyancy_net'):
-                F_buoy_display = data['F_buoyancy_net'][-1] if data['F_buoyancy_net'] else 0.0
-                self.apparent_weight_label.setText(f"(0.00, {F_buoy_display:.2f}) N")
-            else:
-                F_buoy_display = -F_apparent_down
-                self.apparent_weight_label.setText(f"(0.00, {F_buoy_display:.2f}) N")
-            
-            # Somme des forces appliquées au ROV
-            Fx_total = Fx_drag + Fx_traction_display + fx_rov_cmd
-            Fy_total = Fy_drag + Fy_traction_display + F_apparent_down + fy_rov_cmd
+            self.apparent_weight_label.setText(f"(0.00, {F_apparent_down:.2f}) N")
+
+            # Somme des forces appliquées au ROV (modèle)
+            Fx_total = data['Fx_total'][-1] if data.get('Fx_total') else (Fx_drag + Fx_traction_display + fx_rov_cmd)
+            Fy_total = data['Fy_total'][-1] if data.get('Fy_total') else (Fy_drag + Fy_traction_display + F_apparent_down + fy_rov_cmd)
             self.total_forces_label.setText(f"({Fx_total:.2f}, {Fy_total:.2f}) N")
+
+            # Accélération verticale (gamma_rov_y)
+            mass = None
+            try:
+                mass = float(self.main_window.parameters.get('rov', {}).get('m', 0.0)) if self.main_window.parameters else 0.0
+            except Exception:
+                mass = 0.0
+            if mass and mass > 0.0:
+                gamma_rov_y = Fy_total / mass
+                self.gamma_rov_label.setText(f"{gamma_rov_y:.2f} m/s²")
+            else:
+                self.gamma_rov_label.setText("0.00 m/s²")
             
             # Coordonnées Bateau
             if data.get('x_boat'):
@@ -1728,9 +2019,22 @@ class SimulationTab(QWidget):
                                 )
 
                         # Passer les plages actuelles pour qu'elles ne changent que si nécessaire
-                        fig = create_system_plot(x_rov, y_rov, x_cable, y_cable, x_boat, L, title,
-                                               x_range=self.current_x_range, y_range=self.current_y_range,
-                                               T_cable=T_cable)
+                        cable_mode = None
+                        if data.get('cable_mode'):
+                            cable_mode = data['cable_mode'][-1]
+                        fig = create_system_plot(
+                            x_rov,
+                            y_rov,
+                            x_cable,
+                            y_cable,
+                            x_boat,
+                            L,
+                            title,
+                            x_range=self.current_x_range,
+                            y_range=self.current_y_range,
+                            T_cable=T_cable,
+                            cable_mode=cable_mode,
+                        )
                         self.plotly_widget.update_figure(fig)
                     
                     # Mettre à jour les plages stockées avec les nouvelles valeurs du graphique

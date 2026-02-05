@@ -6,7 +6,9 @@ import numpy as np
 import time
 import sys
 import os
-from src.utils.logger import trace_print
+import copy
+import concurrent.futures
+from src.utils.logger import trace_print, set_trace_file, close_trace_file
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
@@ -78,10 +80,21 @@ class SimulationThread(QThread):
             if cached_system is not None and cached_y0 is not None:
                 system = cached_system
                 y0 = np.array(cached_y0, copy=True)
+                try:
+                    alpha_val = float(self.calc_params.get('straight_blend_alpha', 1.0))
+                    if getattr(system, 'cable', None) is not None and getattr(system.cable, 'solver', None) is not None:
+                        system.cable.solver.params['straight_blend_alpha'] = alpha_val
+                except Exception:
+                    pass
             else:
                 # Créer le système ROV
                 N_segments = int(self.calc_params.get('N_segments', 50))
-                system = ROVSystem(self.parameters, N_segments=N_segments)
+                params = copy.deepcopy(self.parameters)
+                params.setdefault('cable', {})
+                params['cable']['straight_blend_alpha'] = float(
+                    self.calc_params.get('straight_blend_alpha', 1.0)
+                )
+                system = ROVSystem(params, N_segments=N_segments)
                 
                 # Profil de courant (chaîne) depuis les conditions initiales
                 v_courant = self.init_params.get('v_courant', "0.0")
@@ -134,21 +147,42 @@ class SimulationThread(QThread):
                     'dL_dt': dl_dt
                 }
             
-            # Préparer la trace CSV (une par simulation)
+            # Préparer la trace CSV et le fichier de messages (une par simulation)
             trace_handle = None
             trace_writer = None
             trace_path = None
+            trace_message_path = None
             try:
                 mission_name = getattr(system.environment, "mission_name", None) or self.mission_name
                 if mission_name and str(mission_name).strip():
                     mission_dir = get_missions_directory() / str(mission_name)
-                    trace_dir = mission_dir / "trace"
-                    trace_dir.mkdir(parents=True, exist_ok=True)
-                    timestamp_str = datetime.now().strftime("%Y-%m-%d:%H:%M:%S")
-                    safe_timestamp = timestamp_str.replace(":", "-")
-                    trace_path = trace_dir / f"{mission_name}_{safe_timestamp}.csv"
+                    mission_dir.mkdir(parents=True, exist_ok=True)
+                    # Déplacer les anciens fichiers de trace/messages/analyse
+                    trace_old_dir = mission_dir / "trace_old"
+                    patterns = ["*trace.csv", "*mess.txt", "*analyse.MD"]
+                    to_move = []
+                    for pattern in patterns:
+                        to_move.extend(list(mission_dir.glob(pattern)))
+                    if to_move:
+                        trace_old_dir.mkdir(parents=True, exist_ok=True)
+                        for src_path in to_move:
+                            if src_path.is_file():
+                                dst_path = trace_old_dir / src_path.name
+                                if dst_path.exists():
+                                    stem = dst_path.stem
+                                    suffix = dst_path.suffix
+                                    k = 1
+                                    while dst_path.exists():
+                                        dst_path = trace_old_dir / f"{stem}_{k}{suffix}"
+                                        k += 1
+                                src_path.replace(dst_path)
+
+                    timestamp_str = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+                    trace_path = mission_dir / f"{mission_name}_{timestamp_str}_tr_trace.csv"
+                    trace_message_path = mission_dir / f"{mission_name}_{timestamp_str}_mess.txt"
                     trace_handle = open(trace_path, "w", encoding="utf-8", newline="")
                     trace_writer = csv.writer(trace_handle, delimiter=",")
+                    set_trace_file(trace_message_path)
                     trace_writer.writerow(
                         [
                             "t",
@@ -199,6 +233,11 @@ class SimulationThread(QThread):
             y_current = y0.copy()
             dt = min(dt_max, t_final / 100.0)  # Pas initial
             dt_min = float(self.calc_params.get('dt_min', 1e-4))
+            max_step_wall_time = float(self.calc_params.get('max_step_wall_time', 1.0))
+            max_step_nfev = int(self.calc_params.get('max_step_nfev', 2000))
+            ode_timeout_s = float(self.calc_params.get('ode_timeout_s', 2.0))
+            ode_fallback_mode = False
+            ode_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             
             # Données accumulées
             data = {
@@ -210,7 +249,6 @@ class SimulationThread(QThread):
                 'x_boat': [],
                 'vx_boat': [],
                 'L': [],
-                'T0': [],
                 'T_rov': [],
                 'T_boat': [],
                 'T_max': [],
@@ -313,7 +351,18 @@ class SimulationThread(QThread):
                                 trupt = float(self.parameters.get("cable", {}).get("tension_rupture", 50.0))
                             except Exception:
                                 trupt = 50.0
-                            tcible = trupt / 2.0
+                            tcible = None
+                            try:
+                                tcible = self.calc_params.get("Tcible", None)
+                            except Exception:
+                                tcible = None
+                            if tcible is None or tcible == 0:
+                                tcible = trupt / 2.0
+                            gamma_moulinet_max = None
+                            try:
+                                gamma_moulinet_max = self.calc_params.get("Gamma_moulinet_max", None)
+                            except Exception:
+                                gamma_moulinet_max = None
                             t_boat = None
                             if T_current is not None and len(T_current) > 0:
                                 t_boat = float(T_current[0])
@@ -326,6 +375,8 @@ class SimulationThread(QThread):
                                 t_boat,
                                 Trupt=trupt,
                                 Tcible=tcible,
+                                Gamma_moulinet_max=gamma_moulinet_max,
+                                data=data,
                             )
                             if isinstance(auto_result, tuple) and len(auto_result) >= 2:
                                 dl_dt_cmd = auto_result[0]
@@ -355,6 +406,24 @@ class SimulationThread(QThread):
                         fy_rov_cmd = None
                         vx_boat_cmd = None
                         dl_dt_cmd = None
+
+                # Éviter une longueur de câble négative
+                if dl_dt_cmd is not None:
+                    try:
+                        L_min = 1e-6
+                        if dt > 0:
+                            min_dl_dt = (L_min - float(L_current)) / float(dt)
+                            if float(L_current) <= L_min and dl_dt_cmd < 0:
+                                dl_dt_cmd = 0.0
+                            elif dl_dt_cmd < min_dl_dt:
+                                trace_print(
+                                    8,
+                                    f"[AUTO dL/dt] Clamp dL/dt {dl_dt_cmd:.6f} -> {min_dl_dt:.6f} "
+                                    f"pour éviter L<0 (L={L_current:.6f}, dt={dt:.6f})"
+                                )
+                                dl_dt_cmd = min_dl_dt
+                    except Exception:
+                        pass
 
                 if isinstance(self.simulation_state, dict):
                     if fx_rov_cmd is not None:
@@ -386,14 +455,64 @@ class SimulationThread(QThread):
                     solution = None
                     success = False
                     retry_count = 0
+                    used_fallback = False
                     while retry_count < 5 and not success:
-                        # Utiliser la méthode d'intégration du système
-                        solution = system.integrate(
+                        if ode_fallback_mode:
+                            dy_dt = system.compute_derivatives(
+                                t_current, y_current, u_func(t_current)
+                            )
+                            y_current = y_current + (t_next - t_current) * dy_dt
+                            used_fallback = True
+                            success = True
+                            break
+
+                        # Utiliser la méthode d'intégration du système (avec timeout)
+                        step_start = time.perf_counter()
+                        future = ode_executor.submit(
+                            system.integrate,
                             [t_current, t_next],
                             y_current,
                             u_func,
-                            dt_max=dt_max
+                            dt_max
                         )
+                        try:
+                            solution = future.result(timeout=ode_timeout_s)
+                        except concurrent.futures.TimeoutError:
+                            trace_print(
+                                1,
+                                f"[WARN] Timeout ODE à t={t_current:.2f} "
+                                f"(dt={dt:.6f}, >{ode_timeout_s:.2f}s) -> fallback Euler"
+                            )
+                            ode_fallback_mode = True
+                            if ode_executor is not None:
+                                ode_executor.shutdown(wait=False, cancel_futures=True)
+                                ode_executor = None
+                            dy_dt = system.compute_derivatives(
+                                t_current, y_current, u_func(t_current)
+                            )
+                            y_current = y_current + (t_next - t_current) * dy_dt
+                            used_fallback = True
+                            success = True
+                            break
+
+                        step_elapsed = time.perf_counter() - step_start
+                        nfev = getattr(solution, "nfev", None)
+                        slow_step = (step_elapsed > max_step_wall_time) or (
+                            nfev is not None and nfev > max_step_nfev
+                        )
+                        if solution.success and slow_step:
+                            trace_print(
+                                1,
+                                f"[WARN] Pas ODE lent à t={t_current:.2f} "
+                                f"(dt={dt:.6f}, nfev={nfev}, {step_elapsed:.3f}s) -> fallback Euler"
+                            )
+                            dy_dt = system.compute_derivatives(
+                                t_current, y_current, u_func(t_current)
+                            )
+                            y_current = y_current + (t_next - t_current) * dy_dt
+                            used_fallback = True
+                            success = True
+                            break
                         
                         if solution.success:
                             success = True
@@ -412,7 +531,26 @@ class SimulationThread(QThread):
                         break
                     
                     # Mettre à jour l'état
-                    y_current = solution.sol(t_next)
+                    if not used_fallback:
+                        if getattr(solution, "sol", None) is not None:
+                            y_current = solution.sol(t_next)
+                        else:
+                            y_current = solution.y[:, -1]
+
+                    # Sécuriser les tensions (éviter valeurs négatives ou déraisonnables)
+                    try:
+                        t_rupt = float(self.parameters.get("cable", {}).get("tension_rupture", 50.0))
+                    except Exception:
+                        t_rupt = 50.0
+                    try:
+                        t_max_clip = float(self.calc_params.get("T_max_clip", t_rupt * 3.0))
+                    except Exception:
+                        t_max_clip = t_rupt * 3.0
+                    idx_t = 6 + 2 * (system.N + 1)
+                    if len(y_current) > idx_t:
+                        t_slice = y_current[idx_t:idx_t + system.N + 1]
+                        t_slice = np.clip(t_slice, 0.0, t_max_clip)
+                        y_current[idx_t:idx_t + system.N + 1] = t_slice
                     
                     # Vérification optimisée : seulement tous les N pas et seulement les valeurs critiques
                     if step_count % 10 == 0:  # Vérifier seulement tous les 10 pas
@@ -431,12 +569,27 @@ class SimulationThread(QThread):
                     dx_straight = x_rov - x_boat
                     dy_straight = y_rov - 0.0
                     L_straight = float(np.hypot(dx_straight, dy_straight))
+                    cable_length_constrained = False
                     if L_straight > 1e-9 and L < L_straight:
                         scale = float(L / L_straight)
                         x_rov = x_boat + dx_straight * scale
                         y_rov = 0.0 + dy_straight * scale
                         y_current[0] = x_rov
                         y_current[1] = y_rov
+                        cable_length_constrained = True
+
+                    # Utiliser une vitesse cohérente avec les positions (pour traînée + affichage)
+                    prev_x = data.get('x_rov', [])[-1] if data.get('x_rov') else None
+                    prev_y = data.get('y_rov', [])[-1] if data.get('y_rov') else None
+                    prev_t = data.get('time', [])[-1] if data.get('time') else None
+                    if prev_x is not None and prev_y is not None and prev_t is not None:
+                        dt_local = t_current - prev_t
+                        if dt_local > 0:
+                            vx_rov = (x_rov - prev_x) / dt_local
+                            vy_rov = (y_rov - prev_y) / dt_local
+                        else:
+                            vx_rov = 0.0
+                            vy_rov = 0.0
                     
                     # Pour l'affichage, privilégier la géométrie d'équilibre calculée par le solveur
                     x_cable_display = x_cable
@@ -454,6 +607,21 @@ class SimulationThread(QThread):
                             x_cable_display = np.flip(x_cable_display)
                             y_cable_display = np.flip(y_cable_display)
                     
+                    # Normaliser l'affichage si la longueur dérive (évite des valeurs négatives de dérive)
+                    if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
+                        length_segments = 0.0
+                        for i in range(len(x_cable_display) - 1):
+                            dx_seg = x_cable_display[i + 1] - x_cable_display[i]
+                            dy_seg = y_cable_display[i + 1] - y_cable_display[i]
+                            length_segments += float(np.hypot(dx_seg, dy_seg))
+                        if L > 1e-6 and abs(length_segments - L) / L > 1e-3:
+                            try:
+                                x_cable_display, y_cable_display = system.cable.solver._normalize_cable_length(
+                                    x_cable_display, y_cable_display, L
+                                )
+                            except Exception:
+                                pass
+
                     # Déterminer le mode câble
                     cable_mode = "catenary"
                     dx_straight = x_rov - x_boat
@@ -488,12 +656,10 @@ class SimulationThread(QThread):
                         T_rov = float(T_array[-1]) if len(T_array) > 0 else 0.0  # Tension au ROV = T[-1]
                         T_boat = float(T_array[0]) if len(T_array) > 0 else 0.0  # Tension au bateau = T[0]
                         T_max = float(np.max(T_array)) if len(T_array) > 0 else 0.0
-                        data['T0'].append(T_rov)  # Garder T0 pour compatibilité
                         data['T_rov'].append(T_rov)
                         data['T_max'].append(T_max)
                         data['T_boat'].append(T_boat)
                     else:
-                        data['T0'].append(0.0)
                         data['T_rov'].append(0.0)
                         data['T_max'].append(0.0)
                         data['T_boat'].append(0.0)
@@ -788,6 +954,7 @@ class SimulationThread(QThread):
 
             if trace_handle is not None:
                 trace_handle.close()
+            close_trace_file()
             
         except Exception as e:
             self.error_occurred.emit(f"Erreur dans la simulation: {str(e)}")
@@ -795,3 +962,4 @@ class SimulationThread(QThread):
             traceback.print_exc()
             if 'trace_handle' in locals() and trace_handle is not None:
                 trace_handle.close()
+            close_trace_file()

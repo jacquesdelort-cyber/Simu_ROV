@@ -10,18 +10,22 @@ format: "Markdown"
 
 1. Intégration temporelle
 2. Résolution couplée ROV–câble–bateau
-3. Solveur de câble
-4. Normalisation de la longueur du câble
-5. Contraintes numériques et stabilité
-6. Diagnostic et traces
-7. Schéma de la boucle numérique
-8. Schéma de normalisation de longueur
+3. Workflow détaillé (pseudo-code)
+4. Solveur de câble
+5. Normalisation de la longueur du câble
+6. Contraintes numériques et stabilité
+7. Diagnostic et traces
+8. Schéma de la boucle numérique
+9. Schéma de normalisation de longueur
 
 ## 1. Intégration temporelle
 
 Le système est intégré par la méthode de résolution d’EDO de SciPy
 (`scipy.integrate.solve_ivp`). L’intégrateur est encapsulé dans
 `TimeIntegrator` et utilise par défaut `RK45` (Runge–Kutta adaptatif d’ordre 4/5).
+L’appel à l’intégrateur se fait dans `SystemModel.integrate()`, qui fournit au
+solveur la fonction d’EDO `system_ode(t, y)`. À chaque pas, `system_ode` appelle
+`u_func(t)` (commande) puis `compute_derivatives(t, y, u)` (dérivées).
 
 Paramètres principaux :
 
@@ -33,18 +37,69 @@ Le pas de temps effectif est adaptatif, mais contraint par `max_step`.
 
 ## 2. Résolution couplée ROV–câble–bateau
 
-À chaque itération :
+À chaque itération (pas d’intégration) :
 
-1. Dépaquetage du vecteur d’état.
-2. Résolution de la géométrie du câble selon la longueur L et la configuration.
-3. Calcul des forces hydrodynamiques et des tensions.
-4. Calcul des dérivées pour le ROV, le bateau et la longueur du câble.
-5. Retour au solveur d’EDO.
+1. L’intégrateur appelle `system_ode(t, y)`.
+2. La commande est évaluée via `u_func(t)` (incluant `dL_dt`).
+3. Dépaquetage du vecteur d’état `y` (incluant la longueur courante `L`).
+4. Résolution de la géométrie du câble selon `L` et la configuration.
+5. Calcul des forces hydrodynamiques et des tensions.
+6. Calcul des dérivées pour le ROV, le bateau et la longueur du câble.
+7. Retour des dérivées au solveur d’EDO, qui met à jour l’état.
 
 Le couplage est donc fort : la géométrie du câble dépend de l’état instantané,
 et la tension influence directement la dynamique du ROV.
+La commande `dL_dt` est prise en compte dans `compute_derivatives` via
+`dydt[idx_L] = u['dL_dt']`. L’évolution de `L` est donc effectuée par
+l’intégrateur (pas d’équation explicite `L = L + dL_dt * dt` dans le code).
 
-## 3. Solveur de câble
+## 3. Workflow détaillé (pseudo-code)
+
+Le pseudo-code ci-dessous explicite l’ordre d’exécution, en mettant en évidence
+la résolution statique initiale, l’appel à l’ODE, la prise en compte du courant,
+et les normalisations de longueur.
+
+```
+integrate(t_span, y0, u_func, dt_max):
+    integrator.max_step = dt_max
+    define system_ode(t, y):
+        u = u_func(t)  # inclut dL_dt (commande moulinet)
+        return compute_derivatives(t, y, u)
+    return integrator.integrate(system_ode, t_span, y0)
+
+compute_derivatives(t, y, u):
+    # 1) Dépaquetage et contrôles
+    (x_rov, y_rov, vx_rov, vy_rov, x_boat, vx_boat,
+     x_cable, y_cable, T, L) = unpack_state(y)
+
+    # 2) Résolution de la géométrie du câble
+    if first_iteration:
+        (x_cable_new, y_cable_new, T_new) = solve_equilibrium_static(..., L)
+    else:
+        # solve_equilibrium prend en compte la dynamique et le courant
+        (x_cable_new, y_cable_new, T_new) = solve_equilibrium(..., L, courant)
+
+    # 3) Contraintes géométriques (surface) + normalisation post-clipping
+    y_cable_new = clip(y_cable_new, y <= 0)
+    if length_changed_by_clipping:
+        (x_cable_new, y_cable_new) = normalize_length(..., L)
+        y_cable_new = clip(y_cable_new, y <= 0)
+
+    # 4) Calculs de forces et tensions, puis dérivées d’état
+    dL_dt = u['dL_dt']  # prise en compte directe de la commande
+    dydt = assemble_derivatives(..., dL_dt, x_cable_new, y_cable_new, T_new)
+    return dydt
+
+solve_equilibrium(..., L, courant):
+    # Configuration dynamique du câble
+    if courant != 0:
+        # itérations: forces de traînée -> mise à jour géométrie
+        # normalisation de longueur à chaque itération si nécessaire
+        normalize_length(..., L)
+    return x_cable, y_cable, T
+```
+
+## 4. Solveur de câble
 
 ### 3.1 Statique (caténaire)
 
@@ -88,10 +143,13 @@ dT/dt = (T_new - T) / tau_tension
 Le temps de relaxation est ajusté pour améliorer la stabilité et la réponse
 lorsque le ROV remonte alors qu’il devrait descendre.
 
-## 4. Normalisation de la longueur du câble
+## 5. Normalisation de la longueur du câble
 
 La longueur L doit être respectée exactement, même après corrections de
-géométrie (ex: contraintes de surface). La normalisation est réalisée par :
+géométrie (ex: contraintes de surface). La normalisation est réalisée dans
+le solveur de câble (`_normalize_cable_length`) et, si nécessaire, réappliquée
+après clipping de surface dans `SystemModel.compute_derivatives`.
+Les étapes principales sont :
 
 1. Calcul de la longueur curviligne actuelle par somme des segments.
 2. Construction d’un abscisse curviligne cumulative `s_cumulative`.
@@ -110,10 +168,10 @@ s_target = linspace(0, L_target, N+1)
 5. Interpolation linéaire pour chaque nœud.
 6. Réapplication des contraintes (y <= 0).
 
-Cette normalisation garantit que la longueur simulée suit la consigne dL/dt,
+Cette normalisation garantit que la longueur simulée suit la consigne `dL_dt`,
 au prix d’un léger lissage de la géométrie du câble.
 
-## 5. Contraintes numériques et stabilité
+## 6. Contraintes numériques et stabilité
 
 Contraintes imposées à chaque étape :
 
@@ -127,26 +185,28 @@ Limites principales :
 - sensibilité aux paramètres de courant et de longueur
 - nécessité d’un pas de temps suffisamment petit en cas de variations rapides
 
-## 6. Diagnostic et traces
+## 7. Diagnostic et traces
 
 Le système utilise `trace_print` avec niveaux de log pour faciliter
 le diagnostic : forces, tensions, longueur, équilibre du câble.
 
 Ces traces peuvent être activées via le niveau global de log.
 
-## 7. Schéma de la boucle numérique
+## 8. Schéma de la boucle numérique
 
 ```mermaid
 flowchart TD
-    A[Etat y(t)] --> B[Decomposer et valider]
-    B --> C[Resoudre cable (statique/dynamique)]
-    C --> D[Calculer forces]
-    D --> E[Derivees dy/dt]
-    E --> F[solve_ivp / RK45]
-    F --> A
+    A[Etat y(t)] --> B[system_ode(t,y)]
+    B --> C[u_func(t) -> commande (dL_dt)]
+    C --> D[Decomposer et valider]
+    D --> E[Resoudre cable (statique/dynamique)]
+    E --> F[Calculer forces]
+    F --> G[Derivees dy/dt (incl. dL/dt)]
+    G --> H[solve_ivp / RK45]
+    H --> A
 ```
 
-## 8. Schéma de normalisation de longueur
+## 9. Schéma de normalisation de longueur
 
 ```mermaid
 flowchart LR

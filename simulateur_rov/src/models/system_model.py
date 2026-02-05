@@ -152,10 +152,25 @@ class ROVSystem:
         dx_straight = x_rov - x_boat
         dy_straight = y_rov - 0.0
         L_straight = np.hypot(dx_straight, dy_straight)
+        cable_length_constrained = False
+        cable_taut = False
         if L_straight > 1e-9 and L < L_straight:
             scale = L / L_straight
             x_rov = x_boat + dx_straight * scale
             y_rov = 0.0 + dy_straight * scale
+            # Si le câble est tendu, la vitesse du ROV est imposée par dL/dt
+            # le long de la direction du câble (v_rel = dL_dt * r_hat).
+            r_hat_x = dx_straight / L_straight
+            r_hat_y = dy_straight / L_straight
+            dL_dt = float(u.get('dL_dt', 0.0))
+            vx_rov = vx_boat + dL_dt * r_hat_x
+            vy_rov = dL_dt * r_hat_y
+            cable_taut = True
+            cable_length_constrained = True
+            # Quand la longueur du câble contraint la position, la vitesse verticale
+            # issue de l'intégration n'est plus cohérente avec la position recalée.
+            # On force vy_rov à 0 pour éviter une traînée incohérente.
+            vy_rov = 0.0
 
         # Résoudre la configuration du câble
         # IMPORTANT: La longueur L est transmise au solveur à chaque itération
@@ -265,7 +280,7 @@ class ROVSystem:
         # Les tensions T_new retournées par le solveur suivent l'ordre des positions:
         # T_new[0] = tension au bateau, T_new[-1] = tension au ROV
         # (cohérent avec x_cable_new[0] = bateau, x_cable_new[-1] = ROV)
-        T0_new_static = T_new[-1] if len(T_new) > 0 else 0.0  # Tension au ROV = T[-1]
+        T_rov_target_static = T_new[-1] if len(T_new) > 0 else 0.0  # Tension au ROV = T[-1]
         
         # Calculer les forces sur le ROV pour déterminer la tension cible dynamique
         # (On doit calculer ces forces maintenant pour adapter la tension)
@@ -279,20 +294,20 @@ class ROVSystem:
         # Calculer la tension cible dynamique en fonction du mouvement
         # Si le ROV remonte alors qu'il devrait descendre, réduire la tension cible
         # pour permettre au poids apparent de créer une force nette vers le bas
-        T0_new = T0_new_static
+        T_rov_target = T_rov_target_static
         if vy_rov > 0.0 and F_apparent_weight_temp > 0.0 and abs(u['Fy_rov']) < 1e-6:
             # Le ROV remonte alors qu'il devrait descendre
             # Réduire la tension cible pour permettre au poids apparent de dominer
             # La tension cible doit être inférieure au poids apparent pour créer une force nette vers le bas
             reduction_factor = min(0.8, 0.3 + abs(vy_rov) * 0.5)  # Réduction jusqu'à 80%
-            T0_new = T0_new_static * (1.0 - reduction_factor)
+            T_rov_target = T_rov_target_static * (1.0 - reduction_factor)
             # Limiter la tension cible entre 10% et 20% du poids apparent
-            T0_new = min(T0_new, F_apparent_weight_temp * 0.2)
-            T0_new = max(T0_new, F_apparent_weight_temp * 0.1)
+            T_rov_target = min(T_rov_target, F_apparent_weight_temp * 0.2)
+            T_rov_target = max(T_rov_target, F_apparent_weight_temp * 0.1)
         
         # Utiliser la tension de l'état actuel au niveau du ROV (index -1)
-        # La tension T[-1] est mise à jour dynamiquement via dT_dt vers T0_new
-        T0 = T[-1] if len(T) > 0 else T0_new
+        # La tension T[-1] est mise à jour dynamiquement via dT_dt vers T_rov_target
+        T_rov = T[-1] if len(T) > 0 else T_rov_target
         
         # Calculer le vecteur unitaire au niveau du ROV (direction vers le bateau)
         # CORRECTION: Après correction de _compute_catenary_tensions :
@@ -337,19 +352,19 @@ class ROVSystem:
             cos_theta0 = 0.0  # Câble vertical
             sin_theta0 = 1.0  # Vers le haut
         
-        # Forces sur le ROV (déjà calculées plus haut pour T0_new, réutiliser les valeurs)
+        # Forces sur le ROV (déjà calculées plus haut pour T_rov_target, réutiliser les valeurs)
         Fx_drag_rov = Fx_drag_rov_temp
         Fy_drag_rov = Fy_drag_rov_temp
         F_buoyancy = F_buoyancy_temp
         F_weight = F_weight_temp
         F_apparent_weight = F_apparent_weight_temp
         
-        # CORRECTION: Le solveur de câble calcule une tension T0 qui équilibre le poids apparent
-        # à l'équilibre statique. Quand le câble est vertical, T0 ≈ F_apparent_weight et sin_theta0 ≈ 1.0,
-        # donc T0 * sin_theta0 ≈ F_apparent_weight, ce qui annule exactement F_apparent_weight dans
+        # CORRECTION: Le solveur de câble calcule une tension au ROV qui équilibre le poids apparent
+        # à l'équilibre statique. Quand le câble est vertical, T_rov ≈ F_apparent_weight et sin_theta0 ≈ 1.0,
+        # donc T_rov * sin_theta0 ≈ F_apparent_weight, ce qui annule exactement F_apparent_weight dans
         # l'équation du mouvement, empêchant tout mouvement vertical même quand une force est appliquée.
         #
-        # Solution: La tension du câble T0 * sin_theta0 équilibre déjà le poids apparent à l'équilibre.
+        # Solution: La tension du câble T_rov * sin_theta0 équilibre déjà le poids apparent à l'équilibre.
         # Dans l'équation du mouvement, nous ne devons pas compter deux fois le poids apparent.
         # La solution correcte est de ne pas inclure F_apparent_weight dans l'équation du mouvement
         # si la tension du câble l'équilibre déjà. La tension du câble est une force de réaction
@@ -359,26 +374,26 @@ class ROVSystem:
         # s'adapte aux forces appliquées. La tension effective doit équilibrer le poids apparent
         # plus une partie des forces appliquées pour permettre l'accélération.
         
-        # CORRECTION: Utiliser la tension dynamique T[0] de l'état actuel au lieu de T0_new du solveur.
-        # La tension T[0] évolue dynamiquement selon dT_dt = (T_new - T) / tau_tension,
+        # CORRECTION: Utiliser la tension dynamique T_rov de l'état actuel au lieu de T_rov_target du solveur.
+        # La tension T_rov évolue dynamiquement selon dT_dt = (T_new - T) / tau_tension,
         # ce qui permet l'adaptation aux forces appliquées et au mouvement.
-        # Le solveur calcule T0_new comme référence pour l'équilibre statique, mais T[0] évolue
+        # Le solveur calcule T_rov_target comme référence pour l'équilibre statique, mais T_rov évolue
         # selon les forces réelles, permettant ainsi le mouvement vertical.
         #
         # Avec cette correction, T[0] peut s'adapter aux forces appliquées et ne pas équilibrer
         # exactement F_apparent_weight, ce qui permet l'accélération verticale.
         
         # Équations du ROV
-        # La tension T[0] évolue dynamiquement et peut s'adapter aux forces appliquées.
-        # F_apparent_weight est toujours inclus car T[0] peut ne pas l'équilibrer exactement
+        # La tension T_rov évolue dynamiquement et peut s'adapter aux forces appliquées.
+        # F_apparent_weight est toujours inclus car T_rov peut ne pas l'équilibrer exactement
         # dans le mouvement dynamique, permettant ainsi l'accélération.
-        dvx_rov_dt = (Fx_drag_rov + T0 * cos_theta0 + u['Fx_rov']) / self.rov.m
+        dvx_rov_dt = (Fx_drag_rov + T_rov * cos_theta0 + u['Fx_rov']) / self.rov.m
         
         # Calculer la force verticale totale avec la tension actuelle
-        # La tension T0 évolue dynamiquement vers T0_new via dT_dt
-        # Si T0_new a été réduit (ROV remonte alors qu'il devrait descendre),
+        # La tension T_rov évolue dynamiquement vers T_rov_target via dT_dt
+        # Si T_rov_target a été réduit (ROV remonte alors qu'il devrait descendre),
         # la tension s'adaptera progressivement, permettant le mouvement
-        Fy_total = F_apparent_weight + Fy_drag_rov + T0 * sin_theta0 + u['Fy_rov']
+        Fy_total = F_apparent_weight + Fy_drag_rov + T_rov * sin_theta0 + u['Fy_rov']
         dvy_rov_dt = Fy_total / self.rov.m
         
         # Contrainte de surface : y_rov <= 0 (profondeur négative)
@@ -396,6 +411,12 @@ class ROVSystem:
                 Fy_surface_reaction = -self.rov.m * dvy_rov_dt
                 Fy_total = Fy_total + Fy_surface_reaction
                 dvy_rov_dt = Fy_total / self.rov.m
+
+        # Si le câble est tendu, la cinématique est imposée par dL/dt.
+        # On annule l'accélération pour éviter des valeurs incohérentes.
+        if cable_taut:
+            dvx_rov_dt = 0.0
+            dvy_rov_dt = 0.0
         
         # Forces sur le bateau
         # Les tensions T_new conservent l'ordre original: T_new[-1] = tension au bateau
@@ -479,7 +500,7 @@ class ROVSystem:
         
         # Mettre à jour T_new[-1] (ROV) avec la tension cible dynamique calculée plus haut
         if len(T_new) > 0:
-            T_new[-1] = T0_new
+            T_new[-1] = T_rov_target
         
         dT_dt = (T_new - T) / tau_tension
         

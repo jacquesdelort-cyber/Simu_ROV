@@ -38,7 +38,7 @@ class ROVSimulatorApp(QMainWindow):
                 'vy_rov': [],
                 'x_boat': [],
                 'L': [],
-                'T0': [],
+            'T_rov': [],
                 'T_boat': [],
                 'T_max': [],
                 'x_cable_curr': None,
@@ -55,7 +55,10 @@ class ROVSimulatorApp(QMainWindow):
             'steps_per_update': 5,
             't_final': 60.0,
             'dt_max': 0.1,
-            'N_segments': 50
+            'N_segments': 50,
+            'straight_blend_alpha': 1.0,
+            'Tcible': None,
+            'Gamma_moulinet_max': 0.5,
         }
         
         self.init_params = {

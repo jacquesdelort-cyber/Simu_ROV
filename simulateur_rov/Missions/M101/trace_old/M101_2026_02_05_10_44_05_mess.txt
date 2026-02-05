@@ -1,0 +1,520 @@
+[SCEN] t=0.10 scen=Fy crit=(t>0:-50) T_bat=0.8068861135073987 p=-100.00 L=110.00
+AUTO_L_6: t=0.10, T=0.81, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.00, desired= -0.20, ret= -0.02, exp=REG_SIGN_ACC
+AUTO_L_6: t=0.20, T=1.07, Trupt=50.00, Tcible=25.00, est_dT_dL=-347.25, desired= -0.03, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=0.30, T=4.23, Trupt=50.00, Tcible=25.00, est_dT_dL=-928.00, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=0.40, T=8.85, Trupt=50.00, Tcible=25.00, est_dT_dL=-1369.15, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=0.50, T=13.18, Trupt=50.00, Tcible=25.00, est_dT_dL=-1583.60, desired= -0.00, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=0.60, T=16.45, Trupt=50.00, Tcible=25.00, est_dT_dL=-1635.53, desired= -0.00, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=0.70, T=18.64, Trupt=50.00, Tcible=25.00, est_dT_dL=-1598.42, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=0.80, T=19.99, Trupt=50.00, Tcible=25.00, est_dT_dL=-1522.92, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=0.90, T=20.80, Trupt=50.00, Tcible=25.00, est_dT_dL=-1437.24, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.00, T=21.26, Trupt=50.00, Tcible=25.00, est_dT_dL=-1354.65, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.10, T=21.53, Trupt=50.00, Tcible=25.00, est_dT_dL=-1254.40, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.20, T=21.68, Trupt=50.00, Tcible=25.00, est_dT_dL=-1327.15, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.30, T=21.76, Trupt=50.00, Tcible=25.00, est_dT_dL=-1226.45, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.40, T=21.81, Trupt=50.00, Tcible=25.00, est_dT_dL=-989.55, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.50, T=21.83, Trupt=50.00, Tcible=25.00, est_dT_dL=-722.95, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.60, T=21.85, Trupt=50.00, Tcible=25.00, est_dT_dL=-493.06, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.70, T=21.85, Trupt=50.00, Tcible=25.00, est_dT_dL=-320.90, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.80, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=-202.16, desired= -0.01, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.90, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=-124.07, desired= -0.01, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=2.00, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL= -74.11, desired= -0.02, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=2.10, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL= -42.69, desired= -0.04, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=2.20, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL= -23.27, desired= -0.07, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=2.30, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL= -11.62, desired= -0.14, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=2.40, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.03, desired= -0.31, ret= -0.06, exp=REG_T_ACC
+AUTO_L_6: t=2.50, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.70, desired= -0.92, ret= -0.11, exp=REG_T_ACC
+AUTO_L_6: t=2.60, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.35, desired= -4.47, ret= -0.16, exp=REG_T_ACC
+AUTO_L_6: t=2.70, T=21.85, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.10, desired= 15.59, ret= -0.11, exp=REG_T_ACC
+AUTO_L_6: t=2.80, T=21.85, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.26, desired=  5.98, ret= -0.06, exp=REG_T_ACC
+AUTO_L_6: t=2.90, T=21.84, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.34, desired=  4.66, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=3.00, T=21.84, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  4.13, ret=  0.04, exp=REG_T_ACC
+AUTO_L_6: t=3.10, T=21.84, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  3.80, ret=  0.09, exp=REG_T_ACC
+AUTO_L_6: t=3.20, T=21.84, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.46, desired=  3.45, ret=  0.14, exp=REG_T_ACC
+AUTO_L_6: t=3.30, T=21.85, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.55, desired=  2.86, ret=  0.19, exp=REG_T_ACC
+AUTO_L_6: t=3.40, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=   2.72, desired=  0.58, ret=  0.23, exp=REG_T_ACC
+AUTO_L_6: t=3.50, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.16, desired= 10.01, ret=  0.28, exp=REG_T_ACC
+AUTO_L_6: t=3.60, T=21.87, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.27, desired=  5.78, ret=  0.33, exp=REG_T_ACC
+AUTO_L_6: t=3.70, T=21.89, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.31, desired=  5.06, ret=  0.38, exp=REG_T_ACC
+AUTO_L_6: t=3.80, T=21.90, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.33, desired=  4.65, ret=  0.43, exp=REG_T_ACC
+AUTO_L_6: t=3.90, T=21.92, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.35, desired=  4.43, ret=  0.48, exp=REG_T_ACC
+AUTO_L_6: t=4.00, T=21.93, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.36, desired=  4.29, ret=  0.53, exp=REG_T_ACC
+AUTO_L_6: t=4.10, T=21.95, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.36, desired=  4.18, ret=  0.58, exp=REG_T_ACC
+AUTO_L_6: t=4.20, T=21.98, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.37, desired=  4.10, ret=  0.63, exp=REG_T_ACC
+AUTO_L_6: t=4.30, T=22.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.37, desired=  4.02, ret=  0.68, exp=REG_T_ACC
+AUTO_L_6: t=4.40, T=22.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  3.96, ret=  0.73, exp=REG_T_ACC
+AUTO_L_6: t=4.50, T=22.06, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  3.90, ret=  0.78, exp=REG_T_ACC
+AUTO_L_6: t=4.60, T=22.09, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  3.84, ret=  0.83, exp=REG_T_ACC
+AUTO_L_6: t=4.70, T=22.12, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  3.78, ret=  0.88, exp=REG_T_ACC
+AUTO_L_6: t=4.80, T=22.15, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  3.72, ret=  0.93, exp=REG_T_ACC
+AUTO_L_6: t=4.90, T=22.19, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  3.66, ret=  0.98, exp=REG_T_ACC
+AUTO_L_6: t=5.00, T=22.23, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.39, desired=  3.59, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.10, T=22.27, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.39, desired=  3.53, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.20, T=22.31, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.39, desired=  3.46, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.30, T=22.35, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.39, desired=  3.39, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.40, T=22.39, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.39, desired=  3.32, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.50, T=22.43, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  3.26, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.60, T=22.47, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  3.19, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.70, T=22.51, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  3.13, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.80, T=22.55, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  3.07, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=5.90, T=22.59, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  3.01, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.00, T=22.63, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.95, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.10, T=22.67, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.89, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.20, T=22.71, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.84, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.30, T=22.75, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.79, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.40, T=22.79, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.73, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.50, T=22.83, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.68, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.60, T=22.87, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired=  2.63, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.70, T=22.91, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.58, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.80, T=22.95, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.52, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=6.90, T=22.99, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.47, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.00, T=23.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.42, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.10, T=23.08, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.37, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.20, T=23.12, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.31, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.30, T=23.16, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.26, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.40, T=23.20, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.21, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.50, T=23.24, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.16, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.60, T=23.28, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.10, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.70, T=23.32, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.05, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.80, T=23.36, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  2.00, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=7.90, T=23.40, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.95, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.00, T=23.44, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.90, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.10, T=23.49, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.84, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.20, T=23.53, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.79, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.30, T=23.57, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.74, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.40, T=23.61, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.69, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.50, T=23.65, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.64, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.60, T=23.69, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.59, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.70, T=23.73, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.53, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.80, T=23.78, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.48, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=8.90, T=23.82, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.43, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.00, T=23.86, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.38, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.10, T=23.90, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.33, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.20, T=23.94, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.28, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.30, T=23.98, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired=  1.23, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.40, T=24.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  1.17, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.50, T=24.07, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  1.12, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.60, T=24.11, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  1.07, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.70, T=24.15, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  1.02, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.80, T=24.19, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.97, ret=  1.00, exp=REG_T_ACC
+AUTO_L_6: t=9.90, T=24.23, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.92, ret=  0.99, exp=REG_T_ACC
+AUTO_L_6: t=10.00, T=24.28, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.87, ret=  0.98, exp=REG_T_ACC
+AUTO_L_6: t=10.10, T=24.32, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.82, ret=  0.96, exp=REG_T_ACC
+AUTO_L_6: t=10.20, T=24.36, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.77, ret=  0.94, exp=REG_T_ACC
+AUTO_L_6: t=10.30, T=24.40, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.72, ret=  0.92, exp=REG_T_ACC
+AUTO_L_6: t=10.40, T=24.44, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.67, ret=  0.89, exp=REG_T_ACC
+AUTO_L_6: t=10.50, T=24.47, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.62, ret=  0.87, exp=REG_T_ACC
+AUTO_L_6: t=10.60, T=24.51, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.58, ret=  0.84, exp=REG_T_ACC
+AUTO_L_6: t=10.70, T=24.55, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.53, ret=  0.81, exp=REG_T_ACC
+AUTO_L_6: t=10.80, T=24.58, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired=  0.49, ret=  0.78, exp=REG_T_ACC
+AUTO_L_6: t=10.90, T=24.62, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.45, ret=  0.74, exp=REG_T_ACC
+AUTO_L_6: t=11.00, T=24.65, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.41, ret=  0.71, exp=REG_T_ACC
+AUTO_L_6: t=11.10, T=24.68, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.38, ret=  0.68, exp=REG_T_ACC
+AUTO_L_6: t=11.20, T=24.71, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.34, ret=  0.64, exp=REG_T_ACC
+AUTO_L_6: t=11.30, T=24.74, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.31, ret=  0.61, exp=REG_T_ACC
+AUTO_L_6: t=11.40, T=24.76, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.28, ret=  0.58, exp=REG_T_ACC
+AUTO_L_6: t=11.50, T=24.79, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.25, ret=  0.54, exp=REG_T_ACC
+AUTO_L_6: t=11.60, T=24.81, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.22, ret=  0.51, exp=REG_T_ACC
+AUTO_L_6: t=11.70, T=24.83, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.19, ret=  0.48, exp=REG_T_ACC
+AUTO_L_6: t=11.80, T=24.85, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.17, ret=  0.45, exp=REG_T_ACC
+AUTO_L_6: t=11.90, T=24.87, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.15, ret=  0.42, exp=REG_T_ACC
+AUTO_L_6: t=12.00, T=24.89, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired=  0.12, ret=  0.39, exp=REG_T_ACC
+AUTO_L_6: t=12.10, T=24.91, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.10, ret=  0.36, exp=REG_T_ACC
+AUTO_L_6: t=12.20, T=24.93, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.09, ret=  0.33, exp=REG_T_ACC
+AUTO_L_6: t=12.30, T=24.94, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.07, ret=  0.31, exp=REG_T_ACC
+AUTO_L_6: t=12.40, T=24.95, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.05, ret=  0.28, exp=REG_T_ACC
+AUTO_L_6: t=12.50, T=24.97, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.04, ret=  0.26, exp=REG_T_ACC
+AUTO_L_6: t=12.60, T=24.98, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.03, ret=  0.23, exp=REG_T_ACC
+AUTO_L_6: t=12.70, T=24.99, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.01, ret=  0.21, exp=REG_T_ACC
+AUTO_L_6: t=12.80, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired=  0.00, ret=  0.19, exp=REG_T_ACC
+AUTO_L_6: t=12.90, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.01, ret=  0.17, exp=REG_T_ACC
+AUTO_L_6: t=13.00, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.01, ret=  0.15, exp=REG_T_ACC
+AUTO_L_6: t=13.10, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.02, ret=  0.14, exp=REG_T_ACC
+AUTO_L_6: t=13.20, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.03, ret=  0.12, exp=REG_T_ACC
+AUTO_L_6: t=13.30, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.03, ret=  0.10, exp=REG_T_ACC
+AUTO_L_6: t=13.40, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret=  0.09, exp=REG_T_ACC
+AUTO_L_6: t=13.50, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret=  0.08, exp=REG_T_ACC
+AUTO_L_6: t=13.60, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.05, ret=  0.06, exp=REG_T_ACC
+AUTO_L_6: t=13.70, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.05, ret=  0.05, exp=REG_T_ACC
+AUTO_L_6: t=13.80, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.05, ret=  0.04, exp=REG_T_ACC
+AUTO_L_6: t=13.90, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.06, ret=  0.03, exp=REG_T_ACC
+AUTO_L_6: t=14.00, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.06, ret=  0.02, exp=REG_T_ACC
+AUTO_L_6: t=14.10, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.06, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=14.20, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.06, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=14.30, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.06, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=14.40, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.06, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=14.50, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.46, desired= -0.06, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=14.60, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.46, desired= -0.06, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=14.70, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.47, desired= -0.06, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=14.80, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.49, desired= -0.05, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=14.90, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   1.30, desired= -0.02, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=15.00, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired= -0.06, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=15.10, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired= -0.06, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=15.20, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired= -0.05, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=15.30, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.05, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=15.40, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.05, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=15.50, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.05, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=15.60, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.05, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=15.70, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=15.80, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=15.90, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.00, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.10, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.04, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.20, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.03, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.30, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.03, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.40, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.03, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.50, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.03, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.60, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.03, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=16.70, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.03, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=16.80, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.02, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=16.90, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.02, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=17.00, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.02, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=17.10, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.02, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=17.20, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.02, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=17.30, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.02, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=17.40, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.03, exp=REG_T_ACC
+AUTO_L_6: t=17.50, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=17.60, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=17.70, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=17.80, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=17.90, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=18.00, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=18.10, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=18.20, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.45, desired= -0.01, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=18.30, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.01, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=18.40, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=18.50, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=18.60, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=18.70, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.44, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=18.80, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=18.90, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.43, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.00, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.10, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.42, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.20, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.41, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.30, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.40, desired= -0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.40, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.39, desired=  0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.50, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.38, desired=  0.00, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=19.60, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.36, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=19.70, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.35, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=19.80, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.32, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=19.90, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.29, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.00, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.26, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.10, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.22, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.20, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.16, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.30, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.09, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.40, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.01, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.50, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.10, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.60, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.24, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.70, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.43, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.80, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.67, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=20.90, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.99, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.00, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.43, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.10, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.02, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.20, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.83, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.30, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.99, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.40, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.65, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.50, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -7.78, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.60, T=25.00, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.84, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.70, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL= -15.32, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.80, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL= -22.02, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=21.90, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL= -32.34, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.00, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL= -48.82, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.10, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL= -76.41, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.20, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=-125.71, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.30, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=-223.16, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.40, T=25.01, Trupt=50.00, Tcible=25.00, est_dT_dL=-453.63, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.50, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL=-1291.18, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.60, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL= 15549.74, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.70, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL= 1986.72, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.80, T=25.02, Trupt=50.00, Tcible=25.00, est_dT_dL= 1463.19, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=22.90, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL= 1416.33, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.00, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL= 1558.67, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.10, T=25.03, Trupt=50.00, Tcible=25.00, est_dT_dL= 1861.69, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.20, T=25.04, Trupt=50.00, Tcible=25.00, est_dT_dL= 2368.92, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.30, T=25.05, Trupt=50.00, Tcible=25.00, est_dT_dL= 3184.17, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.40, T=25.06, Trupt=50.00, Tcible=25.00, est_dT_dL= 4513.71, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.50, T=25.07, Trupt=50.00, Tcible=25.00, est_dT_dL= 6768.20, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.60, T=25.09, Trupt=50.00, Tcible=25.00, est_dT_dL= 10830.63, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.70, T=25.12, Trupt=50.00, Tcible=25.00, est_dT_dL= 18831.15, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.80, T=25.18, Trupt=50.00, Tcible=25.00, est_dT_dL= 37085.25, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=23.90, T=25.32, Trupt=50.00, Tcible=25.00, est_dT_dL= 94326.14, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.00, T=19.19, Trupt=50.00, Tcible=25.00, est_dT_dL=-2614731.46, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.10, T=12.61, Trupt=50.00, Tcible=25.00, est_dT_dL=-8223036.63, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.20, T=12.08, Trupt=50.00, Tcible=25.00, est_dT_dL=-13690694.95, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.30, T=12.42, Trupt=50.00, Tcible=25.00, est_dT_dL=-24340604.05, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.40, T=12.88, Trupt=50.00, Tcible=25.00, est_dT_dL=-58684188.27, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.50, T=13.36, Trupt=50.00, Tcible=25.00, est_dT_dL= 1273289100.05, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.60, T=13.82, Trupt=50.00, Tcible=25.00, est_dT_dL= 74595248.68, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.70, T=14.26, Trupt=50.00, Tcible=25.00, est_dT_dL= 46076679.26, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.80, T=14.67, Trupt=50.00, Tcible=25.00, est_dT_dL= 37781353.31, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=24.90, T=15.03, Trupt=50.00, Tcible=25.00, est_dT_dL= 35343005.03, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.00, T=15.36, Trupt=50.00, Tcible=25.00, est_dT_dL= 13470098.15, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.10, T=15.65, Trupt=50.00, Tcible=25.00, est_dT_dL=-11549107.83, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.20, T=15.90, Trupt=50.00, Tcible=25.00, est_dT_dL=-15825545.78, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.30, T=16.11, Trupt=50.00, Tcible=25.00, est_dT_dL=-16873847.94, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.40, T=16.30, Trupt=50.00, Tcible=25.00, est_dT_dL=-17135101.96, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.50, T=16.45, Trupt=50.00, Tcible=25.00, est_dT_dL=-16881788.85, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.60, T=16.58, Trupt=50.00, Tcible=25.00, est_dT_dL=-16100822.55, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.70, T=16.69, Trupt=50.00, Tcible=25.00, est_dT_dL=-14802746.85, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.80, T=16.78, Trupt=50.00, Tcible=25.00, est_dT_dL=-13078868.58, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=25.90, T=16.85, Trupt=50.00, Tcible=25.00, est_dT_dL=-11093581.46, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.00, T=16.90, Trupt=50.00, Tcible=25.00, est_dT_dL=-9044957.82, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.10, T=16.94, Trupt=50.00, Tcible=25.00, est_dT_dL=-7017078.41, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.20, T=16.98, Trupt=50.00, Tcible=25.00, est_dT_dL=-5410204.35, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.30, T=17.00, Trupt=50.00, Tcible=25.00, est_dT_dL=-4085163.58, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.40, T=17.02, Trupt=50.00, Tcible=25.00, est_dT_dL=-2995218.93, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.50, T=17.03, Trupt=50.00, Tcible=25.00, est_dT_dL=-2113492.41, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.60, T=17.03, Trupt=50.00, Tcible=25.00, est_dT_dL=-1420198.04, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.70, T=17.03, Trupt=50.00, Tcible=25.00, est_dT_dL=-896041.39, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.80, T=17.03, Trupt=50.00, Tcible=25.00, est_dT_dL=-520105.89, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=26.90, T=17.02, Trupt=50.00, Tcible=25.00, est_dT_dL=-268680.30, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.00, T=17.01, Trupt=50.00, Tcible=25.00, est_dT_dL=-115147.14, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.10, T=17.00, Trupt=50.00, Tcible=25.00, est_dT_dL=-34185.93, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.20, T=16.98, Trupt=50.00, Tcible=25.00, est_dT_dL=-1883.91, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.30, T=16.97, Trupt=50.00, Tcible=25.00, est_dT_dL= 1241.28, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.40, T=16.95, Trupt=50.00, Tcible=25.00, est_dT_dL= 4700.38, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.50, T=16.93, Trupt=50.00, Tcible=25.00, est_dT_dL=-19044.11, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.60, T=16.91, Trupt=50.00, Tcible=25.00, est_dT_dL=-5757.90, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.70, T=16.90, Trupt=50.00, Tcible=25.00, est_dT_dL=-5027.79, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.80, T=16.88, Trupt=50.00, Tcible=25.00, est_dT_dL=-6068.82, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=27.90, T=16.85, Trupt=50.00, Tcible=25.00, est_dT_dL=-9974.08, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.00, T=16.83, Trupt=50.00, Tcible=25.00, est_dT_dL=-35247.50, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.10, T=16.81, Trupt=50.00, Tcible=25.00, est_dT_dL= 29990.29, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.20, T=16.79, Trupt=50.00, Tcible=25.00, est_dT_dL= 14126.60, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.30, T=16.77, Trupt=50.00, Tcible=25.00, est_dT_dL=-53888.88, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.40, T=16.74, Trupt=50.00, Tcible=25.00, est_dT_dL= 14941.39, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.50, T=16.72, Trupt=50.00, Tcible=25.00, est_dT_dL= 5932.34, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.60, T=16.70, Trupt=50.00, Tcible=25.00, est_dT_dL= 4727.45, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.70, T=16.68, Trupt=50.00, Tcible=25.00, est_dT_dL= 5626.07, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.80, T=16.65, Trupt=50.00, Tcible=25.00, est_dT_dL= 12680.73, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=28.90, T=16.63, Trupt=50.00, Tcible=25.00, est_dT_dL=-18985.09, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.00, T=16.61, Trupt=50.00, Tcible=25.00, est_dT_dL=-5563.49, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.10, T=16.59, Trupt=50.00, Tcible=25.00, est_dT_dL=-3777.76, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.20, T=16.57, Trupt=50.00, Tcible=25.00, est_dT_dL=-3506.41, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.30, T=16.54, Trupt=50.00, Tcible=25.00, est_dT_dL=-4223.04, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.40, T=16.52, Trupt=50.00, Tcible=25.00, est_dT_dL=-6603.43, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.50, T=16.50, Trupt=50.00, Tcible=25.00, est_dT_dL=-29915.11, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.60, T=16.48, Trupt=50.00, Tcible=25.00, est_dT_dL= 9064.82, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.70, T=16.46, Trupt=50.00, Tcible=25.00, est_dT_dL= 3850.08, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.80, T=16.43, Trupt=50.00, Tcible=25.00, est_dT_dL= 2634.93, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=29.90, T=16.41, Trupt=50.00, Tcible=25.00, est_dT_dL= 2369.59, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.00, T=16.39, Trupt=50.00, Tcible=25.00, est_dT_dL= 2720.53, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.10, T=16.36, Trupt=50.00, Tcible=25.00, est_dT_dL= 4572.29, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.20, T=16.34, Trupt=50.00, Tcible=25.00, est_dT_dL=-214981.52, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.30, T=16.32, Trupt=50.00, Tcible=25.00, est_dT_dL=-3880.71, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.40, T=16.30, Trupt=50.00, Tcible=25.00, est_dT_dL=-2072.66, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.50, T=16.28, Trupt=50.00, Tcible=25.00, est_dT_dL=-1602.91, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.60, T=16.26, Trupt=50.00, Tcible=25.00, est_dT_dL=-1562.99, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.70, T=16.23, Trupt=50.00, Tcible=25.00, est_dT_dL=-1994.98, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.80, T=16.21, Trupt=50.00, Tcible=25.00, est_dT_dL=-4440.84, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=30.90, T=16.19, Trupt=50.00, Tcible=25.00, est_dT_dL= 6947.44, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.00, T=16.17, Trupt=50.00, Tcible=25.00, est_dT_dL= 1873.26, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.10, T=16.15, Trupt=50.00, Tcible=25.00, est_dT_dL= 1179.51, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.20, T=16.12, Trupt=50.00, Tcible=25.00, est_dT_dL= 1003.45, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.30, T=16.10, Trupt=50.00, Tcible=25.00, est_dT_dL= 1082.57, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.40, T=16.07, Trupt=50.00, Tcible=25.00, est_dT_dL= 1603.49, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.50, T=16.05, Trupt=50.00, Tcible=25.00, est_dT_dL= 7178.19, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.60, T=16.03, Trupt=50.00, Tcible=25.00, est_dT_dL=-2268.89, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.70, T=16.01, Trupt=50.00, Tcible=25.00, est_dT_dL=-993.55, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.80, T=15.99, Trupt=50.00, Tcible=25.00, est_dT_dL=-700.36, desired= -0.01, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=31.90, T=15.98, Trupt=50.00, Tcible=25.00, est_dT_dL=-633.72, desired= -0.01, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.00, T=15.96, Trupt=50.00, Tcible=25.00, est_dT_dL=-735.95, desired= -0.01, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.10, T=15.94, Trupt=50.00, Tcible=25.00, est_dT_dL=-1350.11, desired= -0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.20, T=15.92, Trupt=50.00, Tcible=25.00, est_dT_dL= 5218.30, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.30, T=15.90, Trupt=50.00, Tcible=25.00, est_dT_dL= 817.86, desired=  0.01, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.40, T=15.87, Trupt=50.00, Tcible=25.00, est_dT_dL= 485.80, desired=  0.01, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.50, T=15.84, Trupt=50.00, Tcible=25.00, est_dT_dL= 407.77, desired=  0.01, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.60, T=15.82, Trupt=50.00, Tcible=25.00, est_dT_dL= 440.71, desired=  0.01, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.70, T=15.79, Trupt=50.00, Tcible=25.00, est_dT_dL= 651.67, desired=  0.01, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.80, T=15.77, Trupt=50.00, Tcible=25.00, est_dT_dL= 2572.17, desired=  0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=32.90, T=15.75, Trupt=50.00, Tcible=25.00, est_dT_dL=-1021.29, desired= -0.00, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.00, T=15.74, Trupt=50.00, Tcible=25.00, est_dT_dL=-427.07, desired= -0.01, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.10, T=15.72, Trupt=50.00, Tcible=25.00, est_dT_dL=-291.39, desired= -0.02, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.20, T=15.71, Trupt=50.00, Tcible=25.00, est_dT_dL=-253.89, desired= -0.02, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.30, T=15.70, Trupt=50.00, Tcible=25.00, est_dT_dL=-283.44, desired= -0.02, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.40, T=15.68, Trupt=50.00, Tcible=25.00, est_dT_dL=-510.58, desired= -0.01, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.50, T=15.67, Trupt=50.00, Tcible=25.00, est_dT_dL= 1544.35, desired=  0.00, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.60, T=15.64, Trupt=50.00, Tcible=25.00, est_dT_dL= 282.38, desired=  0.02, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.70, T=15.61, Trupt=50.00, Tcible=25.00, est_dT_dL= 178.50, desired=  0.03, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.80, T=15.57, Trupt=50.00, Tcible=25.00, est_dT_dL= 163.15, desired=  0.03, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=33.90, T=15.54, Trupt=50.00, Tcible=25.00, est_dT_dL= 193.72, desired=  0.02, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.00, T=15.51, Trupt=50.00, Tcible=25.00, est_dT_dL= 322.55, desired=  0.01, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.10, T=15.49, Trupt=50.00, Tcible=25.00, est_dT_dL= 2792.59, desired=  0.00, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.20, T=15.47, Trupt=50.00, Tcible=25.00, est_dT_dL=-367.22, desired= -0.01, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=34.30, T=15.47, Trupt=50.00, Tcible=25.00, est_dT_dL=-172.18, desired= -0.03, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=34.40, T=15.46, Trupt=50.00, Tcible=25.00, est_dT_dL=-117.98, desired= -0.04, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=34.50, T=15.46, Trupt=50.00, Tcible=25.00, est_dT_dL= -99.26, desired= -0.05, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.60, T=15.46, Trupt=50.00, Tcible=25.00, est_dT_dL=-105.78, desired= -0.05, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.70, T=15.46, Trupt=50.00, Tcible=25.00, est_dT_dL=-208.77, desired= -0.02, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.80, T=15.44, Trupt=50.00, Tcible=25.00, est_dT_dL= 209.97, desired=  0.02, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=34.90, T=15.40, Trupt=50.00, Tcible=25.00, est_dT_dL=  72.26, desired=  0.07, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=35.00, T=15.35, Trupt=50.00, Tcible=25.00, est_dT_dL=  62.78, desired=  0.08, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=35.10, T=15.29, Trupt=50.00, Tcible=25.00, est_dT_dL=  75.10, desired=  0.06, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=35.20, T=15.24, Trupt=50.00, Tcible=25.00, est_dT_dL= 112.04, desired=  0.04, ret=  0.02, exp=REG_T_ACC
+AUTO_L_6: t=35.30, T=15.21, Trupt=50.00, Tcible=25.00, est_dT_dL= 266.76, desired=  0.02, ret=  0.02, exp=REG_T_ACC
+AUTO_L_6: t=35.40, T=15.20, Trupt=50.00, Tcible=25.00, est_dT_dL=-522.81, desired= -0.01, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=35.50, T=15.19, Trupt=50.00, Tcible=25.00, est_dT_dL=-126.33, desired= -0.04, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=35.60, T=15.21, Trupt=50.00, Tcible=25.00, est_dT_dL= -70.19, desired= -0.07, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=35.70, T=15.23, Trupt=50.00, Tcible=25.00, est_dT_dL= -48.28, desired= -0.10, ret= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=35.80, T=15.25, Trupt=50.00, Tcible=25.00, est_dT_dL= -37.19, desired= -0.13, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=35.90, T=15.28, Trupt=50.00, Tcible=25.00, est_dT_dL= -31.95, desired= -0.15, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=36.00, T=15.31, Trupt=50.00, Tcible=25.00, est_dT_dL= -91.18, desired= -0.05, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=36.10, T=15.29, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.08, desired=-59.78, ret= -0.09, exp=REG_T_ACC
+AUTO_L_6: t=36.20, T=15.46, Trupt=50.00, Tcible=25.00, est_dT_dL= -15.37, desired= -0.31, ret= -0.11, exp=REG_T_ACC
+AUTO_L_6: t=36.30, T=15.54, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.26, desired= -0.39, ret= -0.14, exp=REG_T_ACC
+AUTO_L_6: t=36.40, T=15.65, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.79, desired= -0.43, ret= -0.17, exp=REG_T_ACC
+AUTO_L_6: t=36.50, T=15.80, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.23, desired= -0.45, ret= -0.19, exp=REG_T_ACC
+AUTO_L_6: t=36.60, T=15.96, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.51, desired= -0.48, ret= -0.22, exp=REG_T_ACC
+AUTO_L_6: t=36.70, T=16.26, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.18, desired= -0.43, ret= -0.24, exp=REG_T_ACC
+AUTO_L_6: t=36.80, T=16.51, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.05, desired= -0.42, ret= -0.26, exp=REG_T_ACC
+AUTO_L_6: t=36.90, T=16.76, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.88, desired= -0.42, ret= -0.28, exp=REG_T_ACC
+AUTO_L_6: t=37.00, T=17.00, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.76, desired= -0.41, ret= -0.29, exp=REG_T_ACC
+AUTO_L_6: t=37.10, T=17.23, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.79, desired= -0.40, ret= -0.30, exp=REG_T_ACC
+AUTO_L_6: t=37.20, T=17.44, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.02, desired= -0.42, ret= -0.31, exp=REG_T_ACC
+AUTO_L_6: t=37.30, T=17.68, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.93, desired= -0.41, ret= -0.32, exp=REG_T_ACC
+AUTO_L_6: t=37.40, T=17.90, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.72, desired= -0.41, ret= -0.33, exp=REG_T_ACC
+AUTO_L_6: t=37.50, T=18.10, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.36, desired= -0.41, ret= -0.34, exp=REG_T_ACC
+AUTO_L_6: t=37.60, T=18.31, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.08, desired= -0.41, ret= -0.35, exp=REG_T_ACC
+AUTO_L_6: t=37.70, T=18.50, Trupt=50.00, Tcible=25.00, est_dT_dL=  -7.41, desired= -0.44, ret= -0.36, exp=REG_T_ACC
+AUTO_L_6: t=37.80, T=18.75, Trupt=50.00, Tcible=25.00, est_dT_dL=  -7.13, desired= -0.44, ret= -0.36, exp=REG_T_ACC
+AUTO_L_6: t=37.90, T=18.98, Trupt=50.00, Tcible=25.00, est_dT_dL=  -6.88, desired= -0.44, ret= -0.37, exp=REG_T_ACC
+AUTO_L_6: t=38.00, T=19.20, Trupt=50.00, Tcible=25.00, est_dT_dL=  -6.61, desired= -0.44, ret= -0.38, exp=REG_T_ACC
+AUTO_L_6: t=38.10, T=19.41, Trupt=50.00, Tcible=25.00, est_dT_dL=  -6.36, desired= -0.44, ret= -0.38, exp=REG_T_ACC
+AUTO_L_6: t=38.20, T=19.61, Trupt=50.00, Tcible=25.00, est_dT_dL=  -6.18, desired= -0.44, ret= -0.39, exp=REG_T_ACC
+AUTO_L_6: t=38.30, T=19.78, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.85, desired= -0.45, ret= -0.40, exp=REG_T_ACC
+AUTO_L_6: t=38.40, T=19.96, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.64, desired= -0.45, ret= -0.40, exp=REG_T_ACC
+AUTO_L_6: t=38.50, T=20.14, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.46, desired= -0.45, ret= -0.40, exp=REG_T_ACC
+AUTO_L_6: t=38.60, T=20.29, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.24, desired= -0.45, ret= -0.41, exp=REG_T_ACC
+AUTO_L_6: t=38.70, T=20.44, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.04, desired= -0.45, ret= -0.41, exp=REG_T_ACC
+AUTO_L_6: t=38.80, T=20.59, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.72, desired= -0.47, ret= -0.42, exp=REG_T_ACC
+AUTO_L_6: t=38.90, T=20.78, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.52, desired= -0.47, ret= -0.42, exp=REG_T_ACC
+AUTO_L_6: t=39.00, T=20.95, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.35, desired= -0.47, ret= -0.43, exp=REG_T_ACC
+AUTO_L_6: t=39.10, T=21.11, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.17, desired= -0.47, ret= -0.43, exp=REG_T_ACC
+AUTO_L_6: t=39.20, T=21.25, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.00, desired= -0.47, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=39.30, T=21.39, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.87, desired= -0.47, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=39.40, T=21.50, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.67, desired= -0.48, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=39.50, T=21.64, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.55, desired= -0.47, ret= -0.45, exp=REG_T_ACC
+AUTO_L_6: t=39.60, T=21.93, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.81, desired= -0.40, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=39.70, T=21.63, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.75, desired= -0.61, ret= -0.46, exp=REG_T_ACC
+AUTO_L_6: t=39.80, T=22.14, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.55, desired= -0.40, ret= -0.45, exp=REG_T_ACC
+AUTO_L_6: t=39.90, T=21.94, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.65, desired= -0.58, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=40.00, T=22.33, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.10, desired= -0.43, ret= -0.46, exp=REG_T_ACC
+AUTO_L_6: t=40.10, T=22.21, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.47, desired= -0.56, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=40.20, T=22.56, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.89, desired= -0.42, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=40.30, T=22.39, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.19, desired= -0.60, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=40.40, T=22.85, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.93, desired= -0.37, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=40.50, T=22.45, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.74, desired= -0.74, ret= -0.50, exp=REG_T_ACC
+AUTO_L_6: t=40.60, T=23.45, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.26, desired= -0.24, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=40.70, T=22.53, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.91, desired= -0.65, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=40.80, T=23.10, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.02, desired= -0.47, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=40.90, T=23.09, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.41, desired= -0.40, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=41.00, T=22.71, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.80, desired= -1.43, ret= -0.53, exp=REG_T_ACC
+AUTO_L_6: t=41.10, T=24.77, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.29, desired= -0.02, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=41.20, T=22.92, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.74, desired= -1.41, ret= -0.53, exp=REG_T_ACC
+AUTO_L_6: t=41.30, T=24.77, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.88, desired= -0.02, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=41.40, T=22.89, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.10, desired=-10.95, ret= -0.53, exp=REG_T_ACC
+AUTO_L_6: t=41.50, T=24.75, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.65, desired= -0.03, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=41.60, T=22.87, Trupt=50.00, Tcible=25.00, est_dT_dL=   1.17, desired=  0.91, ret= -0.43, exp=REG_T_ACC
+AUTO_L_6: t=41.70, T=20.74, Trupt=50.00, Tcible=25.00, est_dT_dL=   3.67, desired=  0.58, ret= -0.38, exp=REG_T_ACC
+AUTO_L_6: t=41.80, T=18.81, Trupt=50.00, Tcible=25.00, est_dT_dL=   8.97, desired=  0.34, ret= -0.33, exp=REG_T_ACC
+AUTO_L_6: t=41.90, T=17.17, Trupt=50.00, Tcible=25.00, est_dT_dL=  12.81, desired=  0.31, ret= -0.28, exp=REG_T_ACC
+AUTO_L_6: t=42.00, T=15.83, Trupt=50.00, Tcible=25.00, est_dT_dL=  15.58, desired=  0.29, ret= -0.23, exp=REG_T_ACC
+AUTO_L_6: t=42.10, T=14.77, Trupt=50.00, Tcible=25.00, est_dT_dL=  24.27, desired=  0.21, ret= -0.18, exp=REG_T_ACC
+AUTO_L_6: t=42.20, T=14.05, Trupt=50.00, Tcible=25.00, est_dT_dL=  23.17, desired=  0.24, ret= -0.14, exp=REG_T_ACC
+AUTO_L_6: t=42.30, T=13.55, Trupt=50.00, Tcible=25.00, est_dT_dL=  32.63, desired=  0.18, ret= -0.11, exp=REG_T_ACC
+AUTO_L_6: t=42.40, T=13.25, Trupt=50.00, Tcible=25.00, est_dT_dL=  31.41, desired=  0.19, ret= -0.08, exp=REG_T_ACC
+AUTO_L_6: t=42.50, T=13.03, Trupt=50.00, Tcible=25.00, est_dT_dL=  44.63, desired=  0.13, ret= -0.06, exp=REG_T_ACC
+AUTO_L_6: t=42.60, T=12.89, Trupt=50.00, Tcible=25.00, est_dT_dL=  45.22, desired=  0.13, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=42.70, T=12.79, Trupt=50.00, Tcible=25.00, est_dT_dL=  43.68, desired=  0.14, ret= -0.02, exp=REG_T_ACC
+AUTO_L_6: t=42.80, T=12.71, Trupt=50.00, Tcible=25.00, est_dT_dL=  41.69, desired=  0.15, ret= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=42.90, T=12.65, Trupt=50.00, Tcible=25.00, est_dT_dL=  39.70, desired=  0.16, ret=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=43.00, T=12.58, Trupt=50.00, Tcible=25.00, est_dT_dL=  38.13, desired=  0.16, ret=  0.03, exp=REG_T_ACC
+AUTO_L_6: t=43.10, T=12.51, Trupt=50.00, Tcible=25.00, est_dT_dL=  37.75, desired=  0.17, ret=  0.04, exp=REG_T_ACC
+AUTO_L_6: t=43.20, T=12.45, Trupt=50.00, Tcible=25.00, est_dT_dL=  42.76, desired=  0.15, ret=  0.05, exp=REG_T_ACC
+AUTO_L_6: t=43.30, T=12.40, Trupt=50.00, Tcible=25.00, est_dT_dL=  63.08, desired=  0.10, ret=  0.06, exp=REG_T_ACC
+AUTO_L_6: t=43.40, T=12.37, Trupt=50.00, Tcible=25.00, est_dT_dL= 508.06, desired=  0.01, ret=  0.05, exp=REG_T_ACC
+AUTO_L_6: t=43.50, T=12.37, Trupt=50.00, Tcible=25.00, est_dT_dL= -57.50, desired= -0.11, ret=  0.04, exp=REG_T_ACC
+AUTO_L_6: t=43.60, T=12.42, Trupt=50.00, Tcible=25.00, est_dT_dL= -22.59, desired= -0.28, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=43.70, T=12.52, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.84, desired= -0.58, ret= -0.05, exp=REG_T_ACC
+AUTO_L_6: t=43.80, T=12.65, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.87, desired= -2.15, ret= -0.10, exp=REG_T_ACC
+AUTO_L_6: t=43.90, T=12.82, Trupt=50.00, Tcible=25.00, est_dT_dL=  12.93, desired=  0.47, ret= -0.05, exp=REG_T_ACC
+AUTO_L_6: t=44.00, T=12.64, Trupt=50.00, Tcible=25.00, est_dT_dL=   8.22, desired=  0.75, ret=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=44.10, T=12.48, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.44, desired= -1.15, ret= -0.05, exp=REG_T_ACC
+AUTO_L_6: t=44.20, T=12.57, Trupt=50.00, Tcible=25.00, est_dT_dL= -39.67, desired= -0.16, ret= -0.06, exp=REG_T_ACC
+AUTO_L_6: t=44.30, T=12.60, Trupt=50.00, Tcible=25.00, est_dT_dL= -14.30, desired= -0.43, ret= -0.09, exp=REG_T_ACC
+AUTO_L_6: t=44.40, T=12.72, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.14, desired= -0.51, ret= -0.14, exp=REG_T_ACC
+AUTO_L_6: t=44.50, T=12.95, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.06, desired= -0.50, ret= -0.17, exp=REG_T_ACC
+AUTO_L_6: t=44.60, T=13.27, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.31, desired= -0.48, ret= -0.20, exp=REG_T_ACC
+AUTO_L_6: t=44.70, T=13.64, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.56, desired= -0.45, ret= -0.23, exp=REG_T_ACC
+AUTO_L_6: t=44.80, T=14.03, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.89, desired= -0.43, ret= -0.25, exp=REG_T_ACC
+AUTO_L_6: t=44.90, T=14.41, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.98, desired= -0.41, ret= -0.26, exp=REG_T_ACC
+AUTO_L_6: t=45.00, T=14.75, Trupt=50.00, Tcible=25.00, est_dT_dL= -14.64, desired= -0.35, ret= -0.27, exp=REG_T_ACC
+AUTO_L_6: t=45.10, T=14.96, Trupt=50.00, Tcible=25.00, est_dT_dL= -14.46, desired= -0.35, ret= -0.28, exp=REG_T_ACC
+AUTO_L_6: t=45.20, T=15.14, Trupt=50.00, Tcible=25.00, est_dT_dL= -13.19, desired= -0.37, ret= -0.29, exp=REG_T_ACC
+AUTO_L_6: t=45.30, T=15.37, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.71, desired= -0.38, ret= -0.30, exp=REG_T_ACC
+AUTO_L_6: t=45.40, T=15.60, Trupt=50.00, Tcible=25.00, est_dT_dL= -12.07, desired= -0.39, ret= -0.31, exp=REG_T_ACC
+AUTO_L_6: t=45.50, T=15.84, Trupt=50.00, Tcible=25.00, est_dT_dL= -11.32, desired= -0.40, ret= -0.32, exp=REG_T_ACC
+AUTO_L_6: t=45.60, T=16.11, Trupt=50.00, Tcible=25.00, est_dT_dL= -10.54, desired= -0.42, ret= -0.33, exp=REG_T_ACC
+AUTO_L_6: t=45.70, T=16.42, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.82, desired= -0.44, ret= -0.34, exp=REG_T_ACC
+AUTO_L_6: t=45.80, T=16.75, Trupt=50.00, Tcible=25.00, est_dT_dL=  -9.24, desired= -0.45, ret= -0.35, exp=REG_T_ACC
+AUTO_L_6: t=45.90, T=17.09, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.82, desired= -0.45, ret= -0.36, exp=REG_T_ACC
+AUTO_L_6: t=46.00, T=17.42, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.51, desired= -0.44, ret= -0.37, exp=REG_T_ACC
+AUTO_L_6: t=46.10, T=17.72, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.53, desired= -0.43, ret= -0.37, exp=REG_T_ACC
+AUTO_L_6: t=46.20, T=17.94, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.41, desired= -0.42, ret= -0.38, exp=REG_T_ACC
+AUTO_L_6: t=46.30, T=18.11, Trupt=50.00, Tcible=25.00, est_dT_dL=  -8.02, desired= -0.43, ret= -0.38, exp=REG_T_ACC
+AUTO_L_6: t=46.40, T=18.29, Trupt=50.00, Tcible=25.00, est_dT_dL=  -7.69, desired= -0.44, ret= -0.39, exp=REG_T_ACC
+AUTO_L_6: t=46.50, T=18.48, Trupt=50.00, Tcible=25.00, est_dT_dL=  -7.37, desired= -0.44, ret= -0.39, exp=REG_T_ACC
+AUTO_L_6: t=46.60, T=18.68, Trupt=50.00, Tcible=25.00, est_dT_dL=  -7.02, desired= -0.45, ret= -0.40, exp=REG_T_ACC
+AUTO_L_6: t=46.70, T=18.89, Trupt=50.00, Tcible=25.00, est_dT_dL=  -6.63, desired= -0.46, ret= -0.41, exp=REG_T_ACC
+AUTO_L_6: t=46.80, T=19.12, Trupt=50.00, Tcible=25.00, est_dT_dL=  -6.25, desired= -0.47, ret= -0.41, exp=REG_T_ACC
+AUTO_L_6: t=46.90, T=19.37, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.90, desired= -0.48, ret= -0.42, exp=REG_T_ACC
+AUTO_L_6: t=47.00, T=19.63, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.62, desired= -0.48, ret= -0.42, exp=REG_T_ACC
+AUTO_L_6: t=47.10, T=19.87, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.41, desired= -0.47, ret= -0.43, exp=REG_T_ACC
+AUTO_L_6: t=47.20, T=20.08, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.31, desired= -0.46, ret= -0.43, exp=REG_T_ACC
+AUTO_L_6: t=47.30, T=20.23, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.17, desired= -0.46, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=47.40, T=20.34, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.95, desired= -0.47, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=47.50, T=20.48, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.76, desired= -0.47, ret= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=47.60, T=20.62, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.58, desired= -0.48, ret= -0.45, exp=REG_T_ACC
+AUTO_L_6: t=47.70, T=20.77, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.38, desired= -0.48, ret= -0.45, exp=REG_T_ACC
+AUTO_L_6: t=47.80, T=20.92, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.16, desired= -0.49, ret= -0.45, exp=REG_T_ACC
+AUTO_L_6: t=47.90, T=21.09, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.93, desired= -0.50, ret= -0.46, exp=REG_T_ACC
+AUTO_L_6: t=48.00, T=21.27, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.73, desired= -0.50, ret= -0.46, exp=REG_T_ACC
+AUTO_L_6: t=48.10, T=21.36, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.33, desired= -0.55, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=48.20, T=21.79, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.80, desired= -0.42, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=48.30, T=21.65, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.14, desired= -0.53, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=48.40, T=21.89, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.39, desired= -0.46, ret= -0.47, exp=REG_T_ACC
+AUTO_L_6: t=48.50, T=21.86, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.00, desired= -0.52, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=48.60, T=22.06, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.10, desired= -0.47, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=48.70, T=22.07, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.79, desired= -0.52, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=48.80, T=22.26, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.85, desired= -0.48, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=48.90, T=22.27, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.51, desired= -0.54, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=49.00, T=22.52, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.63, desired= -0.47, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=49.10, T=22.48, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.36, desired= -0.54, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=49.20, T=22.67, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.84, desired= -0.63, ret= -0.51, exp=REG_T_ACC
+AUTO_L_6: t=49.30, T=23.29, Trupt=50.00, Tcible=25.00, est_dT_dL=  -3.40, desired= -0.25, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=49.40, T=22.31, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.87, desired= -1.54, ret= -0.53, exp=REG_T_ACC
+AUTO_L_6: t=49.50, T=24.30, Trupt=50.00, Tcible=25.00, est_dT_dL=  -5.00, desired= -0.07, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=49.60, T=22.59, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.10, desired= -1.10, ret= -0.53, exp=REG_T_ACC
+AUTO_L_6: t=49.70, T=24.50, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.91, desired= -0.05, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=49.80, T=22.67, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.84, desired= -1.38, ret= -0.54, exp=REG_T_ACC
+AUTO_L_6: t=49.90, T=24.57, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.58, desired= -0.05, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=50.00, T=22.71, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.39, desired= -2.96, ret= -0.54, exp=REG_T_ACC
+AUTO_L_6: t=50.10, T=24.61, Trupt=50.00, Tcible=25.00, est_dT_dL=  -4.20, desired= -0.05, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=50.20, T=22.74, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.14, desired= -7.79, ret= -0.54, exp=REG_T_ACC
+AUTO_L_6: t=50.30, T=24.64, Trupt=50.00, Tcible=25.00, est_dT_dL=  -2.64, desired= -0.07, ret= -0.49, exp=REG_T_ACC
+AUTO_L_6: t=50.40, T=22.85, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.06, desired= -1.01, ret= -0.54, exp=REG_T_ACC
+AUTO_L_6: t=50.50, T=24.77, Trupt=50.00, Tcible=25.00, est_dT_dL=  -0.91, desired= -0.12, ret= -0.50, exp=REG_T_ACC
+AUTO_L_6: t=50.60, T=23.20, Trupt=50.00, Tcible=25.00, est_dT_dL=  -1.18, desired= -0.76, ret= -0.53, exp=REG_T_ACC
+AUTO_L_6: t=50.70, T=24.11, Trupt=50.00, Tcible=25.00, est_dT_dL=   0.77, desired=  0.58, ret= -0.48, exp=REG_T_ACC
+AUTO_L_6: t=50.80, T=22.13, Trupt=50.00, Tcible=25.00, est_dT_dL=   1.07, desired=  1.34, ret= -0.43, exp=REG_T_ACC
+AUTO_L_6: t=50.90, T=19.99, Trupt=50.00, Tcible=25.00, est_dT_dL=   9.16, desired=  0.27, ret= -0.38, exp=REG_T_ACC
+AUTO_L_6: t=51.00, T=18.06, Trupt=50.00, Tcible=25.00, est_dT_dL=   9.52, desired=  0.36, ret= -0.33, exp=REG_T_ACC
+AUTO_L_6: t=51.10, T=16.39, Trupt=50.00, Tcible=25.00, est_dT_dL=  17.56, desired=  0.25, ret= -0.28, exp=REG_T_ACC
+AUTO_L_6: t=51.20, T=14.99, Trupt=50.00, Tcible=25.00, est_dT_dL=  17.35, desired=  0.29, ret= -0.23, exp=REG_T_ACC
+AUTO_L_6: t=51.30, T=13.87, Trupt=50.00, Tcible=25.00, est_dT_dL=  25.90, desired=  0.21, ret= -0.18, exp=REG_T_ACC
+AUTO_L_6: t=51.40, T=13.10, Trupt=50.00, Tcible=25.00, est_dT_dL=  25.36, desired=  0.23, ret= -0.14, exp=REG_T_ACC
+AUTO_L_6: t=51.50, T=12.56, Trupt=50.00, Tcible=25.00, est_dT_dL=  35.42, desired=  0.18, ret= -0.11, exp=REG_T_ACC
+AUTO_L_6: t=51.60, T=12.24, Trupt=50.00, Tcible=25.00, est_dT_dL=  35.85, desired=  0.18, ret= -0.08, exp=REG_T_ACC
+AUTO_L_6: t=51.70, T=12.03, Trupt=50.00, Tcible=25.00, est_dT_dL=  46.26, desired=  0.14, ret= -0.06, exp=REG_T_ACC
+AUTO_L_6: t=51.80, T=11.90, Trupt=50.00, Tcible=25.00, est_dT_dL=  46.66, desired=  0.14, ret= -0.04, exp=REG_T_ACC
+AUTO_L_6: t=51.90, T=11.80, Trupt=50.00, Tcible=25.00, est_dT_dL=  45.34, desired=  0.15, ret= -0.02, exp=REG_T_ACC

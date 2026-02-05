@@ -1,0 +1,56 @@
+{
+    "date_sauvegarde": "2026-02-05T11:10:48.333469",
+    "mission": "M101",
+    "description": "Position (20, -100) m, ROV avec une flottabilité légèrement positive",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.03,
+            "a": 0.4,
+            "b": 0.7,
+            "h": 0.4,
+            "Cx": 0.9,
+            "Cy": 0.9
+        },
+        "cable": {
+            "d": 0.001,
+            "rho_cable": 1500.0,
+            "Cx_cable": 1.2,
+            "tension_rupture": 50.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5
+        },
+        "environment": {
+            "rho_eau": 1030.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 360.0,
+        "steps_per_update": 5,
+        "N_segments": 50,
+        "straight_blend_alpha": 1.0,
+        "sc_fx_rov": "",
+        "sc_fy_rov": "(t>0:-50)",
+        "sc_v_bateau": "",
+        "sc_v_moulinet": "",
+        "auto_L": 6,
+        "Tcible": 5.0,
+        "Gamma_moulinet_max": 0.5
+    },
+    "init_params": {
+        "x_rov_init": 20.0,
+        "y_rov_init": -100.0,
+        "x_boat_init": 0.0,
+        "L_init": 110.0,
+        "v_courant": "0.0"
+    }
+}

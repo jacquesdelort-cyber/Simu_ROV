@@ -93,9 +93,9 @@ class AllParametersTab(QWidget):
         btn_load_file.clicked.connect(self.load_from_file)
         button_layout.addWidget(btn_load_file)
         
-        btn_reset = QPushButton("🔄 Réinitialiser")
-        btn_reset.clicked.connect(self.reset_to_defaults)
-        button_layout.addWidget(btn_reset)
+        btn_save_file = QPushButton("💾 Sauvegarder vers fichier...")
+        btn_save_file.clicked.connect(self.save_to_file)
+        button_layout.addWidget(btn_save_file)
         
         main_layout.addLayout(button_layout)
         
@@ -160,6 +160,17 @@ class AllParametersTab(QWidget):
         self.method_combo.addItems(['RK45', 'RK23', 'DOP853', 'Radau'])
         self.method_combo.currentTextChanged.connect(self.on_method_changed)
         method_layout.addWidget(self.method_combo, 0, 1)
+        method_layout.addWidget(
+            HelpButton(
+                "Choix de l’algorithme d’intégration numérique (solve_ivp). "
+                "RK45 est un bon compromis. RK23 est plus rapide mais moins précis. "
+                "DOP853 est plus précis pour des dynamiques raides. Radau est "
+                "implicite et stable mais plus coûteux.",
+                self,
+            ),
+            0,
+            2,
+        )
         method_group.setLayout(method_layout)
         layout.addWidget(method_group)
         
@@ -169,9 +180,31 @@ class AllParametersTab(QWidget):
         tolerance_layout.addWidget(QLabel("Tolérance relative (rtol):"), 0, 0)
         self.rtol = QLineEdit()
         tolerance_layout.addWidget(self.rtol, 0, 1)
+        tolerance_layout.addWidget(
+            HelpButton(
+                "Tolérance relative de l’intégrateur. Plus elle est petite, plus "
+                "la solution est précise mais plus le calcul est long. Valeurs "
+                "trop faibles peuvent ralentir fortement ou entraîner des pas "
+                "d’intégration très petits.",
+                self,
+            ),
+            0,
+            2,
+        )
         tolerance_layout.addWidget(QLabel("Tolérance absolue (atol):"), 1, 0)
         self.atol = QLineEdit()
         tolerance_layout.addWidget(self.atol, 1, 1)
+        tolerance_layout.addWidget(
+            HelpButton(
+                "Tolérance absolue de l’intégrateur. Utile lorsque les variables "
+                "peuvent être proches de zéro. Réduire cette valeur augmente la "
+                "précision, mais peut forcer des pas plus petits et ralentir la "
+                "simulation.",
+                self,
+            ),
+            1,
+            2,
+        )
         tolerance_group.setLayout(tolerance_layout)
         layout.addWidget(tolerance_group)
         
@@ -181,9 +214,30 @@ class AllParametersTab(QWidget):
         timestep_layout.addWidget(QLabel("Pas maximum (max_step):"), 0, 0)
         self.max_step = QLineEdit()
         timestep_layout.addWidget(self.max_step, 0, 1)
+        timestep_layout.addWidget(
+            HelpButton(
+                "Pas maximum autorisé par l’intégrateur. Limite la taille des "
+                "pas temporels pour éviter de “sauter” des dynamiques rapides. "
+                "Une valeur trop petite ralentit la simulation, trop grande peut "
+                "dégrader la précision.",
+                self,
+            ),
+            0,
+            2,
+        )
         timestep_layout.addWidget(QLabel("Pas maximum dt_max (s):"), 1, 0)
         self.dt_max = QLineEdit()
         timestep_layout.addWidget(self.dt_max, 1, 1)
+        timestep_layout.addWidget(
+            HelpButton(
+                "Pas maximum utilisé par la boucle de simulation pour avancer "
+                "le temps entre deux mises à jour. Sert de garde‑fou global, "
+                "indépendamment de l’intégrateur, pour stabiliser la boucle UI.",
+                self,
+            ),
+            1,
+            2,
+        )
         timestep_group.setLayout(timestep_layout)
         layout.addWidget(timestep_group)
         
@@ -193,9 +247,30 @@ class AllParametersTab(QWidget):
         sim_layout.addWidget(QLabel("Temps final (s):"), 0, 0)
         self.t_final = QLineEdit()
         sim_layout.addWidget(self.t_final, 0, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Durée totale de la simulation. La boucle s’arrête lorsque "
+                "le temps atteint cette valeur. Augmenter ce paramètre allonge "
+                "la durée de calcul et le volume de données enregistrées.",
+                self,
+            ),
+            0,
+            2,
+        )
         sim_layout.addWidget(QLabel("Pas par mise à jour:"), 1, 0)
         self.steps_per_update = QLineEdit()
         sim_layout.addWidget(self.steps_per_update, 1, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Nombre de pas d’intégration entre deux rafraîchissements de "
+                "l’interface. Plus la valeur est grande, plus l’UI est fluide "
+                "mais moins réactive; plus petite, l’UI est plus précise mais "
+                "peut ralentir.",
+                self,
+            ),
+            1,
+            2,
+        )
         sim_group.setLayout(sim_layout)
         layout.addWidget(sim_group)
         
@@ -205,8 +280,39 @@ class AllParametersTab(QWidget):
         disc_layout.addWidget(QLabel("Nombre de segments (N_segments):"), 0, 0)
         self.n_segments = QLineEdit()
         disc_layout.addWidget(self.n_segments, 0, 1)
+        disc_layout.addWidget(
+            HelpButton(
+                "Nombre de segments pour discrétiser le câble. Augmenter N améliore "
+                "la fidélité géométrique et les forces locales, mais augmente le "
+                "temps de calcul. Réduire N accélère la simulation mais lisse la "
+                "forme du câble.",
+                self,
+            ),
+            0,
+            2,
+        )
         disc_group.setLayout(disc_layout)
         layout.addWidget(disc_group)
+
+        # Visualisation
+        visual_group = QGroupBox("Visualisation")
+        visual_layout = QGridLayout()
+        visual_layout.addWidget(QLabel("Lissage transition mode (0–1):"), 0, 0)
+        self.transition_alpha = QLineEdit()
+        visual_layout.addWidget(self.transition_alpha, 0, 1)
+        visual_layout.addWidget(
+            HelpButton(
+                "Facteur de lissage (0–1) appliqué à la transition caténaire → "
+                "ligne droite. 0 désactive le lissage, 1 applique le lissage "
+                "complet prévu par le modèle. Utile pour éviter des variations "
+                "brutales de tension.",
+                self,
+            ),
+            0,
+            2,
+        )
+        visual_group.setLayout(visual_layout)
+        layout.addWidget(visual_group)
         
         layout.addStretch()
         scroll.setWidget(scroll_content)
@@ -430,6 +536,28 @@ class AllParametersTab(QWidget):
             HelpButton("Indice n de la fonction auto_L_n utilisée en mode Auto.", self),
             4, 2
         )
+
+        layout.addWidget(QLabel("Tension cible:"), 5, 0)
+        self.tcible = QLineEdit()
+        layout.addWidget(self.tcible, 5, 1)
+        layout.addWidget(
+            HelpButton(
+                "Tension cible au niveau du bateau (N), utilisée par les lois auto_L_n.",
+                self,
+            ),
+            5, 2
+        )
+
+        layout.addWidget(QLabel("Gamma moulinet max:"), 6, 0)
+        self.gamma_moulinet_max = QLineEdit()
+        layout.addWidget(self.gamma_moulinet_max, 6, 1)
+        layout.addWidget(
+            HelpButton(
+                "Accélération maximale du moulinet (m/s²) appliquée au dL/dt en mode Auto.",
+                self,
+            ),
+            6, 2
+        )
         
         group.setLayout(layout)
         return group
@@ -475,12 +603,17 @@ class AllParametersTab(QWidget):
         self.t_final.setText(str(calc_params.get('t_final', 60.0)))
         self.steps_per_update.setText(str(calc_params.get('steps_per_update', 5)))
         self.n_segments.setText(str(calc_params.get('N_segments', 50)))
+        self.transition_alpha.setText(str(calc_params.get('straight_blend_alpha', 1.0)))
         self.sc_fx_rov.setPlainText(str(calc_params.get('sc_fx_rov', '')))
         self.sc_fy_rov.setPlainText(str(calc_params.get('sc_fy_rov', '')))
         self.sc_v_bateau.setText(str(calc_params.get('sc_v_bateau', '')))
         self.sc_v_moulinet.setText(str(calc_params.get('sc_v_moulinet', '')))
         if hasattr(self, "auto_L_spin"):
             self.auto_L_spin.setValue(int(calc_params.get('auto_L', 1)))
+        if hasattr(self, "tcible"):
+            self.tcible.setText(str(calc_params.get('Tcible', "")))
+        if hasattr(self, "gamma_moulinet_max"):
+            self.gamma_moulinet_max.setText(str(calc_params.get('Gamma_moulinet_max', "")))
 
         if hasattr(self, "mission_description"):
             self.mission_description.setPlainText(str(self.main_window.mission_data.get('description', "")))
@@ -622,11 +755,18 @@ class AllParametersTab(QWidget):
                 't_final': parse_float(self.t_final.text(), 60.0, "Temps final (s)"),
                 'steps_per_update': parse_int(self.steps_per_update.text(), 5, "Pas par mise à jour"),
                 'N_segments': parse_int(self.n_segments.text(), 50, "Nombre de segments (N_segments)"),
+                'straight_blend_alpha': parse_float(
+                    self.transition_alpha.text(), 1.0, "Lissage transition mode"
+                ),
                 'sc_fx_rov': (self.sc_fx_rov.toPlainText() or "").strip(),
                 'sc_fy_rov': (self.sc_fy_rov.toPlainText() or "").strip(),
                 'sc_v_bateau': (self.sc_v_bateau.text() or "").strip(),
                 'sc_v_moulinet': (self.sc_v_moulinet.text() or "").strip(),
                 'auto_L': int(self.auto_L_spin.value()) if hasattr(self, "auto_L_spin") else 1,
+                'Tcible': parse_float(self.tcible.text(), None, "Tension cible") if hasattr(self, "tcible") else None,
+                'Gamma_moulinet_max': parse_float(
+                    self.gamma_moulinet_max.text(), 0.5, "Gamma moulinet max"
+                ) if hasattr(self, "gamma_moulinet_max") else 0.5,
             }
 
             if not self._validate_scenarios(self.main_window.calc_params):
@@ -826,6 +966,11 @@ class AllParametersTab(QWidget):
             if not isinstance(parameters, dict) or not isinstance(calc_params, dict) or not isinstance(init_params, dict):
                 raise ValueError("Le fichier ne contient pas les sections attendues (parameters, calc_params, init_params).")
 
+            # Migration: tcible -> Tcible
+            if "Tcible" not in calc_params and "tcible" in calc_params:
+                calc_params["Tcible"] = calc_params.get("tcible")
+                calc_params.pop("tcible", None)
+
             self._validate_scenarios(calc_params, strict=False)
 
             description = str(data.get("description", ""))
@@ -929,6 +1074,43 @@ class AllParametersTab(QWidget):
         if filename:
             if self.load_param_mission_file(filename):
                 QMessageBox.information(self, "Succès", "Paramètres de mission chargés avec succès.")
+
+    def save_to_file(self):
+        """Sauvegarde les paramètres vers un fichier JSON choisi par l'utilisateur"""
+        if not self.save_all_parameters_from_display():
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Sauvegarder les paramètres",
+            "",
+            "Fichiers JSON de mission (*.json)"
+        )
+
+        if not filename:
+            return
+
+        if not filename.lower().endswith(".json"):
+            filename = f"{filename}.json"
+
+        try:
+            description = self.mission_description.toPlainText()
+            self.main_window.mission_data['description'] = description
+            data = {
+                "date_sauvegarde": datetime.now().isoformat(),
+                "mission": self.mission_combo.currentText(),
+                "description": description,
+                "parameters": self.main_window.parameters,
+                "calc_params": self.main_window.calc_params,
+                "init_params": self.main_window.init_params,
+            }
+
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+
+            QMessageBox.information(self, "Succès", "Paramètres sauvegardés dans le fichier choisi.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la sauvegarde :\n{str(e)}")
     
     def reset_to_defaults(self):
         """Réinitialise les paramètres par défaut"""
@@ -944,7 +1126,10 @@ class AllParametersTab(QWidget):
             't_final': 60.0,
             'dt_max': 0.1,
             'N_segments': 50,
-            'auto_L': 1
+            'straight_blend_alpha': 1.0,
+            'auto_L': 1,
+            'Tcible': None,
+            'Gamma_moulinet_max': 0.5,
         }
         self.main_window.init_params = {
             'x_rov_init': 0.0,

@@ -1,0 +1,90 @@
+[SCEN] t=0.10 scen=Fy crit=(t>0:-50) T_bat=0.8068861135073987 p=-100.00 L=110.00
+AUTO_L_6: t=0.10, L= 110.00, est_dT_dL=   0.00, y_rov=-100.00, vy_rov= -0.01, T=0.81, prev_cmd=  0.00, ret1= -0.02, ret= -0.02, dL_dt=  0.00, dt=  0.10, Gamma=  0.50, desired= -0.20, exp=REG_SIGN_ACC
+AUTO_L_6: t=0.20, L= 110.00, est_dT_dL=-347.25, y_rov=-100.01, vy_rov= -0.13, T=1.07, prev_cmd= -0.02, ret1= -0.02, ret= -0.02, dL_dt= -0.02, dt=  0.10, Gamma=  0.50, desired= -0.01, exp=REG_T_ACC
+AUTO_L_6: t=0.30, L= 110.00, est_dT_dL=-997.30, y_rov=-100.04, vy_rov= -0.30, T=4.23, prev_cmd= -0.02, ret1= -0.02, ret= -0.02, dL_dt= -0.02, dt=  0.10, Gamma=  0.50, desired= -0.00, exp=REG_T_ACC
+AUTO_L_6: t=0.40, L= 109.99, est_dT_dL=-1531.34, y_rov=-100.09, vy_rov= -0.43, T=8.85, prev_cmd= -0.02, ret1= -0.01, ret= -0.01, dL_dt= -0.02, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=0.50, L= 109.99, est_dT_dL=-1821.92, y_rov=-100.14, vy_rov= -0.53, T=13.18, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=0.60, L= 109.99, est_dT_dL=-1925.29, y_rov=-100.20, vy_rov= -0.59, T=16.45, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=0.70, L= 109.99, est_dT_dL=-1920.22, y_rov=-100.26, vy_rov= -0.62, T=18.64, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=0.80, L= 109.99, est_dT_dL=-1864.88, y_rov=-100.33, vy_rov= -0.65, T=20.00, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=0.90, L= 109.99, est_dT_dL=-1793.33, y_rov=-100.39, vy_rov= -0.66, T=20.80, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=1.00, L= 109.99, est_dT_dL=-1722.62, y_rov=-100.46, vy_rov= -0.66, T=21.26, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=1.10, L= 109.99, est_dT_dL=-1626.51, y_rov=-100.53, vy_rov= -0.67, T=21.53, prev_cmd= -0.01, ret1= -0.01, ret= -0.01, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.20, L= 109.99, est_dT_dL=-1832.46, y_rov=-100.59, vy_rov= -0.67, T=21.68, prev_cmd= -0.01, ret1= -0.00, ret= -0.00, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=1.30, L= 109.99, est_dT_dL=-1790.25, y_rov=-100.66, vy_rov= -0.67, T=21.76, prev_cmd= -0.00, ret1= -0.00, ret= -0.00, dL_dt= -0.00, dt=  0.10, Gamma=  0.50, desired=  0.00, exp=REG_T_ACC
+AUTO_L_6: t=1.40, L= 109.99, est_dT_dL=-1535.25, y_rov=-100.73, vy_rov= -0.67, T=21.81, prev_cmd= -0.00, ret1= -0.00, ret= -0.00, dL_dt= -0.00, dt=  0.10, Gamma=  0.50, desired=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.50, L= 109.99, est_dT_dL=-1205.41, y_rov=-100.79, vy_rov= -0.67, T=21.83, prev_cmd= -0.00, ret1= -0.00, ret= -0.00, dL_dt= -0.00, dt=  0.10, Gamma=  0.50, desired=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.60, L= 109.99, est_dT_dL=-899.75, y_rov=-100.86, vy_rov= -0.67, T=21.85, prev_cmd= -0.00, ret1= -0.00, ret= -0.00, dL_dt= -0.00, dt=  0.10, Gamma=  0.50, desired=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.70, L= 109.99, est_dT_dL=-660.79, y_rov=-100.93, vy_rov= -0.67, T=21.86, prev_cmd= -0.00, ret1=  0.00, ret=  0.00, dL_dt= -0.00, dt=  0.10, Gamma=  0.50, desired=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=1.80, L= 109.99, est_dT_dL=-496.13, y_rov=-101.00, vy_rov= -0.67, T=21.86, prev_cmd=  0.00, ret1=  0.00, ret=  0.00, dL_dt=  0.00, dt=  0.10, Gamma=  0.50, desired=  0.02, exp=REG_T_ACC
+AUTO_L_6: t=1.90, L= 109.99, est_dT_dL=-404.02, y_rov=-101.06, vy_rov= -0.67, T=21.86, prev_cmd=  0.00, ret1=  0.00, ret=  0.00, dL_dt=  0.00, dt=  0.10, Gamma=  0.50, desired=  0.02, exp=REG_T_ACC
+AUTO_L_6: t=2.00, L= 109.99, est_dT_dL=-412.81, y_rov=-101.13, vy_rov= -0.67, T=21.87, prev_cmd=  0.00, ret1=  0.01, ret=  0.01, dL_dt=  0.00, dt=  0.10, Gamma=  0.50, desired=  0.02, exp=REG_T_ACC
+AUTO_L_6: t=2.10, L= 109.99, est_dT_dL=-1409.06, y_rov=-101.20, vy_rov= -0.67, T=21.87, prev_cmd=  0.01, ret1=  0.01, ret=  0.01, dL_dt=  0.01, dt=  0.10, Gamma=  0.50, desired=  0.01, exp=REG_T_ACC
+AUTO_L_6: t=2.20, L= 109.99, est_dT_dL= 162.54, y_rov=-101.27, vy_rov= -0.67, T=21.87, prev_cmd=  0.01, ret1=  0.00, ret=  0.00, dL_dt=  0.01, dt=  0.10, Gamma=  0.50, desired= -0.05, exp=REG_T_ACC
+AUTO_L_6: t=2.30, L= 109.99, est_dT_dL=  66.41, y_rov=-101.33, vy_rov= -0.67, T=21.87, prev_cmd=  0.00, ret1= -0.01, ret= -0.01, dL_dt=  0.00, dt=  0.10, Gamma=  0.50, desired= -0.13, exp=REG_T_ACC
+AUTO_L_6: t=2.40, L= 109.99, est_dT_dL=  88.46, y_rov=-101.40, vy_rov= -0.67, T=21.87, prev_cmd= -0.01, ret1= -0.02, ret= -0.02, dL_dt= -0.01, dt=  0.10, Gamma=  0.50, desired= -0.10, exp=REG_T_ACC
+AUTO_L_6: t=2.50, L= 109.98, est_dT_dL= -27.16, y_rov=-101.47, vy_rov= -0.67, T=21.87, prev_cmd= -0.02, ret1=  0.01, ret=  0.01, dL_dt= -0.02, dt=  0.10, Gamma=  0.50, desired=  0.31, exp=REG_T_ACC
+AUTO_L_6: t=2.60, L= 109.99, est_dT_dL=  89.18, y_rov=-101.53, vy_rov= -0.67, T=21.87, prev_cmd=  0.01, ret1=  0.00, ret=  0.00, dL_dt=  0.01, dt=  0.10, Gamma=  0.50, desired= -0.09, exp=REG_T_ACC
+AUTO_L_6: t=2.70, L= 109.99, est_dT_dL=  23.91, y_rov=-101.60, vy_rov= -0.67, T=21.87, prev_cmd=  0.00, ret1= -0.03, ret= -0.03, dL_dt=  0.00, dt=  0.10, Gamma=  0.50, desired= -0.35, exp=REG_T_ACC
+AUTO_L_6: t=2.80, L= 109.98, est_dT_dL=  -1.32, y_rov=-101.67, vy_rov= -0.67, T=21.87, prev_cmd= -0.03, ret1=  0.02, ret=  0.02, dL_dt= -0.03, dt=  0.10, Gamma=  0.50, desired=  6.37, exp=REG_T_ACC
+AUTO_L_6: t=2.90, L= 109.98, est_dT_dL=  -0.77, y_rov=-101.74, vy_rov= -0.67, T=21.87, prev_cmd=  0.02, ret1=  0.07, ret=  0.07, dL_dt=  0.02, dt=  0.10, Gamma=  0.50, desired= 10.90, exp=REG_T_ACC
+AUTO_L_6: t=3.00, L= 109.99, est_dT_dL=   0.32, y_rov=-101.80, vy_rov= -0.67, T=21.87, prev_cmd=  0.07, ret1=  0.02, ret=  0.02, dL_dt=  0.07, dt=  0.10, Gamma=  0.50, desired=-26.06, exp=REG_T_ACC
+AUTO_L_6: t=3.10, L= 109.99, est_dT_dL=   0.33, y_rov=-101.87, vy_rov= -0.67, T=21.87, prev_cmd=  0.02, ret1= -0.03, ret= -0.03, dL_dt=  0.02, dt=  0.10, Gamma=  0.50, desired=-25.29, exp=REG_T_ACC
+AUTO_L_6: t=3.20, L= 109.99, est_dT_dL=   0.60, y_rov=-101.94, vy_rov= -0.67, T=21.87, prev_cmd= -0.03, ret1= -0.08, ret= -0.08, dL_dt= -0.03, dt=  0.10, Gamma=  0.50, desired=-14.04, exp=REG_T_ACC
+AUTO_L_6: t=3.30, L= 109.98, est_dT_dL=   0.28, y_rov=-102.01, vy_rov= -0.67, T=21.87, prev_cmd= -0.08, ret1= -0.13, ret= -0.13, dL_dt= -0.08, dt=  0.10, Gamma=  0.50, desired=-30.12, exp=REG_T_ACC
+AUTO_L_6: t=3.40, L= 109.97, est_dT_dL=   0.32, y_rov=-102.07, vy_rov= -0.67, T=21.86, prev_cmd= -0.13, ret1= -0.18, ret= -0.18, dL_dt= -0.13, dt=  0.10, Gamma=  0.50, desired=-26.25, exp=REG_T_ACC
+AUTO_L_6: t=3.50, L= 109.95, est_dT_dL=   0.33, y_rov=-102.14, vy_rov= -0.67, T=21.86, prev_cmd= -0.18, ret1= -0.23, ret= -0.23, dL_dt= -0.18, dt=  0.10, Gamma=  0.50, desired=-25.16, exp=REG_T_ACC
+AUTO_L_6: t=3.60, L= 109.93, est_dT_dL=   0.34, y_rov=-102.21, vy_rov= -0.67, T=21.85, prev_cmd= -0.23, ret1= -0.28, ret= -0.28, dL_dt= -0.23, dt=  0.10, Gamma=  0.50, desired=-25.11, exp=REG_T_ACC
+AUTO_L_6: t=3.70, L= 109.90, est_dT_dL=   0.35, y_rov=-102.28, vy_rov= -0.67, T=21.84, prev_cmd= -0.28, ret1= -0.33, ret= -0.33, dL_dt= -0.28, dt=  0.10, Gamma=  0.50, desired=-24.36, exp=REG_T_ACC
+AUTO_L_6: t=3.80, L= 109.86, est_dT_dL=   0.36, y_rov=-102.34, vy_rov= -0.67, T=21.82, prev_cmd= -0.33, ret1= -0.38, ret= -0.38, dL_dt= -0.33, dt=  0.10, Gamma=  0.50, desired=-23.66, exp=REG_T_ACC
+AUTO_L_6: t=3.90, L= 109.83, est_dT_dL=   0.35, y_rov=-102.41, vy_rov= -0.67, T=21.81, prev_cmd= -0.38, ret1= -0.43, ret= -0.43, dL_dt= -0.38, dt=  0.10, Gamma=  0.50, desired=-23.68, exp=REG_T_ACC
+AUTO_L_6: t=4.00, L= 109.78, est_dT_dL=   0.36, y_rov=-102.48, vy_rov= -0.67, T=21.79, prev_cmd= -0.43, ret1= -0.48, ret= -0.48, dL_dt= -0.43, dt=  0.10, Gamma=  0.50, desired=-23.61, exp=REG_T_ACC
+AUTO_L_6: t=4.10, L= 109.73, est_dT_dL=   0.36, y_rov=-102.54, vy_rov= -0.67, T=21.78, prev_cmd= -0.48, ret1= -0.53, ret= -0.53, dL_dt= -0.48, dt=  0.10, Gamma=  0.50, desired=-23.13, exp=REG_T_ACC
+AUTO_L_6: t=4.20, L= 109.68, est_dT_dL=   0.37, y_rov=-102.61, vy_rov= -0.67, T=21.75, prev_cmd= -0.53, ret1= -0.58, ret= -0.58, dL_dt= -0.53, dt=  0.10, Gamma=  0.50, desired=-22.77, exp=REG_T_ACC
+AUTO_L_6: t=4.30, L= 109.62, est_dT_dL=   0.37, y_rov=-102.68, vy_rov= -0.67, T=21.73, prev_cmd= -0.58, ret1= -0.63, ret= -0.63, dL_dt= -0.58, dt=  0.10, Gamma=  0.50, desired=-22.50, exp=REG_T_ACC
+AUTO_L_6: t=4.40, L= 109.56, est_dT_dL=   0.37, y_rov=-102.75, vy_rov= -0.67, T=21.71, prev_cmd= -0.63, ret1= -0.68, ret= -0.68, dL_dt= -0.63, dt=  0.10, Gamma=  0.50, desired=-22.30, exp=REG_T_ACC
+AUTO_L_6: t=4.50, L= 109.49, est_dT_dL=   0.38, y_rov=-102.81, vy_rov= -0.67, T=21.68, prev_cmd= -0.68, ret1= -0.73, ret= -0.73, dL_dt= -0.68, dt=  0.10, Gamma=  0.50, desired=-22.13, exp=REG_T_ACC
+AUTO_L_6: t=4.60, L= 109.42, est_dT_dL=   0.38, y_rov=-102.88, vy_rov= -0.67, T=21.65, prev_cmd= -0.73, ret1= -0.78, ret= -0.78, dL_dt= -0.73, dt=  0.10, Gamma=  0.50, desired=-22.00, exp=REG_T_ACC
+AUTO_L_6: t=4.70, L= 109.34, est_dT_dL=   0.38, y_rov=-102.95, vy_rov= -0.67, T=21.62, prev_cmd= -0.78, ret1= -0.83, ret= -0.83, dL_dt= -0.78, dt=  0.10, Gamma=  0.50, desired=-21.88, exp=REG_T_ACC
+AUTO_L_6: t=4.80, L= 109.26, est_dT_dL=   0.38, y_rov=-103.02, vy_rov= -0.67, T=21.59, prev_cmd= -0.83, ret1= -0.88, ret= -0.88, dL_dt= -0.83, dt=  0.10, Gamma=  0.50, desired=-21.78, exp=REG_T_ACC
+AUTO_L_6: t=4.90, L= 109.17, est_dT_dL=   0.38, y_rov=-103.08, vy_rov= -0.67, T=21.56, prev_cmd= -0.88, ret1= -0.93, ret= -0.93, dL_dt= -0.88, dt=  0.10, Gamma=  0.50, desired=-21.69, exp=REG_T_ACC
+AUTO_L_6: t=5.00, L= 109.07, est_dT_dL=   0.38, y_rov=-103.15, vy_rov= -0.67, T=21.52, prev_cmd= -0.93, ret1= -0.98, ret= -0.98, dL_dt= -0.93, dt=  0.10, Gamma=  0.50, desired=-21.61, exp=REG_T_ACC
+AUTO_L_6: t=5.10, L= 108.97, est_dT_dL=   0.38, y_rov=-103.22, vy_rov= -0.67, T=21.48, prev_cmd= -0.98, ret1= -1.03, ret= -1.00, dL_dt= -0.98, dt=  0.10, Gamma=  0.50, desired=-21.54, exp=REG_T_ACC
+AUTO_L_6: t=5.20, L= 108.87, est_dT_dL=   0.38, y_rov=-103.29, vy_rov= -0.67, T=21.45, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.44, exp=REG_T_ACC
+AUTO_L_6: t=5.30, L= 108.77, est_dT_dL=   0.38, y_rov=-103.35, vy_rov= -0.67, T=21.41, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.32, exp=REG_T_ACC
+AUTO_L_6: t=5.40, L= 108.67, est_dT_dL=   0.39, y_rov=-103.42, vy_rov= -0.67, T=21.37, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.22, exp=REG_T_ACC
+AUTO_L_6: t=5.50, L= 108.57, est_dT_dL=   0.39, y_rov=-103.49, vy_rov= -0.67, T=21.33, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.13, exp=REG_T_ACC
+AUTO_L_6: t=5.60, L= 108.47, est_dT_dL=   0.39, y_rov=-103.55, vy_rov= -0.67, T=21.29, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.04, exp=REG_T_ACC
+AUTO_L_6: t=5.70, L= 108.37, est_dT_dL=   0.39, y_rov=-103.62, vy_rov= -0.67, T=21.25, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.97, exp=REG_T_ACC
+AUTO_L_6: t=5.80, L= 108.27, est_dT_dL=   0.39, y_rov=-103.69, vy_rov= -0.67, T=21.21, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.90, exp=REG_T_ACC
+AUTO_L_6: t=5.90, L= 108.17, est_dT_dL=   0.39, y_rov=-103.76, vy_rov= -0.67, T=21.17, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.85, exp=REG_T_ACC
+AUTO_L_6: t=6.00, L= 108.07, est_dT_dL=   0.39, y_rov=-103.82, vy_rov= -0.67, T=21.14, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.79, exp=REG_T_ACC
+AUTO_L_6: t=6.10, L= 107.97, est_dT_dL=   0.39, y_rov=-103.89, vy_rov= -0.67, T=21.10, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.75, exp=REG_T_ACC
+AUTO_L_6: t=6.20, L= 107.87, est_dT_dL=   0.39, y_rov=-103.96, vy_rov= -0.67, T=21.06, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.75, exp=REG_T_ACC
+AUTO_L_6: t=6.30, L= 107.77, est_dT_dL=   0.39, y_rov=-104.03, vy_rov= -0.67, T=21.02, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.77, exp=REG_T_ACC
+AUTO_L_6: t=6.40, L= 107.67, est_dT_dL=   0.38, y_rov=-104.09, vy_rov= -0.67, T=20.98, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.82, exp=REG_T_ACC
+AUTO_L_6: t=6.50, L= 107.57, est_dT_dL=   0.38, y_rov=-104.16, vy_rov= -0.67, T=20.95, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.88, exp=REG_T_ACC
+AUTO_L_6: t=6.60, L= 107.47, est_dT_dL=   0.38, y_rov=-104.23, vy_rov= -0.67, T=20.91, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-20.97, exp=REG_T_ACC
+AUTO_L_6: t=6.70, L= 107.37, est_dT_dL=   0.38, y_rov=-104.29, vy_rov= -0.67, T=20.87, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.10, exp=REG_T_ACC
+AUTO_L_6: t=6.80, L= 107.27, est_dT_dL=   0.37, y_rov=-104.36, vy_rov= -0.67, T=20.84, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.29, exp=REG_T_ACC
+AUTO_L_6: t=6.90, L= 107.17, est_dT_dL=   0.37, y_rov=-104.43, vy_rov= -0.67, T=20.81, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-21.57, exp=REG_T_ACC
+AUTO_L_6: t=7.00, L= 107.07, est_dT_dL=   0.36, y_rov=-104.50, vy_rov= -0.67, T=20.78, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-22.02, exp=REG_T_ACC
+AUTO_L_6: t=7.10, L= 106.97, est_dT_dL=   0.35, y_rov=-104.56, vy_rov= -0.67, T=20.75, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-22.80, exp=REG_T_ACC
+AUTO_L_6: t=7.20, L= 106.87, est_dT_dL=   0.32, y_rov=-104.63, vy_rov= -0.67, T=20.74, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-24.36, exp=REG_T_ACC
+AUTO_L_6: t=7.30, L= 106.77, est_dT_dL=   0.27, y_rov=-104.70, vy_rov= -0.67, T=20.75, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-28.78, exp=REG_T_ACC
+AUTO_L_6: t=7.40, L= 106.67, est_dT_dL=   0.02, y_rov=-104.77, vy_rov= -0.67, T=20.96, prev_cmd= -1.00, ret1= -1.05, ret= -1.00, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired=-326.06, exp=REG_T_ACC
+AUTO_L_6: t=7.50, L= 106.57, est_dT_dL=   8.48, y_rov=-104.69, vy_rov=  0.78, T=12.47, prev_cmd= -1.00, ret1= -0.95, ret= -0.95, dL_dt= -1.00, dt=  0.10, Gamma=  0.50, desired= -0.44, exp=REG_T_ACC
+AUTO_L_6: t=7.60, L= 106.48, est_dT_dL=  10.08, y_rov=-104.59, vy_rov=  0.93, T=10.88, prev_cmd= -0.95, ret1= -0.90, ret= -0.90, dL_dt= -0.95, dt=  0.10, Gamma=  0.50, desired= -0.29, exp=REG_T_ACC
+AUTO_L_6: t=7.70, L= 106.39, est_dT_dL=  10.36, y_rov=-104.51, vy_rov=  0.88, T=10.67, prev_cmd= -0.90, ret1= -0.85, ret= -0.85, dL_dt= -0.90, dt=  0.10, Gamma=  0.50, desired= -0.27, exp=REG_T_ACC
+AUTO_L_6: t=7.80, L= 106.30, est_dT_dL=  10.52, y_rov=-104.42, vy_rov=  0.83, T=10.64, prev_cmd= -0.85, ret1= -0.80, ret= -0.80, dL_dt= -0.85, dt=  0.10, Gamma=  0.50, desired= -0.27, exp=REG_T_ACC
+AUTO_L_6: t=7.90, L= 106.22, est_dT_dL=  10.71, y_rov=-104.35, vy_rov=  0.78, T=10.63, prev_cmd= -0.80, ret1= -0.75, ret= -0.75, dL_dt= -0.80, dt=  0.10, Gamma=  0.50, desired= -0.26, exp=REG_T_ACC
+AUTO_L_6: t=8.00, L= 106.15, est_dT_dL=  10.97, y_rov=-104.27, vy_rov=  0.73, T=10.63, prev_cmd= -0.75, ret1= -0.70, ret= -0.70, dL_dt= -0.75, dt=  0.10, Gamma=  0.50, desired= -0.26, exp=REG_T_ACC
+AUTO_L_6: t=8.10, L= 106.08, est_dT_dL=  11.30, y_rov=-104.20, vy_rov=  0.68, T=10.63, prev_cmd= -0.70, ret1= -0.66, ret= -0.66, dL_dt= -0.70, dt=  0.10, Gamma=  0.50, desired= -0.25, exp=REG_T_ACC
+AUTO_L_6: t=8.20, L= 106.01, est_dT_dL=  11.74, y_rov=-104.14, vy_rov=  0.64, T=10.64, prev_cmd= -0.66, ret1= -0.61, ret= -0.61, dL_dt= -0.66, dt=  0.10, Gamma=  0.50, desired= -0.24, exp=REG_T_ACC
+AUTO_L_6: t=8.30, L= 105.95, est_dT_dL=  12.29, y_rov=-104.08, vy_rov=  0.59, T=10.64, prev_cmd= -0.61, ret1= -0.58, ret= -0.58, dL_dt= -0.61, dt=  0.10, Gamma=  0.50, desired= -0.23, exp=REG_T_ACC
+AUTO_L_6: t=8.40, L= 105.90, est_dT_dL=  13.23, y_rov=-104.03, vy_rov=  0.55, T=10.65, prev_cmd= -0.58, ret1= -0.54, ret= -0.54, dL_dt= -0.58, dt=  0.10, Gamma=  0.50, desired= -0.21, exp=REG_T_ACC
+AUTO_L_6: t=8.50, L= 105.84, est_dT_dL=   2.47, y_rov=-103.97, vy_rov=  0.52, T=10.66, prev_cmd= -0.54, ret1= -0.59, ret= -0.59, dL_dt= -0.54, dt=  0.10, Gamma=  0.50, desired= -1.15, exp=REG_T_ACC
+AUTO_L_6: t=8.60, L= 105.78, est_dT_dL=   0.31, y_rov=-103.92, vy_rov=  0.57, T=10.67, prev_cmd= -0.59, ret1= -0.64, ret= -0.64, dL_dt= -0.59, dt=  0.10, Gamma=  0.50, desired= -9.28, exp=REG_T_ACC
+AUTO_L_6: t=8.70, L= 105.72, est_dT_dL=  -0.02, y_rov=-103.86, vy_rov=  0.61, T=10.68, prev_cmd= -0.64, ret1= -0.59, ret= -0.59, dL_dt= -0.64, dt=  0.10, Gamma=  0.50, desired= 122.64, exp=REG_T_ACC
+AUTO_L_6: t=8.80, L= 105.66, est_dT_dL=  -0.09, y_rov=-103.80, vy_rov=  0.56, T=10.69, prev_cmd= -0.59, ret1= -0.54, ret= -0.54, dL_dt= -0.59, dt=  0.10, Gamma=  0.50, desired= 31.03, exp=REG_T_ACC
+AUTO_L_6: t=8.90, L= 105.61, est_dT_dL=  -0.13, y_rov=-103.75, vy_rov=  0.51, T=10.71, prev_cmd= -0.54, ret1= -0.49, ret= -0.49, dL_dt= -0.54, dt=  0.10, Gamma=  0.50, desired= 22.33, exp=REG_T_ACC

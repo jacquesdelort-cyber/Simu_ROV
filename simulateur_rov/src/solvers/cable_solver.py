@@ -272,6 +272,53 @@ class CableSolver:
         
         trace_print(1, "\n[DEBUG] Initialisation du câble : câble caténaire (solve_equilibrium_static).")
         x_cable, y_cable = self._solve_catenary(x_rov, y_rov, x_boat, L, weight_per_unit)
+
+        # Transition progressive vers une geometrie quasi-rectiligne
+        r0 = float(self.params.get("straight_blend_r0", 1.01))
+        r1 = float(self.params.get("straight_blend_r1", 1.001))
+        if r0 <= r1:
+            r0, r1 = r1, r0
+        if L_straight > 1e-9 and r0 > 1.0:
+            r = L / L_straight
+            alpha_target = (r0 - r) / (r0 - r1)
+            alpha_coeff = float(self.params.get("straight_blend_alpha", 1.0))
+            if alpha_coeff < 0.0:
+                alpha_coeff = 0.0
+            alpha_target *= alpha_coeff
+            if alpha_target < 0.0:
+                alpha_target = 0.0
+            elif alpha_target > 1.0:
+                alpha_target = 1.0
+            if alpha_target > 0.0:
+                x_line = np.linspace(x_boat, x_rov, self.N + 1)
+                y_line = np.linspace(0.0, y_rov, self.N + 1)
+
+                def _cable_length(x_vals, y_vals):
+                    dx = np.diff(x_vals)
+                    dy = np.diff(y_vals)
+                    return float(np.sum(np.hypot(dx, dy)))
+
+                # Ajuster alpha si le mélange rend le câble trop court
+                def _blend(a):
+                    return (1.0 - a) * x_cable + a * x_line, (1.0 - a) * y_cable + a * y_line
+
+                x_try, y_try = _blend(alpha_target)
+                L_try = _cable_length(x_try, y_try)
+                alpha = alpha_target
+                if L_try < L * (1.0 - 1e-6):
+                    lo = 0.0
+                    hi = alpha_target
+                    for _ in range(12):
+                        mid = 0.5 * (lo + hi)
+                        x_mid, y_mid = _blend(mid)
+                        if _cable_length(x_mid, y_mid) < L:
+                            hi = mid
+                        else:
+                            lo = mid
+                    alpha = lo
+
+                if alpha > 0.0:
+                    x_cable, y_cable = _blend(alpha)
         
         # Calculer les tensions le long du câble
         T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
@@ -362,16 +409,16 @@ class CableSolver:
                     t_hat0 = np.array([dx0 / ds0, dy0 / ds0])
                 else:
                     t_hat0 = np.array([0.0, -1.0])
-                T0 = T_guess[0] if len(T_guess) > 0 else abs(self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g * L / 2.0
-                T0x, T0y = T0 * t_hat0[0], T0 * t_hat0[1]
+                T_init = T_guess[0] if len(T_guess) > 0 else abs(self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g * L / 2.0
+                T_init_x, T_init_y = T_init * t_hat0[0], T_init * t_hat0[1]
                 
-                def residual(T0_vec):
-                    x_end, y_end, _ = integrate_with_forces(T0_vec[0], T0_vec[1])
+                def residual(T_init_vec):
+                    x_end, y_end, _ = integrate_with_forces(T_init_vec[0], T_init_vec[1])
                     return np.array([x_end[-1] - x_rov, y_end[-1] - y_rov])
                 
                 sol, info, ier, msg = fsolve(
                     residual,
-                    [T0x, T0y],
+                    [T_init_x, T_init_y],
                     full_output=True,
                     xtol=1e-6,
                     maxfev=200,
@@ -1169,6 +1216,44 @@ class CableSolver:
             y_cable = np.clip(y_cable, None, 0.0)
             y_cable[0] = 0.0
             y_cable[-1] = y_rov
+
+        # CONTRAINTE DE FORME : ne pas passer au-dessus de la droite bateau-ROV
+        # (évite des profils erratiques proches du mode "straight")
+        dx_line = x_rov - x_boat
+        dy_line = y_rov - 0.0
+        if abs(dx_line) > 1e-9 or abs(dy_line) > 1e-9:
+            if abs(dx_line) > 1e-9:
+                s = (x_cable - x_boat) / dx_line
+                s = np.clip(s, 0.0, 1.0)
+                y_line = s * dy_line
+            else:
+                # Ligne verticale : utiliser un paramètre uniforme
+                s = np.linspace(0.0, 1.0, len(x_cable))
+                y_line = s * dy_line
+            y_cable = np.minimum(y_cable, y_line)
+            y_cable = np.clip(y_cable, None, 0.0)
+            y_cable[0] = 0.0
+            y_cable[-1] = y_rov
+
+            # Renormaliser si la contrainte a modifié la longueur
+            L_after_line = 0.0
+            for i in range(len(x_cable) - 1):
+                dx = x_cable[i+1] - x_cable[i]
+                dy = y_cable[i+1] - y_cable[i]
+                L_after_line += np.sqrt(dx**2 + dy**2)
+            if abs(L_after_line - L) / L > 1e-6:
+                x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+                y_cable = np.clip(y_cable, None, 0.0)
+                if abs(dx_line) > 1e-9:
+                    s = (x_cable - x_boat) / dx_line
+                    s = np.clip(s, 0.0, 1.0)
+                    y_line = s * dy_line
+                else:
+                    s = np.linspace(0.0, 1.0, len(x_cable))
+                    y_line = s * dy_line
+                y_cable = np.minimum(y_cable, y_line)
+                y_cable[0] = 0.0
+                y_cable[-1] = y_rov
         
         # Recalculer les tensions en utilisant la tension initiale de T_static
         # pour préserver la tension correcte au ROV basée sur l'équilibre
@@ -1230,8 +1315,9 @@ class CableSolver:
             
             if length > 1e-6:
                 # Équilibre des forces
-                dT_x = Fx[i] * ds
-                dT_y = Fy[i] * ds
+                # Fx, Fy sont déjà des forces par segment (N), ne pas re-multiplier par ds
+                dT_x = Fx[i]
+                dT_y = Fy[i]
                 
                 # Mettre à jour la tension en remontant vers le bateau
                 T[i] = T[i+1] + np.sqrt(dT_x**2 + dT_y**2)

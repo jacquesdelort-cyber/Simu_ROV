@@ -88,8 +88,8 @@ def test_horizontal_detailed():
             cos_theta0 = 0.0
             sin_theta0 = 1.0
         
-        T0 = T[0] if len(T) > 0 else 0.0
-        Fx_tension = T0 * cos_theta0
+        T_rov = T[0] if len(T) > 0 else 0.0
+        Fx_tension = T_rov * cos_theta0
         Fx_total = Fx_drag + Fx_tension + Fx_rov_applied
         
         print(f"\nt = {t:.2f} s:")
@@ -98,7 +98,7 @@ def test_horizontal_detailed():
         print(f"  Vitesse ROV: ({vx_rov:.2f}, {vy_rov:.2f}) m/s")
         print(f"  Forces:")
         print(f"    Fx_drag: {Fx_drag:.2f} N")
-        print(f"    Fx_tension (T0*cos): {Fx_tension:.2f} N (T0={T0:.2f}, cos={cos_theta0:.3f})")
+        print(f"    Fx_tension (T_rov*cos): {Fx_tension:.2f} N (T_rov={T_rov:.2f}, cos={cos_theta0:.3f})")
         print(f"    Fx_applied: {Fx_rov_applied:.2f} N")
         print(f"    Fx_total: {Fx_total:.2f} N")
         print(f"    Accel_x: {Fx_total/system.rov.m:.3f} m/s^2")

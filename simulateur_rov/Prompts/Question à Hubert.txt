@@ -1,0 +1,17 @@
+Hubert,
+je continue à travailler sur les modèles numériques pour le projet de simulateur et j'ia qq questions:
+
+Pour piloter le moulinet électrique, de quelles informations disposera-t-on :
+- La longueur du câble déroulé à l'instant t. OK
+- La tension en bout de canne. OK
+
+Est-ce qu'on connaitra et pourra utiliser les infos suivantes:
+- Profondeur du ROV ? Et avec quelle précision ?
+- Forces de tractions des hélices sur le ROV ? Avec quelle précision ?
+- Distance horizontale du ROV au bateau ? Je suppose que non.
+
+L'asservissement du moulinet sur la base uniquement de la longueur déroulée et de la tension en bout de canne est difficile à stabiliser (il faut éviter les à-coups). En savoir un peu plus sur ce que fait le ROV peut aider.
+
+Je te remercie aussi de vérifier les paramètres physiques du câble et du ROV que j'utilise, (dimension, Cx, etc.)
+La câble coule (densité 1.5)
+Le ROV flotte légèrement.

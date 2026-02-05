@@ -1,5 +1,5 @@
 {
-    "date_sauvegarde": "2026-02-04T00:26:30.010066",
+    "date_sauvegarde": "2026-02-04T18:01:54.264805",
     "mission": "M100",
     "description": "Position initiale à -100 m, ROV avec une flottabilité légèrement négative.\nScénario : on part légèrement à droite, on descend à -200 m et on remonte. Le betau se déplace lèrement sur la doite.",
     "parameters": {
@@ -16,7 +16,7 @@
             "d": 0.001,
             "rho_cable": 1500.0,
             "Cx_cable": 1.2,
-            "tension_rupture": 20.0
+            "tension_rupture": 50.0
         },
         "boat": {
             "m": 10000.0,
@@ -37,11 +37,13 @@
         "t_final": 360.0,
         "steps_per_update": 5,
         "N_segments": 50,
-        "sc_fx_rov": "(t>0:10) (p<-30:0)  (e_prof:10)(:ex)(ex>20:-5)",
+        "straight_blend_alpha": 1.0,
+        "sc_fx_rov": "(t>0:10) (p<-30:0)  (e_prof:10)(:ex)(ex>20:-5)(ex>50:0)",
         "sc_fy_rov": "(t>0:-5)(t>10: -10) (t >20:-50) (p< -100: 0)(:e_prof) (e_prof>30:50)(p>-1:0)(:e_surf)",
         "sc_v_bateau": "(t>25:1) (t>30:0)",
         "sc_v_moulinet": "(t>0:0.1) (p<-200:-1)",
-        "auto_L": 3
+        "auto_L": 4,
+        "Tcible": 25.0
     },
     "init_params": {
         "x_rov_init": 2.0,

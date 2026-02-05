@@ -3,8 +3,19 @@ import plotly.graph_objects as go
 import numpy as np
 
 
-def create_system_plot(x_rov, y_rov, x_cable, y_cable, x_bateau, L=0, title="Système ROV-Câble-Bateau", 
-                       x_range=None, y_range=None, T_cable=None):
+def create_system_plot(
+    x_rov,
+    y_rov,
+    x_cable,
+    y_cable,
+    x_bateau,
+    L=0,
+    title="Système ROV-Câble-Bateau",
+    x_range=None,
+    y_range=None,
+    T_cable=None,
+    cable_mode=None,
+):
     """
     Crée la visualisation 2D du système
     
@@ -100,13 +111,18 @@ def create_system_plot(x_rov, y_rov, x_cable, y_cable, x_bateau, L=0, title="Sys
         
         # Câble (profil complet avec courbe lisse)
         # Afficher tous les points du câble pour montrer le vrai profil
+        if cable_mode == "straight":
+            cable_color = "#d9534f"
+        else:
+            cable_color = "#1e6bb8"
+
         trace_params = {
             'x': x_cable_complete,
             'y': y_cable_complete,
             'mode': 'lines+markers',
             'name': 'Câble',
-            'line': dict(color='blue', width=3, smoothing=1.3),
-            'marker': dict(size=3, color='blue', opacity=0.5, symbol='circle'),
+            'line': dict(color=cable_color, width=3, smoothing=1.3),
+            'marker': dict(size=3, color=cable_color, opacity=0.5, symbol='circle'),
             'showlegend': True
         }
         

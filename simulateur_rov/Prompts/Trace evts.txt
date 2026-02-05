@@ -1,0 +1,1 @@
+Je veux pouvoir visualiser sur le graphique "Commande dL/dt" le déclenchement des étapes des scénarios. Pour cela je souhaite faire apparaitre sur ce graphique des symboles (un petit carré noir par exemple) positionné sur la droite caténaire/straight. Le tooltip affiche le scénario et le couple (crit:val) déclenché.
