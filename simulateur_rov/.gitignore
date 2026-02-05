@@ -85,3 +85,7 @@ Thumbs.db
 
 Missions/**/Trace
 Missions/**/trace/*.csv
+
+# Fichiers lourds / bureau local
+docs/Bureau/
+*.mp4
