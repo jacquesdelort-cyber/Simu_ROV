@@ -27,6 +27,7 @@ class CableSolver:
         self.rho_cable = params['rho_cable']
         self.Cx_cable = params['Cx_cable']
         self.A_cable = np.pi * (self.d / 2)**2
+        self._T_prev = None
     
     def solve_equilibrium_static(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None):
         """
@@ -75,10 +76,23 @@ class CableSolver:
         L_straight = np.sqrt(dx**2 + dy**2)
 
         # Si la longueur est quasi rectiligne, éviter la caténaire (instable)
-        force_straight = L <= L_straight * 1.000001
+        # Avec hystérésis pour éviter les bascules rapides straight/caténaire.
+        r = L / L_straight if L_straight > 1e-9 else 1.0
+        if not hasattr(self, "_straight_mode"):
+            self._straight_mode = None
+        enter_straight = 1.0005
+        exit_straight = 1.002
+        if self._straight_mode is None:
+            self._straight_mode = r <= enter_straight
+        elif self._straight_mode and r > exit_straight:
+            self._straight_mode = False
+        elif (not self._straight_mode) and r <= enter_straight:
+            self._straight_mode = True
+
+        force_straight = self._straight_mode
         
-        # Si le câble est plus léger que l'eau ou si L < L_straight, câble tendu
-        if weight_per_unit <= 0 or L < L_straight or force_straight:
+        # Si L < L_straight, câble tendu (ou force_straight via hystérésis)
+        if L < L_straight or force_straight:
             # Câble tendu (rectiligne)
             # Convention : index 0 = bateau, index -1 = ROV (s=0 au bateau, s=L au ROV)
             trace_print(1, "\n[DEBUG] Initialisation du câble : câble tendu (solve_equilibrium_static).")
@@ -89,6 +103,7 @@ class CableSolver:
                     "La géométrie rectiligne impose L = L_straight."
                 )
                 L = L_straight
+            self._straight_mode = True
             x_cable = np.linspace(x_boat, x_rov, self.N + 1) 
             y_cable = np.linspace(0.0, y_rov, self.N + 1)
             
@@ -213,7 +228,10 @@ class CableSolver:
                                 f"Utilisation d'une estimation: {T_bateau_est:.6f} "
                                 f"(max(|w|*L/10,10) avec w={weight_per_unit:.6f}, L={L:.6f})."
                             )
-                            T_bateau = T_bateau_est
+                            if self._T_prev is not None and len(self._T_prev) > 0:
+                                T_bateau = max(float(self._T_prev[0]), T_bateau_est)
+                            else:
+                                T_bateau = T_bateau_est
                         
                         if T_rov < 1e-6:
                             T_rov_est = max(abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
@@ -223,11 +241,18 @@ class CableSolver:
                                 f"Utilisation d'une estimation: {T_rov_est:.6f} "
                                 f"(max(|w|*L/10,10) avec w={weight_per_unit:.6f}, L={L:.6f})."
                             )
-                            T_rov = T_rov_est
+                            if self._T_prev is not None and len(self._T_prev) > 0:
+                                T_rov = max(float(self._T_prev[-1]), T_rov_est)
+                            else:
+                                T_rov = T_rov_est
                     except np.linalg.LinAlgError:
-                        # Estimation par défaut
-                        T_rov = abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0
-                        T_bateau = T_rov
+                        # Estimation par défaut ou reprise de la tension précédente
+                        if self._T_prev is not None and len(self._T_prev) > 0:
+                            T_bateau = float(self._T_prev[0])
+                            T_rov = float(self._T_prev[-1])
+                        else:
+                            T_rov = abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0
+                            T_bateau = T_rov
                     
                     # Debug: Afficher les équations numériques avec T_rov et T_bateau remplacés par leurs valeurs
                     trace_print(1, "[DEBUG] Équations numériques:")
@@ -264,6 +289,7 @@ class CableSolver:
             else:
                 T[0] = (T_bateau + T_rov) / 2.0
             
+            self._T_prev = T.copy()
             return x_cable, y_cable, T
         
         # Câble en caténaire (rho_cable > rho_eau)
@@ -324,6 +350,7 @@ class CableSolver:
         T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
         
         self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation")
+        self._T_prev = T.copy()
         return x_cable, y_cable, T
 
     def solve_equilibrium_static_with_current(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None,
@@ -782,6 +809,22 @@ class CableSolver:
         y_cable[0] = 0.0
         x_cable[-1] = x_rov
         y_cable[-1] = y_rov
+
+        # Si la flottabilité est positive (w < 0), inverser la caténaire
+        # par rapport à la droite bateau-ROV pour obtenir une courbure vers le haut.
+        if w < 0:
+            dx_line = x_rov - x_boat
+            dy_line = y_rov - 0.0
+            if abs(dx_line) > 1e-9:
+                s = (x_cable - x_boat) / dx_line
+                s = np.clip(s, 0.0, 1.0)
+                y_line = s * dy_line
+            else:
+                s = np.linspace(0.0, 1.0, len(x_cable))
+                y_line = s * dy_line
+            y_cable = 2.0 * y_line - y_cable
+            y_cable[0] = 0.0
+            y_cable[-1] = y_rov
         
         # Vérifier la longueur
         L_actual = 0.0
@@ -957,13 +1000,17 @@ class CableSolver:
         # trace_print(1, f"  Équation 2 (verticale):   {-Ubateau_y:.6f}*T_bateau + {Urov_y:.6f}*T_rov + {Fext_stat_y:.6f} = 0")
         # trace_print(1, f"[DEBUG] Déterminant de A: {np.linalg.det(A):.6f}")
         try:
+            # Si A est mal conditionnée (quasi colinéaire), éviter des solutions instables
+            det_a = np.linalg.det(A)
+            cond_a = np.linalg.cond(A) if np.isfinite(det_a) else np.inf
+            if abs(det_a) < 1e-8 or cond_a > 1e8:
+                raise np.linalg.LinAlgError("Matrice A mal conditionnée")
+
             # Résoudre le système linéaire
             T_solution = np.linalg.solve(A, b)
-            # trace_print(1, f"\n[DEBUG] Solution brute step 1 de la résolution du système: T_bateau={T_solution[0]:.6f}, T_rov={T_solution[1]:.6f}")
             # T_solution[0] = T_bateau, T_solution[1] = T_rov
             T_bateau = max(0.0, T_solution[0]) 
             T_rov = max(0.0, T_solution[1])
-            # trace_print(1, f"[DEBUG] Solution brute step 2 de la résolution du système: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}")
             
             # Vérification : les tensions doivent être positives
             if T_bateau < 1e-6:
@@ -976,13 +1023,47 @@ class CableSolver:
         except np.linalg.LinAlgError:
             # Si le système est singulier (câble vertical ou autre cas dégénéré)
             # Utiliser une estimation basée sur le poids du câble
-            T_rov = max(0.0, weight_per_unit * L_total / 2.0)
+            T_rov = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
             T_bateau = T_rov
+
+        # Stabilisation: éviter des tensions extrêmes ou non physiques
+        min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
+        ratio_max = 50.0
+        if (
+            not np.isfinite(T_bateau)
+            or not np.isfinite(T_rov)
+            or T_bateau < min_floor
+            or T_rov < min_floor
+            or (T_bateau / max(T_rov, min_floor)) > ratio_max
+        ):
+            if self._T_prev is not None and len(self._T_prev) > 0:
+                T_bateau = max(float(self._T_prev[0]), min_floor)
+                T_rov = max(float(self._T_prev[-1]), min_floor)
+            else:
+                T_rov = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 10.0, min_floor)
+                T_bateau = max(T_rov, min_floor)
         
         # Debug: Afficher les équations numériques avec T_rov et T_bateau remplacés par leurs valeurs
         eq1_left = -Ubateau_x * T_bateau + Urov_x * T_rov + Fext_stat_x
         eq2_left = -Ubateau_y * T_bateau + Urov_y * T_rov + Fext_stat_y
         trace_print(1, f"[DEBUG] Résidus (vérification): Équation 1 = {eq1_left:.6f}, Équation 2 = {eq2_left:.6f}")
+
+        # Stabilisation supplémentaire proche du mode "straight"
+        L_straight = np.hypot(x_cable[-1] - x_cable[0], y_cable[-1] - y_cable[0])
+        straight_ratio = L_straight / max(L_total, 1e-12)
+        if self._T_prev is not None and len(self._T_prev) > 0:
+            prev_bat = float(self._T_prev[0])
+            prev_rov = float(self._T_prev[-1])
+            jump_ratio = 3.0
+            if straight_ratio > 0.995 or (
+                prev_bat > 1e-6
+                and (T_bateau / prev_bat > jump_ratio or T_bateau / prev_bat < 1.0 / jump_ratio)
+            ):
+                alpha = 0.8
+                T_bateau = alpha * prev_bat + (1.0 - alpha) * T_bateau
+                T_rov = alpha * prev_rov + (1.0 - alpha) * T_rov
+                T_bateau = max(T_bateau, 0.7 * prev_bat)
+                T_rov = max(T_rov, 0.7 * prev_rov)
         
         # Debug: Afficher les équations avec les produits remplacés par leurs valeurs
         T_bateau_Ubateau_x = T_bateau * Ubateau_x
@@ -1014,8 +1095,9 @@ class CableSolver:
         else:
             # Calculer s_bateau : T_bateau² = H² + (w*s_bateau)²
             # donc s_bateau = sqrt((T_bateau² - H²) / w²) = sqrt(T_bateau² - H²) / w
-            if weight_per_unit > 1e-6:
-                s_bateau = np.sqrt(max(0.0, T_bateau**2 - H**2)) / weight_per_unit
+            w_abs = abs(weight_per_unit)
+            if w_abs > 1e-6:
+                s_bateau = np.sqrt(max(0.0, T_bateau**2 - H**2)) / w_abs
             else:
                 s_bateau = 0.0
         
@@ -1037,7 +1119,7 @@ class CableSolver:
             # Tension à ce point : T = sqrt(H² + (w*s_total)²)
             # où s_total est la distance depuis le point de tension minimale
             s_total = abs(-s_bateau + s_cumulative)
-            T[i+1] = np.sqrt(H**2 + (weight_per_unit * s_total)**2)
+            T[i+1] = np.sqrt(H**2 + (w_abs * s_total)**2)
         
         # Vérifier que T[-1] correspond bien à T_rov (avec tolérance)
         if abs(T[-1] - T_rov) > 0.01:
@@ -1109,6 +1191,17 @@ class CableSolver:
         # Vitesses des points du câble (interpolation linéaire entre ROV et bateau)
         vx_cable = np.linspace(vx_rov, vx_boat, self.N + 1)
         vy_cable = np.linspace(vy_rov, 0.0, self.N + 1)
+
+        # Câble mou : la vitesse verticale ne se propage pas complètement le long du câble
+        L_straight = np.hypot(x_rov - x_boat, y_rov - 0.0)
+        slack_ratio = 0.0
+        if L_straight > 1e-9:
+            slack_ratio = max((L - L_straight) / max(L_straight, 1.0), 0.0)
+        if slack_ratio > 0.0:
+            # Atténuer la vitesse verticale quand il y a beaucoup de mou
+            # (réduit la traînée verticale artificiellement élevée).
+            scale = max(0.0, 1.0 - slack_ratio / 0.2)
+            vy_cable = vy_cable * scale
         
         # Optimisation : simplifier en ne faisant qu'une seule itération d'ajustement
         # au lieu de plusieurs itérations complètes
@@ -1189,8 +1282,13 @@ class CableSolver:
             dy = y_cable[i+1] - y_cable[i]
             L_actual += np.sqrt(dx**2 + dy**2)
         
+        # Si le slack est très important, réduire l'impact des corrections géométriques
+        L_straight = np.hypot(x_rov - x_boat, y_rov - 0.0)
+        slack_ratio = (L - L_straight) / max(L_straight, 1.0)
+        norm_tol = 5e-4 if slack_ratio > 0.05 else 1e-6
+
         # Toujours normaliser pour garantir que la longueur est exactement L
-        if L_actual > 1e-6 and abs(L_actual - L) > 1e-6:
+        if L_actual > 1e-6 and abs(L_actual - L) > norm_tol:
             # Rééchantillonner le câble pour avoir exactement la longueur L
             # Conserver les extrémités fixes
             x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
@@ -1210,50 +1308,26 @@ class CableSolver:
             dy = y_cable[i+1] - y_cable[i]
             L_after_clip += np.sqrt(dx**2 + dy**2)
         
-        if abs(L_after_clip - L) / L > 1e-6:
+        if abs(L_after_clip - L) / L > norm_tol:
             x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
             # Réappliquer la contrainte y <= 0 après renormalisation
             y_cable = np.clip(y_cable, None, 0.0)
             y_cable[0] = 0.0
             y_cable[-1] = y_rov
 
-        # CONTRAINTE DE FORME : ne pas passer au-dessus de la droite bateau-ROV
-        # (évite des profils erratiques proches du mode "straight")
-        dx_line = x_rov - x_boat
-        dy_line = y_rov - 0.0
-        if abs(dx_line) > 1e-9 or abs(dy_line) > 1e-9:
-            if abs(dx_line) > 1e-9:
-                s = (x_cable - x_boat) / dx_line
-                s = np.clip(s, 0.0, 1.0)
-                y_line = s * dy_line
-            else:
-                # Ligne verticale : utiliser un paramètre uniforme
-                s = np.linspace(0.0, 1.0, len(x_cable))
-                y_line = s * dy_line
-            y_cable = np.minimum(y_cable, y_line)
-            y_cable = np.clip(y_cable, None, 0.0)
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
+        # Lissage léger des corrections quand le slack est grand
+        if slack_ratio > 0.05 and x_cable_prev is not None and y_cable_prev is not None:
+            if len(x_cable_prev) == len(x_cable) and len(y_cable_prev) == len(y_cable):
+                blend = min(0.5, (slack_ratio - 0.05) / 0.2)
+                if blend > 0:
+                    x_cable = (1.0 - blend) * x_cable + blend * x_cable_prev
+                    y_cable = (1.0 - blend) * y_cable + blend * y_cable_prev
+                    y_cable = np.clip(y_cable, None, 0.0)
+                    y_cable[0] = 0.0
+                    y_cable[-1] = y_rov
 
-            # Renormaliser si la contrainte a modifié la longueur
-            L_after_line = 0.0
-            for i in range(len(x_cable) - 1):
-                dx = x_cable[i+1] - x_cable[i]
-                dy = y_cable[i+1] - y_cable[i]
-                L_after_line += np.sqrt(dx**2 + dy**2)
-            if abs(L_after_line - L) / L > 1e-6:
-                x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
-                y_cable = np.clip(y_cable, None, 0.0)
-                if abs(dx_line) > 1e-9:
-                    s = (x_cable - x_boat) / dx_line
-                    s = np.clip(s, 0.0, 1.0)
-                    y_line = s * dy_line
-                else:
-                    s = np.linspace(0.0, 1.0, len(x_cable))
-                    y_line = s * dy_line
-                y_cable = np.minimum(y_cable, y_line)
-                y_cable[0] = 0.0
-                y_cable[-1] = y_rov
+        # NOTE: la contrainte de forme au-dessus de la droite bateau-ROV est supprimée
+        # pour permettre des câbles à flottabilité positive.
         
         # Recalculer les tensions en utilisant la tension initiale de T_static
         # pour préserver la tension correcte au ROV basée sur l'équilibre
@@ -1302,9 +1376,24 @@ class CableSolver:
         
         # Intégrer les forces depuis le ROV vers le bateau
         # Convention : index 0 = bateau, index -1 = ROV
-        # Utiliser la tension initiale au ROV si fournie, ou 100.0 par défaut
+        # Déduire une tension ROV locale à partir des forces du dernier segment
+        min_floor = 0.5
+        t_local = None
+        if Fx is not None and Fy is not None and len(Fx) > 0 and len(Fy) > 0:
+            try:
+                t_local = float(np.hypot(Fx[-1], Fy[-1]))
+            except Exception:
+                t_local = None
+
+        # Utiliser la tension initiale au ROV si fournie, sinon l'estimation locale
         if T_rov_initial is None or T_rov_initial <= 0.0:
-            T_rov_initial = 100.0
+            if t_local is not None:
+                T_rov_initial = max(min_floor, t_local)
+            else:
+                T_rov_initial = 100.0
+        elif t_local is not None and t_local > 0.0:
+            # Laisser T_rov évoluer avec les forces locales (plus "physique")
+            T_rov_initial = max(min_floor, 0.7 * float(T_rov_initial) + 0.3 * t_local)
         T[-1] = T_rov_initial
         
         for i in range(N - 1, -1, -1):
@@ -1314,13 +1403,13 @@ class CableSolver:
             length = np.sqrt(dx**2 + dy**2)
             
             if length > 1e-6:
-                # Équilibre des forces
+                # Équilibre des forces le long du câble
                 # Fx, Fy sont déjà des forces par segment (N), ne pas re-multiplier par ds
-                dT_x = Fx[i]
-                dT_y = Fy[i]
-                
+                t_hat_x = dx / length
+                t_hat_y = dy / length
+                dT_along = -(Fx[i] * t_hat_x + Fy[i] * t_hat_y)
                 # Mettre à jour la tension en remontant vers le bateau
-                T[i] = T[i+1] + np.sqrt(dT_x**2 + dT_y**2)
+                T[i] = max(T[i+1] + dT_along, 0.0)
             else:
                 T[i] = T[i+1]
         
@@ -1507,5 +1596,8 @@ class CableSolver:
         y_cable_new[0] = min(y_cable[0], 0.0)
         y_cable_new[-1] = min(y_cable[-1], 0.0)
         
+        # CONTRAINTE PHYSIQUE : le câble ne peut pas passer au-dessus de la surface
+        y_cable_new = np.minimum(y_cable_new, 0.0)
+
         return x_cable_new, y_cable_new
 

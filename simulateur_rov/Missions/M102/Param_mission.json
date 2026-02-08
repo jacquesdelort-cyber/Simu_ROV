@@ -1,7 +1,7 @@
 {
-    "date_sauvegarde": "2026-02-06T20:54:17.810321",
-    "mission": "M100",
-    "description": "Position initiale à -100 m, ROV avec une flottabilité légèrement négative.\nScénario : on part légèrement à droite, on descend à -200 m et on remonte. Le betau se déplace lèrement sur la doite.",
+    "date_sauvegarde": "2026-02-08T22:47:38.040482",
+    "mission": "M102",
+    "description": "Position (30, -450) m, ROV avec une flottabilité légèrement positive. Des petits AR horizontaux du ROV puis remontée.",
     "parameters": {
         "rov": {
             "m": 30.0,
@@ -14,15 +14,17 @@
         },
         "cable": {
             "d": 0.001,
-            "rho_cable": 1500.0,
-            "Cx_cable": 1.2,
+            "rho_cable": 950.0,
+            "Cx_cable": 0.9,
             "tension_rupture": 50.0
         },
         "boat": {
             "m": 10000.0,
             "drag_coefficient": 0.5,
+            "dl_dt_min": -1.0,
+            "dl_dt_max": 2.0,
             "gamma_moulinet_min": -0.5,
-            "gamma_moulinet_max": 0.5
+            "gamma_moulinet_max": 1.0
         },
         "environment": {
             "rho_eau": 1030.0,
@@ -37,21 +39,21 @@
         "max_step": 0.1,
         "dt_max": 0.1,
         "t_final": 3600.0,
-        "steps_per_update": 5,
-        "N_segments": 50,
+        "steps_per_update": 20,
+        "N_segments": 200,
         "straight_blend_alpha": 1.0,
-        "sc_fx_rov": "(t>0:10) (y<-30:0)  (e_prof:10)(:ex)(ex>20:-5)(ex>50:0)",
-        "sc_fy_rov": "(t>0:-5)(t>10: -10) (t >20:-50) (y< -200: 0)(:e_prof) (e_prof>30:50)(y>-1:0)(:e_surf)",
-        "sc_v_bateau": "(t>25:1) (t>30:0)",
-        "sc_v_moulinet": "(t>0:0.1) (y<-200:-1)",
+        "sc_fx_rov": "(t >40:5) (e1>10:0) (e1>5:-5) (e1>15:5) (e1>25:10) (e1>30:0) (:e2)  (e3:5)  (e3>15:0)",
+        "sc_fy_rov": "(t>5:-2) (t>15:-25)  (y<-425:-50)  (y<-450:-75) (y<-495:0) (:e1)  (:0) (e2:-5) (y<-500:e3) (:0)      (e3>15:50 ) (y>10:15) (:e4) (y>-0.5:0)",
+        "sc_v_bateau": "(e4:1 )  (l<5:0)",
+        "sc_v_moulinet": "",
         "auto_L": 7,
         "Tcible": 5.0
     },
     "init_params": {
-        "x_rov_init": 2.0,
-        "y_rov_init": -10.0,
+        "x_rov_init": 30.0,
+        "y_rov_init": -400.0,
         "x_boat_init": 0.0,
-        "L_init": 12.0,
+        "L_init": 403.0,
         "v_courant": "0.0"
     }
 }

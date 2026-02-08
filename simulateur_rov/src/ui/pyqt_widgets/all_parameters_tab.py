@@ -460,6 +460,18 @@ class AllParametersTab(QWidget):
         layout.addWidget(QLabel("Coeff. traînée:"), 1, 0)
         self.boat_drag = QLineEdit()
         layout.addWidget(self.boat_drag, 1, 1)
+
+        layout.addWidget(QLabel("Bornes dL/dt (min, max):"), 2, 0)
+        self.boat_dl_dt_min = QLineEdit()
+        self.boat_dl_dt_max = QLineEdit()
+        layout.addWidget(self.boat_dl_dt_min, 2, 1)
+        layout.addWidget(self.boat_dl_dt_max, 2, 2)
+
+        layout.addWidget(QLabel("Bornes d²L/dt² (min, max):"), 3, 0)
+        self.boat_gamma_min = QLineEdit()
+        self.boat_gamma_max = QLineEdit()
+        layout.addWidget(self.boat_gamma_min, 3, 1)
+        layout.addWidget(self.boat_gamma_max, 3, 2)
         
         group.setLayout(layout)
         return group
@@ -548,17 +560,6 @@ class AllParametersTab(QWidget):
             5, 2
         )
 
-        layout.addWidget(QLabel("Gamma moulinet max:"), 6, 0)
-        self.gamma_moulinet_max = QLineEdit()
-        layout.addWidget(self.gamma_moulinet_max, 6, 1)
-        layout.addWidget(
-            HelpButton(
-                "Accélération maximale du moulinet (m/s²) appliquée au dL/dt en mode Auto.",
-                self,
-            ),
-            6, 2
-        )
-        
         group.setLayout(layout)
         return group
     
@@ -587,6 +588,14 @@ class AllParametersTab(QWidget):
             boat = params.get('boat', {})
             self.boat_m.setText(str(boat.get('m', '')))
             self.boat_drag.setText(str(boat.get('drag_coefficient', '')))
+            if hasattr(self, "boat_dl_dt_min"):
+                self.boat_dl_dt_min.setText(str(boat.get('dl_dt_min', '')))
+            if hasattr(self, "boat_dl_dt_max"):
+                self.boat_dl_dt_max.setText(str(boat.get('dl_dt_max', '')))
+            if hasattr(self, "boat_gamma_min"):
+                self.boat_gamma_min.setText(str(boat.get('gamma_moulinet_min', '')))
+            if hasattr(self, "boat_gamma_max"):
+                self.boat_gamma_max.setText(str(boat.get('gamma_moulinet_max', '')))
             
             env = params.get('environment', {})
             self.env_rho.setText(str(env.get('rho_eau', '')))
@@ -612,8 +621,6 @@ class AllParametersTab(QWidget):
             self.auto_L_spin.setValue(int(calc_params.get('auto_L', 1)))
         if hasattr(self, "tcible"):
             self.tcible.setText(str(calc_params.get('Tcible', "")))
-        if hasattr(self, "gamma_moulinet_max"):
-            self.gamma_moulinet_max.setText(str(calc_params.get('Gamma_moulinet_max', "")))
 
         if hasattr(self, "mission_description"):
             self.mission_description.setPlainText(str(self.main_window.mission_data.get('description', "")))
@@ -736,7 +743,19 @@ class AllParametersTab(QWidget):
                 },
                 'boat': {
                     'm': parse_float(self.boat_m.text(), 10000.0, "Masse bateau (kg)"),
-                    'drag_coefficient': parse_float(self.boat_drag.text(), 0.5, "Coeff. traînée bateau")
+                    'drag_coefficient': parse_float(self.boat_drag.text(), 0.5, "Coeff. traînée bateau"),
+                    'dl_dt_min': parse_float(
+                        self.boat_dl_dt_min.text(), -1.0, "Borne dL/dt min (m/s)"
+                    ) if hasattr(self, "boat_dl_dt_min") else -1.0,
+                    'dl_dt_max': parse_float(
+                        self.boat_dl_dt_max.text(), 1.0, "Borne dL/dt max (m/s)"
+                    ) if hasattr(self, "boat_dl_dt_max") else 1.0,
+                    'gamma_moulinet_min': parse_float(
+                        self.boat_gamma_min.text(), -0.5, "Borne d²L/dt² min (m/s²)"
+                    ) if hasattr(self, "boat_gamma_min") else -0.5,
+                    'gamma_moulinet_max': parse_float(
+                        self.boat_gamma_max.text(), 0.5, "Borne d²L/dt² max (m/s²)"
+                    ) if hasattr(self, "boat_gamma_max") else 0.5,
                 },
                 'environment': {
                     'rho_eau': parse_float(self.env_rho.text(), 1025.0, "Masse volumique eau (kg/m³)"),
@@ -764,9 +783,6 @@ class AllParametersTab(QWidget):
                 'sc_v_moulinet': (self.sc_v_moulinet.text() or "").strip(),
                 'auto_L': int(self.auto_L_spin.value()) if hasattr(self, "auto_L_spin") else 1,
                 'Tcible': parse_float(self.tcible.text(), None, "Tension cible") if hasattr(self, "tcible") else None,
-                'Gamma_moulinet_max': parse_float(
-                    self.gamma_moulinet_max.text(), 0.5, "Gamma moulinet max"
-                ) if hasattr(self, "gamma_moulinet_max") else 0.5,
             }
 
             if not self._validate_scenarios(self.main_window.calc_params):
@@ -970,6 +986,18 @@ class AllParametersTab(QWidget):
             if "Tcible" not in calc_params and "tcible" in calc_params:
                 calc_params["Tcible"] = calc_params.get("tcible")
                 calc_params.pop("tcible", None)
+            # Migration: Gamma_moulinet_max -> boat.gamma_moulinet_min/max
+            if "Gamma_moulinet_max" in calc_params:
+                try:
+                    boat_params = parameters.setdefault("boat", {})
+                    gamma_max_val = calc_params.get("Gamma_moulinet_max")
+                    if boat_params.get("gamma_moulinet_max") is None and gamma_max_val is not None:
+                        boat_params["gamma_moulinet_max"] = float(gamma_max_val)
+                    if boat_params.get("gamma_moulinet_min") is None and gamma_max_val is not None:
+                        boat_params["gamma_moulinet_min"] = -abs(float(gamma_max_val))
+                except Exception:
+                    pass
+                calc_params.pop("Gamma_moulinet_max", None)
 
             self._validate_scenarios(calc_params, strict=False)
 
@@ -1129,7 +1157,6 @@ class AllParametersTab(QWidget):
             'straight_blend_alpha': 1.0,
             'auto_L': 1,
             'Tcible': None,
-            'Gamma_moulinet_max': 0.5,
         }
         self.main_window.init_params = {
             'x_rov_init': 0.0,

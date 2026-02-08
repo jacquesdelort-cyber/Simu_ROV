@@ -598,6 +598,49 @@ def create_dl_dt_plot(
     return fig
 
 
+def create_slack_plot(
+    time,
+    slack,
+    slack_ratio,
+    hover_data=None,
+        title="Slack / L  (%)",
+):
+    """
+    Crée un graphique du slack (L - L_straight) et du ratio Slack/L.
+    """
+    fig = go.Figure()
+    hover_data = hover_data or []
+    fig.add_trace(go.Scatter(
+        x=time,
+        y=[100.0 * float(val) for val in slack_ratio],
+        mode='lines',
+        name='Slack/L',
+        line=dict(color='orange', width=2, dash='dot'),
+        yaxis='y2',
+        customdata=hover_data,
+        hovertemplate=(
+            "t=%{x:.2f}s<br>"
+            "Slack/L=%{y:.2f} %<br>"
+            "x_rov=%{customdata[0]:.2f}<br>"
+            "y_rov=%{customdata[1]:.2f}<br>"
+            "T_bat=%{customdata[2]:.2f} N<br>"
+            "dL/dt=%{customdata[3]:.2f} m/s"
+            "<extra></extra>"
+        ),
+    ))
+
+    fig.update_layout(
+        xaxis_title="Temps (s)",
+        yaxis=dict(title="Slack/L (%)"),
+        title=title,
+        hovermode='x unified',
+        width=600,
+        height=400
+    )
+
+    return fig
+
+
 def create_tension_vs_target_plot(
     time,
     t_rupture,
@@ -606,9 +649,11 @@ def create_tension_vs_target_plot(
     t_rov,
     t_max,
     title="Tension vs cible",
+    cable_mode: list[str] | None = None,
+    scenario_triggers: list[list[str]] | None = None,
 ):
     fig = go.Figure()
-    hover_tpl = "t=%{x:.2f} s<br>%{y:.2f} N<extra></extra>"
+    hover_tpl = "%{y:.2f} N<extra></extra>"
     fig.add_trace(go.Scatter(x=time, y=t_rupture, mode="lines", name="Tension rupture", hovertemplate=hover_tpl))
     fig.add_trace(go.Scatter(x=time, y=t_cible, mode="lines", name="Tension cible", hovertemplate=hover_tpl))
     fig.add_trace(go.Scatter(x=time, y=t_boat, mode="lines", name="Tension bateau", hovertemplate=hover_tpl))
@@ -624,6 +669,81 @@ def create_tension_vs_target_plot(
         )
     )
 
+    def _safe_max(series):
+        if series is None:
+            return 0.0
+        vals = []
+        for val in series:
+            if isinstance(val, (int, float, np.floating)) and np.isfinite(val):
+                vals.append(float(val))
+        return max(vals) if vals else 0.0
+
+    max_time = _safe_max(time)
+    k = max(1, int(np.ceil(max_time / 30.0)))
+    x_max = 30.0 * k
+    max_val = max(
+        _safe_max(t_rupture),
+        _safe_max(t_cible),
+        _safe_max(t_boat),
+        _safe_max(t_rov),
+        _safe_max(t_max),
+    )
+    y_top = float(max_val) * 0.98 if max_val > 0.0 else 0.0
+
+    if cable_mode:
+        n_mode = min(len(time), len(cable_mode))
+        mode_x = time[:n_mode]
+        mode_y = [y_top] * n_mode
+        y_cat = [mode_y[i] if cable_mode[i] == "catenary" else None for i in range(n_mode)]
+        y_str = [mode_y[i] if cable_mode[i] == "straight" else None for i in range(n_mode)]
+        fig.add_trace(
+            go.Scatter(
+                x=mode_x,
+                y=y_cat,
+                mode="lines",
+                name="",
+                showlegend=False,
+                hoverinfo="skip",
+                line=dict(color="#1e6bb8", width=2),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=mode_x,
+                y=y_str,
+                mode="lines",
+                name="",
+                showlegend=False,
+                hoverinfo="skip",
+                line=dict(color="#d9534f", width=2),
+            )
+        )
+
+    if scenario_triggers:
+        n_trig = min(len(time), len(scenario_triggers))
+        trig_x = []
+        trig_y = []
+        trig_text = []
+        for i in range(n_trig):
+            triggers = scenario_triggers[i]
+            if triggers:
+                trig_x.append(time[i])
+                trig_y.append(y_top)
+                trig_text.append("<br>".join(triggers))
+        if trig_x:
+            fig.add_trace(
+                go.Scatter(
+                    x=trig_x,
+                    y=trig_y,
+                    mode="markers",
+                    name="",
+                    showlegend=False,
+                    marker=dict(color="black", size=6, symbol="square"),
+                    hovertemplate="%{hovertext}<extra></extra>",
+                    hovertext=trig_text,
+                )
+            )
+
     fig.update_layout(
         xaxis=dict(
             title="Temps (s)",
@@ -631,6 +751,7 @@ def create_tension_vs_target_plot(
             ticks="outside",
             showline=True,
             automargin=True,
+            range=[0.0, x_max],
         ),
         yaxis_title="Tension (N)",
         title=title,
@@ -854,5 +975,70 @@ def create_tension_curvilinear_plot(s_curvilinear, T, title="Tension",
         showlegend=True
     )
     
+    return fig
+
+
+def create_rov_local_plot(
+    x_rov,
+    y_rov,
+    x_cable,
+    y_cable,
+    title="Profil fond",
+    margin=2.0,
+):
+    """
+    Crée un graphique local autour du ROV avec une portion du câble proche du ROV.
+    Les axes x/y sont à la même échelle pour conserver les proportions.
+    """
+    fig = go.Figure()
+
+    x_vals = list(x_cable) if x_cable is not None else []
+    y_vals = list(y_cable) if y_cable is not None else []
+
+    if x_vals and y_vals:
+        fig.add_trace(go.Scatter(
+            x=x_vals,
+            y=y_vals,
+            mode='lines',
+            name='Câble (proche ROV)',
+            line=dict(color='#1e6bb8', width=2)
+        ))
+
+    fig.add_trace(go.Scatter(
+        x=[x_rov],
+        y=[y_rov],
+        mode='markers',
+        name='ROV',
+        marker=dict(color='red', size=8),
+    ))
+
+    x_min = min(x_vals + [x_rov]) if x_vals or x_rov is not None else -1.0
+    x_max = max(x_vals + [x_rov]) if x_vals or x_rov is not None else 1.0
+    y_min = min(y_vals + [y_rov]) if y_vals or y_rov is not None else -1.0
+    y_max = max(y_vals + [y_rov]) if y_vals or y_rov is not None else 1.0
+
+    x_min -= margin
+    x_max += margin
+    y_min -= margin
+    y_max += margin
+
+    fig.update_layout(
+        xaxis=dict(
+            title="x (m)",
+            range=[x_min, x_max],
+            scaleanchor="y",
+            scaleratio=1,
+        ),
+        yaxis=dict(
+            title="y (m)",
+            range=[y_min, y_max],
+        ),
+        title=title,
+        hovermode='closest',
+        width=600,
+        height=400,
+        showlegend=False,
+    )
+
     return fig
 

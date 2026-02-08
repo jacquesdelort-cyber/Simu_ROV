@@ -2,7 +2,7 @@
 Widget PyQt pour intégrer des graphiques Plotly
 Utilise plotly.py ou une alternative pour intégrer Plotly dans PyQt
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import QUrl
 import plotly.graph_objects as go
@@ -24,6 +24,9 @@ class PlotlyWidget(QWidget):
         # Créer un QWebEngineView pour afficher le graphique HTML
         self.web_view = QWebEngineView()
         self.layout.addWidget(self.web_view)
+        self.layout.setStretch(0, 1)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.web_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         # Répertoire temporaire pour stocker les graphiques HTML
         self.temp_dir = tempfile.gettempdir()
@@ -55,9 +58,17 @@ class PlotlyWidget(QWidget):
         
         # Obtenir la taille du widget pour adapter le graphique
         widget_size = self.size()
-        if widget_size.width() > 0 and widget_size.height() > 0:
-            # Utiliser la taille du widget si disponible
-            fig.update_layout(width=widget_size.width(), height=widget_size.height())
+        width = widget_size.width()
+        height = widget_size.height()
+        if width <= 0 or height <= 0:
+            parent = self.parentWidget()
+            if parent is not None:
+                parent_size = parent.size()
+                width = parent_size.width()
+                height = parent_size.height()
+        if width > 0 and height > 0:
+            # Utiliser la taille disponible si possible
+            fig.update_layout(width=width, height=height)
         else:
             # Taille par défaut si le widget n'a pas encore de taille
             fig.update_layout(width=800, height=600)

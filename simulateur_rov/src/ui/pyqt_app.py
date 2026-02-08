@@ -58,7 +58,6 @@ class ROVSimulatorApp(QMainWindow):
             'N_segments': 50,
             'straight_blend_alpha': 1.0,
             'Tcible': None,
-            'Gamma_moulinet_max': 0.5,
         }
         
         self.init_params = {

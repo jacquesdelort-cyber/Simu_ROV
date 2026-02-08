@@ -29,7 +29,11 @@ def get_default_parameters():
         },
         'boat': {
             'm': 10000.0,    # Masse du bateau (kg)
-            'drag_coefficient': 0.5
+            'drag_coefficient': 0.5,
+            'dl_dt_min': -1.0,  # Limite de rembobinage (m/s)
+            'dl_dt_max': 1.0,   # Limite de débobinage (m/s)
+            'gamma_moulinet_min': -0.5,  # Accel min (m/s²)
+            'gamma_moulinet_max': 0.5,   # Accel max (m/s²)
         },
         'environment': {
             'rho_eau': 1025.0,  # Masse volumique eau de mer (kg/m³)

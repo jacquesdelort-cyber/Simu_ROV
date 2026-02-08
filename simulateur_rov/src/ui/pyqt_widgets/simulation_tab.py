@@ -4,7 +4,7 @@ Onglet de simulation avec contrôles et visualisations
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QGroupBox, QScrollArea, QGridLayout,
                              QMessageBox, QProgressBar, QDoubleSpinBox, QSpinBox, QToolButton, QApplication,
-                             QTabWidget)
+                             QTabWidget, QSizePolicy)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 from PyQt6.QtGui import QFont, QCursor
 import sys
@@ -88,6 +88,10 @@ class SimulationTab(QWidget):
         self._vx_boat_scenario_update = False
         self._dl_dt_scenario_update = False
         self._dl_dt_auto_update = False
+        self._prev_cable_time = None
+        self._prev_cable_x = None
+        self._prev_cable_y = None
+        self._prev_cable_drag = None
         
         self.init_ui()
         
@@ -115,8 +119,8 @@ class SimulationTab(QWidget):
         center_panel = self.create_visualization_panel()
         layout.addWidget(center_panel, 2)  # 1/2 de l'espace
         
-        # Colonne droite : Métriques
-        right_panel = self.create_metrics_panel()
+        # Colonne droite : Métriques + Profil câble
+        right_panel = self.create_right_panel()
         layout.addWidget(right_panel, 1)  # 1/4 de l'espace
     
     def create_control_panel(self):
@@ -644,31 +648,37 @@ class SimulationTab(QWidget):
         panel = QWidget()
         layout = QVBoxLayout(panel)
 
-        # Widget Plotly pour le graphique "Profil"
-        self.plotly_widget = PlotlyWidget()
-        layout.addWidget(self.plotly_widget)
-        layout.setAlignment(self.plotly_widget, Qt.AlignmentFlag.AlignTop)
-        
-        # Graphique initial "Profil" - sera remplacé lors de l'initialisation complète
-        # Créer un graphique initial avec le bateau et le ROV, mais sans câble pour éviter la trace "pas de données"
-        # Le graphique sera remplacé lors de l'appel à initialize_system() -> update_display()
-        from src.visualization.plotter import create_system_plot
-        # Récupérer la profondeur initiale du ROV depuis les paramètres
-        y_rov_init = self.main_window.init_params.get('y_rov_init', -10.0)  # Profondeur négative
-        x_rov_init = self.main_window.init_params.get('x_rov_init', 0.0)
-        # Le bateau est toujours à la surface (y=0)
-        # Passer None pour T_cable pour éviter les problèmes
-        fig = create_system_plot(
-            x_rov_init,
-            y_rov_init,
-            [],
-            [],
-            x_rov_init,
-            0,
-            "Profil",
-            T_cable=None,
-        )
-        self.plotly_widget.update_figure(fig)
+        # Onglets en haut de la colonne centrale
+        self.top_tabs = QTabWidget()
+
+        # Onglet 1 (haut) : Commande dL/dt
+        self.tab_dl_dt_top = QWidget()
+        tab_dl_dt_top_layout = QVBoxLayout(self.tab_dl_dt_top)
+        tab_dl_dt_top_layout.setContentsMargins(0, 0, 0, 0)
+        self.plotly_widget_dl_dt = PlotlyWidget()
+        tab_dl_dt_top_layout.addWidget(self.plotly_widget_dl_dt)
+        from src.visualization.plotter import create_dl_dt_plot
+        fig_dl_dt = create_dl_dt_plot([], [], "Commande dL/dt", None)
+        self.plotly_widget_dl_dt.update_figure(fig_dl_dt)
+        self.top_tabs.addTab(self.tab_dl_dt_top, "Commande dL/dt")
+
+        # Onglet 2 (haut) : Slack / L  (%)
+        self.tab_slack = QWidget()
+        tab_slack_layout = QVBoxLayout(self.tab_slack)
+        tab_slack_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Widget Plotly pour le graphique "Slack / L  (%)"
+        self.plotly_widget_slack = PlotlyWidget()
+        tab_slack_layout.addWidget(self.plotly_widget_slack)
+
+        # Graphique initial "Slack / L  (%)"
+        from src.visualization.plotter import create_slack_plot
+        fig_slack = create_slack_plot([], [], [], [], "Slack / L  (%)")
+        self.plotly_widget_slack.update_figure(fig_slack)
+
+        self.top_tabs.addTab(self.tab_slack, "Slack / L  (%)")
+
+        layout.addWidget(self.top_tabs)
         
         # Onglets en bas de la colonne centrale
         self.bottom_tabs = QTabWidget()
@@ -703,17 +713,6 @@ class SimulationTab(QWidget):
         
         self.bottom_tabs.addTab(self.tab2, "Courant")
         
-        # Onglet 3 : Commande dL/dt
-        self.tab3 = QWidget()
-        tab3_layout = QVBoxLayout(self.tab3)
-        tab3_layout.setContentsMargins(0, 0, 0, 0)
-        self.plotly_widget_dl_dt = PlotlyWidget()
-        tab3_layout.addWidget(self.plotly_widget_dl_dt)
-        from src.visualization.plotter import create_dl_dt_plot
-        fig_dl_dt = create_dl_dt_plot([], [], "Commande dL/dt", None)
-        self.plotly_widget_dl_dt.update_figure(fig_dl_dt)
-        self.bottom_tabs.addTab(self.tab3, "Commande dL/dt")
-
         # Onglet 4 : Tension vs cible
         self.tab4 = QWidget()
         tab4_layout = QVBoxLayout(self.tab4)
@@ -783,155 +782,258 @@ class SimulationTab(QWidget):
         self.length_straight_label = QLabel("0.00 m")
         metrics_layout.addWidget(self.length_straight_label, 6, 1)
         
-        # 6. Mode câble
-        metrics_layout.addWidget(QLabel("<b>Mode câble:</b>"), 7, 0)
+        # 6. Slack
+        metrics_layout.addWidget(QLabel("<b>Slack:</b>"), 7, 0)
+        self.slack_label = QLabel("0.00 m")
+        metrics_layout.addWidget(self.slack_label, 7, 1)
+        
+        # 7. Mode câble
+        metrics_layout.addWidget(QLabel("<b>Mode câble:</b>"), 8, 0)
         self.cable_mode_label = QLabel("-")
-        metrics_layout.addWidget(self.cable_mode_label, 7, 1)
+        metrics_layout.addWidget(self.cable_mode_label, 8, 1)
         
-        # 7. Tension bateau
-        metrics_layout.addWidget(QLabel("<b>Tension bateau:</b>"), 8, 0)
+        # 8. Tension bateau
+        metrics_layout.addWidget(QLabel("<b>Tension bateau:</b>"), 9, 0)
         self.tension_boat_label = QLabel("0.00 N")
-        metrics_layout.addWidget(self.tension_boat_label, 8, 1)
+        metrics_layout.addWidget(self.tension_boat_label, 9, 1)
         
-        # 8. Tension ROV
-        metrics_layout.addWidget(QLabel("<b>Tension ROV:</b>"), 9, 0)
+        # 9. Tension ROV
+        metrics_layout.addWidget(QLabel("<b>Tension ROV:</b>"), 10, 0)
         self.tension_rov_label = QLabel("0.00 N")
-        metrics_layout.addWidget(self.tension_rov_label, 9, 1)
+        metrics_layout.addWidget(self.tension_rov_label, 10, 1)
         
-        # 9. Tension max
-        metrics_layout.addWidget(QLabel("<b>Tension max:</b>"), 10, 0)
+        # 10. Tension max
+        metrics_layout.addWidget(QLabel("<b>Tension max:</b>"), 11, 0)
         self.tension_label = QLabel("0.00 N")
-        metrics_layout.addWidget(self.tension_label, 10, 1)
+        metrics_layout.addWidget(self.tension_label, 11, 1)
         
-        # 10. Direction câble (Bateau)
-        metrics_layout.addWidget(QLabel("<b>Direction câble (Bateau):</b>"), 11, 0)
+        # 11. Direction câble (Bateau)
+        metrics_layout.addWidget(QLabel("<b>Direction câble (Bateau):</b>"), 12, 0)
         self.cable_dir_boat_label = QLabel("(0.00, 0.00)")
-        metrics_layout.addWidget(self.cable_dir_boat_label, 11, 1)
+        metrics_layout.addWidget(self.cable_dir_boat_label, 12, 1)
         
-        # 11. Direction câble (ROV)
-        metrics_layout.addWidget(QLabel("<b>Direction câble (ROV):</b>"), 12, 0)
+        # 12. Direction câble (ROV)
+        metrics_layout.addWidget(QLabel("<b>Direction câble (ROV):</b>"), 13, 0)
         self.cable_dir_rov_label = QLabel("(0.00, 0.00)")
-        metrics_layout.addWidget(self.cable_dir_rov_label, 12, 1)
+        metrics_layout.addWidget(self.cable_dir_rov_label, 13, 1)
 
         # Trait de séparation
         separator_cable_forces = QLabel("─" * 30)
         separator_cable_forces.setStyleSheet("color: #ccc;")
-        metrics_layout.addWidget(separator_cable_forces, 13, 0, 1, 2)
+        metrics_layout.addWidget(separator_cable_forces, 14, 0, 1, 2)
 
         # Sous-titre "Forces s'exerçant sur le câble"
+        row = 15
         cable_forces_subtitle = QLabel("<b>Forces s'exerçant sur le câble</b>")
         cable_forces_subtitle.setStyleSheet("color: #666; font-size: 10pt; margin-top: 5px;")
-        metrics_layout.addWidget(cable_forces_subtitle, 14, 0, 1, 2)
+        metrics_layout.addWidget(cable_forces_subtitle, row, 0, 1, 2)
+        row += 1
         
         # 6. Traction bateau sur câble
-        metrics_layout.addWidget(QLabel("<b>Traction bateau sur câble:</b>"), 15, 0)
+        metrics_layout.addWidget(QLabel("<b>Traction bateau sur câble:</b>"), row, 0)
         self.traction_boat_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.traction_boat_label, 15, 1)
+        metrics_layout.addWidget(self.traction_boat_label, row, 1)
+        row += 1
         
         # 7. Traction ROV sur câble
-        metrics_layout.addWidget(QLabel("<b>Traction ROV sur câble:</b>"), 16, 0)
+        metrics_layout.addWidget(QLabel("<b>Traction ROV sur câble:</b>"), row, 0)
         self.traction_rov_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.traction_rov_label, 16, 1)
+        metrics_layout.addWidget(self.traction_rov_label, row, 1)
+        row += 1
         
         # 8. Poids apparent
-        metrics_layout.addWidget(QLabel("<b>Poids apparent:</b>"), 17, 0)
+        metrics_layout.addWidget(QLabel("<b>Poids apparent:</b>"), row, 0)
         self.cable_apparent_weight_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.cable_apparent_weight_label, 17, 1)
+        metrics_layout.addWidget(self.cable_apparent_weight_label, row, 1)
+        row += 1
         
         # 9. Force traînée câble
-        metrics_layout.addWidget(QLabel("<b>Force traînée câble:</b>"), 18, 0)
+        metrics_layout.addWidget(QLabel("<b>Force traînée câble:</b>"), row, 0)
         self.cable_drag_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.cable_drag_label, 18, 1)
+        metrics_layout.addWidget(self.cable_drag_label, row, 1)
+        row += 1
         
         # 10. Somme forces câble
-        metrics_layout.addWidget(QLabel("<b>Somme forces câble:</b>"), 19, 0)
+        metrics_layout.addWidget(QLabel("<b>Somme forces câble:</b>"), row, 0)
         self.cable_total_forces_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.cable_total_forces_label, 19, 1)
+        metrics_layout.addWidget(self.cable_total_forces_label, row, 1)
+        row += 1
         
         # Trait de séparation
         separator2 = QLabel("─" * 30)
         separator2.setStyleSheet("color: #ccc;")
-        metrics_layout.addWidget(separator2, 20, 0, 1, 2)
+        metrics_layout.addWidget(separator2, row, 0, 1, 2)
         
+        row += 1
         # Sous-titre "ROV"
         rov_subtitle = QLabel("<b>ROV</b>")
         rov_subtitle.setStyleSheet("color: #666; font-size: 10pt; margin-top: 5px;")
-        metrics_layout.addWidget(rov_subtitle, 21, 0, 1, 2)
+        metrics_layout.addWidget(rov_subtitle, row, 0, 1, 2)
+        row += 1
         
         # 6. Position ROV
-        metrics_layout.addWidget(QLabel("<b>Position ROV:</b>"), 22, 0)
+        metrics_layout.addWidget(QLabel("<b>Position ROV:</b>"), row, 0)
         self.position_label = QLabel("(0.00, 0.00) m")
-        metrics_layout.addWidget(self.position_label, 22, 1)
+        metrics_layout.addWidget(self.position_label, row, 1)
+        row += 1
         
         # 7. Vitesse ROV
-        metrics_layout.addWidget(QLabel("<b>Vitesse ROV:</b>"), 23, 0)
+        metrics_layout.addWidget(QLabel("<b>Vitesse ROV:</b>"), row, 0)
         self.velocity_label = QLabel("(0.00, 0.00) m/s")
-        metrics_layout.addWidget(self.velocity_label, 23, 1)
+        metrics_layout.addWidget(self.velocity_label, row, 1)
+        row += 1
         
         # Trait de séparation
         separator3 = QLabel("─" * 30)
         separator3.setStyleSheet("color: #ccc;")
-        metrics_layout.addWidget(separator3, 24, 0, 1, 2)
+        metrics_layout.addWidget(separator3, row, 0, 1, 2)
+        row += 1
         
         # Sous-titre "Forces s'exerçant sur le ROV"
         forces_subtitle = QLabel("<b>Forces s'exerçant sur le ROV</b>")
         forces_subtitle.setStyleSheet("color: #666; font-size: 10pt; margin-top: 5px;")
-        metrics_layout.addWidget(forces_subtitle, 25, 0, 1, 2)
+        metrics_layout.addWidget(forces_subtitle, row, 0, 1, 2)
+        row += 1
         
         # Variables de commande (Fx ROV, Fy ROV)
-        metrics_layout.addWidget(QLabel("<b>Commande ROV:</b>"), 26, 0)
+        metrics_layout.addWidget(QLabel("<b>Commande ROV:</b>"), row, 0)
         self.command_rov_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.command_rov_label, 26, 1)
+        metrics_layout.addWidget(self.command_rov_label, row, 1)
+        row += 1
         
         # Forces de traction du câble sur le ROV
-        metrics_layout.addWidget(QLabel("<b>Traction câble sur ROV:</b>"), 27, 0)
+        metrics_layout.addWidget(QLabel("<b>Traction câble sur ROV:</b>"), row, 0)
         self.traction_cable_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.traction_cable_label, 27, 1)
+        metrics_layout.addWidget(self.traction_cable_label, row, 1)
+        row += 1
         
         # 8. Force traînée ROV
-        metrics_layout.addWidget(QLabel("<b>Force traînée ROV:</b>"), 28, 0)
+        metrics_layout.addWidget(QLabel("<b>Force traînée ROV:</b>"), row, 0)
         self.drag_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.drag_label, 28, 1)
+        metrics_layout.addWidget(self.drag_label, row, 1)
+        row += 1
         
         # 9. Poids apparent (modèle, vers le bas)
-        metrics_layout.addWidget(QLabel("<b>Poids apparent (modèle):</b>"), 29, 0)
+        metrics_layout.addWidget(QLabel("<b>Poids apparent (modèle):</b>"), row, 0)
         self.apparent_weight_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.apparent_weight_label, 29, 1)
+        metrics_layout.addWidget(self.apparent_weight_label, row, 1)
+        row += 1
         
         # 10. Somme des forces ROV (modèle)
-        metrics_layout.addWidget(QLabel("<b>Somme forces ROV (modèle):</b>"), 30, 0)
+        metrics_layout.addWidget(QLabel("<b>Somme forces ROV (modèle):</b>"), row, 0)
         self.total_forces_label = QLabel("(0.00, 0.00) N")
-        metrics_layout.addWidget(self.total_forces_label, 30, 1)
+        metrics_layout.addWidget(self.total_forces_label, row, 1)
+        row += 1
 
         # 11. Gamma ROV (accélération verticale)
-        metrics_layout.addWidget(QLabel("<b>Gamma ROV (y):</b>"), 31, 0)
+        metrics_layout.addWidget(QLabel("<b>Gamma ROV (y):</b>"), row, 0)
         self.gamma_rov_label = QLabel("0.00 m/s²")
-        metrics_layout.addWidget(self.gamma_rov_label, 31, 1)
+        metrics_layout.addWidget(self.gamma_rov_label, row, 1)
+        row += 1
         
         # Trait de séparation
         separator4 = QLabel("─" * 30)
         separator4.setStyleSheet("color: #ccc;")
-        metrics_layout.addWidget(separator4, 32, 0, 1, 2)
+        metrics_layout.addWidget(separator4, row, 0, 1, 2)
+        row += 1
         
         # Sous-titre "Coordonnées Bateau"
         boat_subtitle = QLabel("<b>Coordonnées Bateau</b>")
         boat_subtitle.setStyleSheet("color: #666; font-size: 10pt; margin-top: 5px;")
-        metrics_layout.addWidget(boat_subtitle, 33, 0, 1, 2)
+        metrics_layout.addWidget(boat_subtitle, row, 0, 1, 2)
+        row += 1
         
         # Bateau
-        metrics_layout.addWidget(QLabel("<b>Bateau:</b>"), 34, 0)
+        metrics_layout.addWidget(QLabel("<b>Bateau:</b>"), row, 0)
         self.position_boat_label = QLabel("(0.00, 0.00) m")
-        metrics_layout.addWidget(self.position_boat_label, 34, 1)
+        metrics_layout.addWidget(self.position_boat_label, row, 1)
+        row += 1
         
         # Vitesse Bateau
-        metrics_layout.addWidget(QLabel("<b>Vitesse Bateau:</b>"), 35, 0)
+        metrics_layout.addWidget(QLabel("<b>Vitesse Bateau:</b>"), row, 0)
         self.velocity_boat_label = QLabel("(0.00, 0.00) m/s")
-        metrics_layout.addWidget(self.velocity_boat_label, 35, 1)
+        metrics_layout.addWidget(self.velocity_boat_label, row, 1)
         
         layout.addWidget(metrics_group)
         
         layout.addStretch()
         
+        return panel
+
+    def create_profile_panel(self):
+        """Crée le panneau du profil câble"""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.plotly_widget = PlotlyWidget()
+        self.plotly_widget.setMinimumHeight(800)
+        self.plotly_widget.setMaximumHeight(1200)
+        self.plotly_widget.setMaximumWidth(400)
+        self.plotly_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        layout.addWidget(self.plotly_widget, 1)
+
+        # Graphique initial "Profil" - sera remplacé lors de l'initialisation complète
+        from src.visualization.plotter import create_system_plot
+        y_rov_init = self.main_window.init_params.get('y_rov_init', -10.0)
+        x_rov_init = self.main_window.init_params.get('x_rov_init', 0.0)
+        fig = create_system_plot(
+            x_rov_init,
+            y_rov_init,
+            [],
+            [],
+            x_rov_init,
+            0,
+            "Profil",
+            T_cable=None,
+        )
+        self.plotly_widget.update_figure(fig)
+
+        return panel
+
+    def create_right_panel(self):
+        """Crée le panneau de droite avec onglets Métriques et Profil câble"""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        tabs = QTabWidget()
+        tabs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        tabs.addTab(self.create_metrics_panel(), "Métriques")
+        tabs.addTab(self.create_profile_panel(), "Profil câble")
+        tabs.addTab(self.create_profile_fond_panel(), "Profil fond")
+
+        layout.addWidget(tabs)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        return panel
+
+    def create_profile_fond_panel(self):
+        """Crée le panneau du profil fond (zoom près du ROV)."""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.plotly_widget_profile_fond = PlotlyWidget()
+        self.plotly_widget_profile_fond.setMinimumHeight(800)
+        self.plotly_widget_profile_fond.setMaximumHeight(1200)
+        self.plotly_widget_profile_fond.setMaximumWidth(400)
+        self.plotly_widget_profile_fond.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        layout.addWidget(self.plotly_widget_profile_fond, 1)
+
+        from src.visualization.plotter import create_rov_local_plot
+        y_rov_init = self.main_window.init_params.get('y_rov_init', -10.0)
+        x_rov_init = self.main_window.init_params.get('x_rov_init', 0.0)
+        fig = create_rov_local_plot(
+            x_rov_init,
+            y_rov_init,
+            [],
+            [],
+            "Profil fond",
+        )
+        self.plotly_widget_profile_fond.update_figure(fig)
+
         return panel
     
     def start_simulation(self):
@@ -1267,9 +1369,16 @@ class SimulationTab(QWidget):
             tcible = float(self.main_window.calc_params.get("Tcible", None))
         except Exception:
             tcible = None
+        gamma_min = None
         gamma_max = None
         try:
-            gamma_max = float(self.main_window.calc_params.get("Gamma_moulinet_max", None))
+            boat_params = self.main_window.parameters.get("boat", {})
+            gamma_min = float(boat_params.get("gamma_moulinet_min", None))
+        except Exception:
+            gamma_min = None
+        try:
+            boat_params = self.main_window.parameters.get("boat", {})
+            gamma_max = float(boat_params.get("gamma_moulinet_max", None))
         except Exception:
             gamma_max = None
 
@@ -1316,7 +1425,11 @@ class SimulationTab(QWidget):
         lines.append("## Commande dL/dt")
         if max_acc is not None:
             lines.append(f"- Accélération max |d(dL/dt)/dt|: {max_acc:.3f} m/s²")
-            if gamma_max is not None:
+            if gamma_min is not None and gamma_max is not None:
+                lines.append(
+                    f"- Gamma_moulinet_min/max: {gamma_min:.3f} / {gamma_max:.3f} m/s²"
+                )
+            elif gamma_max is not None:
                 lines.append(f"- Gamma_moulinet_max: {gamma_max:.3f} m/s²")
         else:
             lines.append("- Accélération max: n/a")
@@ -1332,7 +1445,7 @@ class SimulationTab(QWidget):
         lines.append("")
         lines.append("## Pistes d'amélioration auto_L")
         lines.append("- Si Tmax/Trupt est trop élevé: augmenter l'agressivité de la libération du câble.")
-        lines.append("- Si l'accélération dépasse Gamma_moulinet_max: renforcer la limitation d'accélération.")
+        lines.append("- Si l'accélération dépasse les bornes: renforcer la limitation d'accélération.")
         lines.append("- Flèche du câble: non analysable sans la profondeur minimale du câble dans le CSV.")
 
         try:
@@ -1529,8 +1642,11 @@ class SimulationTab(QWidget):
             for widget in (
                 getattr(self, 'plotly_widget', None),
                 getattr(self, 'plotly_widget_tension', None),
+                getattr(self, 'plotly_widget_slack', None),
                 getattr(self, 'plotly_widget_current', None),
                 getattr(self, 'plotly_widget_dl_dt', None),
+                getattr(self, 'plotly_widget_tension_vs_target', None),
+                getattr(self, 'plotly_widget_profile_fond', None),
             ):
                 if widget is not None:
                     widget.is_first_update = True
@@ -1539,9 +1655,27 @@ class SimulationTab(QWidget):
             self.last_plot_update_time = None
             self.update_display()
             state = self.main_window.get_simulation_state()
-            self._refresh_tension_vs_target_plot(state.get('data', {}))
+            data = state.get('data', {})
+            self._refresh_dl_dt_plot(data)
+            self._refresh_tension_vs_target_plot(data)
         except Exception as e:
             trace_print(8, f"Erreur lors du rafraîchissement des graphiques: {e}")
+
+    def _refresh_dl_dt_plot(self, data):
+        if data.get('dl_dt_cmd') is None:
+            return
+        try:
+            from src.visualization.plotter import create_dl_dt_plot
+            fig_dl_dt = create_dl_dt_plot(
+                data.get('time', []),
+                data.get('dl_dt_cmd', []),
+                "Commande dL/dt",
+                data.get('cable_mode', []),
+                data.get('scenario_triggers', []),
+            )
+            self.plotly_widget_dl_dt.update_figure(fig_dl_dt)
+        except Exception as e:
+            trace_print(8, f"Erreur lors de la mise à jour du graphique dL/dt: {e}")
 
     def _refresh_tension_vs_target_plot(self, data):
         if not data.get('time'):
@@ -1555,7 +1689,13 @@ class SimulationTab(QWidget):
                 t_rupture = float(self.main_window.parameters.get('cable', {}).get('tension_rupture', 50.0))
             except Exception:
                 t_rupture = 50.0
-            t_cible = t_rupture / 2.0 if t_rupture is not None else None
+            t_cible = None
+            try:
+                t_cible = float(self.main_window.calc_params.get('Tcible', None))
+            except Exception:
+                t_cible = None
+            if t_cible is None or t_cible == 0:
+                t_cible = t_rupture / 2.0 if t_rupture is not None else None
 
             t_boat = data.get('T_boat', []) or []
             t_rov = data.get('T_rov', []) or []
@@ -1568,12 +1708,16 @@ class SimulationTab(QWidget):
             t_boat = t_boat[:min_len]
             t_rov = t_rov[:min_len]
             t_max = t_max[:min_len]
+            cable_mode = (data.get('cable_mode') or [])[:min_len]
+            scenario_triggers = (data.get('scenario_triggers') or [])[:min_len]
 
             max_points = 1500
             step = max(1, len(times) // max_points)
             times_ds = times[::step]
             t_rupture_series = [t_rupture] * len(times_ds) if t_rupture is not None else []
             t_cible_series = [t_cible] * len(times_ds) if t_cible is not None else []
+            cable_mode_ds = cable_mode[::step] if cable_mode else []
+            scenario_triggers_ds = scenario_triggers[::step] if scenario_triggers else []
 
             fig_tension_vs_target = create_tension_vs_target_plot(
                 times_ds,
@@ -1583,6 +1727,8 @@ class SimulationTab(QWidget):
                 t_rov[::step],
                 t_max[::step],
                 "Tension vs cible",
+                cable_mode_ds,
+                scenario_triggers_ds,
             )
             self.plotly_widget_tension_vs_target.update_figure(fig_tension_vs_target)
         except Exception as e:
@@ -1658,7 +1804,10 @@ class SimulationTab(QWidget):
                 vy_rov = data['vy_rov'][-1]
                 self.velocity_label.setText(f"({vx_rov:.2f}, {vy_rov:.2f}) m/s")
             
-            if data.get('L'):
+            if data.get('L_step') is not None:
+                L = float(data.get('L_step', 0.0))
+                self.length_label.setText(f"{L:.2f} m")
+            elif data.get('L'):
                 L = data['L'][-1]
                 self.length_label.setText(f"{L:.2f} m")
             else:
@@ -1673,10 +1822,13 @@ class SimulationTab(QWidget):
                     y_rov = float(data['y_rov'][-1])
                     straight_len = (x_rov - x_boat) ** 2 + (y_rov - 0.0) ** 2
                     self.length_straight_label.setText(f"{straight_len ** 0.5:.2f} m")
+                    self.slack_label.setText(f"{(L - (straight_len ** 0.5)):.2f} m")
                 except Exception:
                     self.length_straight_label.setText("0.00 m")
+                    self.slack_label.setText("0.00 m")
             else:
                 self.length_straight_label.setText("0.00 m")
+                self.slack_label.setText("0.00 m")
 
             if data.get('cable_mode'):
                 last_mode = data['cable_mode'][-1]
@@ -1736,9 +1888,81 @@ class SimulationTab(QWidget):
 
             if data.get('time'):
                 try:
+                    from src.visualization.plotter import create_slack_plot
+                    times = data.get('time', [])
+                    x_rov = data.get('x_rov', [])
+                    y_rov = data.get('y_rov', [])
+                    x_boat = data.get('x_boat', [])
+                    L_series = data.get('L', [])
+                    t_boat = data.get('T_boat', [])
+                    dl_dt_series = data.get('dl_dt_cmd', [])
+
+                    n = min(len(times), len(x_rov), len(y_rov), len(x_boat), len(L_series))
+                    slack = []
+                    slack_ratio = []
+                    hover_data = []
+                    for i in range(n):
+                        l_val = float(L_series[i])
+                        straight = float((x_rov[i] - x_boat[i]) ** 2 + (y_rov[i] - 0.0) ** 2) ** 0.5
+                        s_val = l_val - straight
+                        slack.append(s_val)
+                        slack_ratio.append(s_val / l_val if l_val > 1e-6 else 0.0)
+                        t_bat_val = float(t_boat[i]) if i < len(t_boat) else 0.0
+                        dl_val = float(dl_dt_series[i]) if i < len(dl_dt_series) else 0.0
+                        hover_data.append([
+                            float(x_rov[i]),
+                            float(y_rov[i]),
+                            t_bat_val,
+                            dl_val,
+                        ])
+
+                    fig_slack = create_slack_plot(
+                        times[:n],
+                        slack,
+                        slack_ratio,
+                        hover_data,
+                        "Slack / L  (%)",
+                    )
+                    self.plotly_widget_slack.update_figure(fig_slack)
+                except Exception as e:
+                    trace_print(8, f"Erreur lors de la mise à jour du graphique Slack: {e}")
+
+            if data.get('time'):
+                try:
                     self._refresh_tension_vs_target_plot(data)
                 except Exception as e:
                     trace_print(8, f"Erreur lors de la mise à jour du graphique Tension vs cible: {e}")
+
+            if data.get('time'):
+                try:
+                    from src.visualization.plotter import create_rov_local_plot
+                    x_cable_raw = data.get('x_cable_curr')
+                    y_cable_raw = data.get('y_cable_curr')
+                    x_rov = data['x_rov'][-1] if data.get('x_rov') else 0.0
+                    y_rov = data['y_rov'][-1] if data.get('y_rov') else 0.0
+
+                    x_cable = list(x_cable_raw) if x_cable_raw is not None else []
+                    y_cable = list(y_cable_raw) if y_cable_raw is not None else []
+                    if x_cable and y_cable:
+                        dist_first_to_rov = (x_cable[0] - x_rov) ** 2 + (y_cable[0] - y_rov) ** 2
+                        dist_last_to_rov = (x_cable[-1] - x_rov) ** 2 + (y_cable[-1] - y_rov) ** 2
+                        if dist_first_to_rov < dist_last_to_rov:
+                            x_cable = list(reversed(x_cable))
+                            y_cable = list(reversed(y_cable))
+                        n_seg = min(10, len(x_cable))
+                        x_cable = x_cable[-n_seg:]
+                        y_cable = y_cable[-n_seg:]
+
+                    fig_fond = create_rov_local_plot(
+                        x_rov,
+                        y_rov,
+                        x_cable,
+                        y_cable,
+                        "Profil fond",
+                    )
+                    self.plotly_widget_profile_fond.update_figure(fig_fond)
+                except Exception as e:
+                    trace_print(8, f"Erreur lors de la mise à jour du graphique Profil fond: {e}")
             
             # Tensions du câble (forces exercées sur le câble)
             traction_boat = (0.0, 0.0)
@@ -1827,8 +2051,28 @@ class SimulationTab(QWidget):
                         x_cable = list(x_cable_raw) if not isinstance(x_cable_raw, list) else x_cable_raw
                         y_cable = list(y_cable_raw) if not isinstance(y_cable_raw, list) else y_cable_raw
                         if len(x_cable) > 1 and len(y_cable) > 1:
+                            # Estimer les vitesses du câble à partir de deux positions successives
                             vx_cable = np.zeros(len(x_cable))
                             vy_cable = np.zeros(len(x_cable))
+                            t_now = data['time'][-1] if data.get('time') else None
+                            if (
+                                t_now is not None
+                                and self._prev_cable_time is not None
+                                and self._prev_cable_x is not None
+                                and self._prev_cable_y is not None
+                            ):
+                                dt = float(t_now) - float(self._prev_cable_time)
+                                is_paused = bool(state.get('paused')) if isinstance(state, dict) else False
+                                if dt > 1e-6 and len(self._prev_cable_x) == len(x_cable) and not is_paused:
+                                    vx_cable = (np.asarray(x_cable) - np.asarray(self._prev_cable_x)) / dt
+                                    vy_cable = (np.asarray(y_cable) - np.asarray(self._prev_cable_y)) / dt
+                                    # Limiter les vitesses extrêmes (sauts numériques)
+                                    vx_rov = data['vx_rov'][-1] if data.get('vx_rov') else 0.0
+                                    vy_rov = data['vy_rov'][-1] if data.get('vy_rov') else 0.0
+                                    vx_boat = data['vx_boat'][-1] if data.get('vx_boat') else 0.0
+                                    v_cap = max(1.0, 2.0 * max(abs(vx_rov), abs(vy_rov), abs(vx_boat)))
+                                    vx_cable = np.clip(vx_cable, -v_cap, v_cap)
+                                    vy_cable = np.clip(vy_cable, -v_cap, v_cap)
                             params_cable = {
                                 'd': system.cable.d,
                                 'rho_cable': system.cable.rho_cable,
@@ -1852,11 +2096,25 @@ class SimulationTab(QWidget):
                             F_weight_total = Fy_weight_seg * N_segments
                             F_drag_cable_y = (float(np.sum(Fy_segments)) - F_weight_total) if len(Fy_segments) > 0 else 0.0
                             cable_drag_vec = (F_drag_cable_x, F_drag_cable_y)
+                            # Lissage simple de la traînée pour éviter le bagottement visuel
+                            if self._prev_cable_drag is not None:
+                                alpha = 0.3
+                                cable_drag_vec = (
+                                    alpha * cable_drag_vec[0] + (1.0 - alpha) * self._prev_cable_drag[0],
+                                    alpha * cable_drag_vec[1] + (1.0 - alpha) * self._prev_cable_drag[1],
+                                )
+                            self._prev_cable_drag = cable_drag_vec
                             self.cable_drag_label.setText(f"({cable_drag_vec[0]:.2f}, {cable_drag_vec[1]:.2f}) N")
                             
                             total_fx = traction_rov[0] + traction_boat[0] + cable_weight_vec[0] + cable_drag_vec[0]
                             total_fy = traction_rov[1] + traction_boat[1] + cable_weight_vec[1] + cable_drag_vec[1]
                             self.cable_total_forces_label.setText(f"({total_fx:.2f}, {total_fy:.2f}) N")
+                            
+                            # Mémoriser la dernière géométrie pour estimer les vitesses
+                            if t_now is not None:
+                                self._prev_cable_time = float(t_now)
+                                self._prev_cable_x = list(x_cable)
+                                self._prev_cable_y = list(y_cable)
             except Exception:
                 pass
             

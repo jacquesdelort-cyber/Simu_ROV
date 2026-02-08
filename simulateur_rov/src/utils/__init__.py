@@ -9,6 +9,7 @@ from .scenario_utils import (
     auto_L_3,
     auto_L_4,
     auto_L_6,
+    auto_L_7,
     compute_rov_terminal_vy,
 )
 from .data_io import save_results, load_results
@@ -16,5 +17,5 @@ from .data_io import save_results, load_results
 __all__ = ['load_parameters', 'get_default_parameters',
            'get_initial_state', 'save_results', 'load_results',
            'verifier_syntaxe_scenario', 'commande_scenario', 'auto_L_1', 'auto_L_2', 'auto_L_3', 'auto_L_4',
-           'auto_L_6', 'compute_rov_terminal_vy']
+          'auto_L_6', 'auto_L_7', 'compute_rov_terminal_vy']
 

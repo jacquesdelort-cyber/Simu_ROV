@@ -1,5 +1,5 @@
 {
-    "date_sauvegarde": "2026-02-05T11:10:48.333469",
+    "date_sauvegarde": "2026-02-06T13:23:31.084297",
     "mission": "M101",
     "description": "Position (20, -100) m, ROV avec une flottabilité légèrement positive",
     "parameters": {
@@ -20,7 +20,9 @@
         },
         "boat": {
             "m": 10000.0,
-            "drag_coefficient": 0.5
+            "drag_coefficient": 0.5,
+            "gamma_moulinet_min": -0.5,
+            "gamma_moulinet_max": 0.5
         },
         "environment": {
             "rho_eau": 1030.0,
@@ -34,23 +36,22 @@
         "atol": 1e-07,
         "max_step": 0.1,
         "dt_max": 0.1,
-        "t_final": 360.0,
+        "t_final": 3600.0,
         "steps_per_update": 5,
         "N_segments": 50,
         "straight_blend_alpha": 1.0,
-        "sc_fx_rov": "",
-        "sc_fy_rov": "(t>0:-50)",
-        "sc_v_bateau": "",
+        "sc_fx_rov": "(t >40:5) (e1>10:0) (e1>5:-5) (e1>15:5) (e1>25:10) (e1>30:0) (:e2)  (e3:5)  (e3>15:0)",
+        "sc_fy_rov": "(t>10:-25) (t>30:-50) (y<-100:-75) (y<-495:0) (:e1)  (:0) (e2:-5) (y>-500:e3) (:0)      (e3>15:+50 )  (:e4)  (y>10:15)",
+        "sc_v_bateau": "(e4:1 )  (l<10:0)",
         "sc_v_moulinet": "",
-        "auto_L": 6,
-        "Tcible": 5.0,
-        "Gamma_moulinet_max": 0.5
+        "auto_L": 7,
+        "Tcible": 5.0
     },
     "init_params": {
-        "x_rov_init": 20.0,
-        "y_rov_init": -100.0,
+        "x_rov_init": 5.0,
+        "y_rov_init": -10.0,
         "x_boat_init": 0.0,
-        "L_init": 110.0,
+        "L_init": 12.0,
         "v_courant": "0.0"
     }
 }

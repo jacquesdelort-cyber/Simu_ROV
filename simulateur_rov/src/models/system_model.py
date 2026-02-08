@@ -270,6 +270,26 @@ class ROVSystem:
                 # Utiliser la moyenne pour éviter les erreurs d'arrondi
                 x_avg = np.mean(x_cable_new)
                 x_cable_new[:] = x_avg
+
+        # Stabiliser les tensions quand le solveur renvoie une valeur quasi nulle
+        # (évite les alternances 0 / valeur nominale d'un pas à l'autre)
+        if len(T_new) > 0 and len(T) > 0:
+            try:
+                if np.max(T_new) < 1e-6 and np.max(T) > 1e-3:
+                    T_new = np.asarray(T_new, dtype=float).copy()
+                    T_new[:] = T
+            except Exception:
+                pass
+
+        # Si le câble est quasi droit, lisser la tension calculée pour éviter les bascules rapides
+        if len(T_new) > 0 and len(T) > 0 and L_straight > 1e-9:
+            try:
+                slack_ratio = abs(L - L_straight) / max(L_straight, 1.0)
+                if slack_ratio < 0.005:
+                    # Geler la tension en zone quasi-droite pour éviter les oscillations
+                    T_new = np.asarray(T, dtype=float).copy()
+            except Exception:
+                pass
         
         # Mettre à jour pour la prochaine itération
         self.x_cable_prev = x_cable_new.copy()
@@ -497,11 +517,83 @@ class ROVSystem:
         else:
             # Temps de relaxation normal pour la stabilité
             tau_tension = 0.05  # 50 ms de relaxation pour meilleure stabilité et performance
+
+        # Si le câble est mou (slack significatif), éviter des oscillations numériques rapides
+        slack_ratio = 0.0
+        if L_straight > 1e-9:
+            slack_ratio = max((L - L_straight) / max(L_straight, 1.0), 0.0)
+        if slack_ratio > 0.01:
+            tau_tension = max(tau_tension, 0.2)
+        # Proche du câble tendu (L ~ L_straight), augmenter fortement l'inertie
+        if L_straight > 1e-9:
+            straight_ratio = abs(L - L_straight) / max(L_straight, 1.0)
+            if straight_ratio < 0.002:
+                tau_tension = max(tau_tension, 0.5)
         
         # Mettre à jour T_new[-1] (ROV) avec la tension cible dynamique calculée plus haut
         if len(T_new) > 0:
             T_new[-1] = T_rov_target
         
+        # Empêcher les chutes brutales de tension quand le câble est quasi droit
+        if len(T_new) > 0 and len(T) > 0 and L_straight > 1e-9:
+            try:
+                straight_ratio = abs(L - L_straight) / max(L_straight, 1.0)
+                if straight_ratio < 0.002:
+                    t_prev = np.asarray(T, dtype=float)
+                    t_new = np.asarray(T_new, dtype=float)
+                    t_new = 0.9 * t_prev + 0.1 * t_new
+                    T_new = np.maximum(t_new, 0.8 * t_prev)
+            except Exception:
+                pass
+
+        # Stabilisation anti-bagottement: limiter les sauts rapides de tension
+        if len(T_new) > 0 and len(T) > 0:
+            try:
+                t_prev = np.asarray(T, dtype=float)
+                t_new = np.asarray(T_new, dtype=float)
+                prev_bat = float(t_prev[0])
+                new_bat = float(t_new[0])
+                prev_rov = float(t_prev[-1])
+                new_rov = float(t_new[-1])
+                jump_ratio = 2.0
+                if (
+                    prev_bat > 1e-6
+                    and (new_bat / prev_bat > jump_ratio or new_bat / prev_bat < 1.0 / jump_ratio)
+                ) or (
+                    prev_rov > 1e-6
+                    and (new_rov / prev_rov > jump_ratio or new_rov / prev_rov < 1.0 / jump_ratio)
+                ):
+                    t_new = 0.8 * t_prev + 0.2 * t_new
+                    T_new = np.maximum(t_new, 0.7 * t_prev)
+            except Exception:
+                pass
+
+        # Limiter les variations relatives de tension quand le câble est mou
+        if len(T_new) > 0 and len(T) > 0:
+            try:
+                slack_ratio = 0.0
+                if L_straight > 1e-9:
+                    slack_ratio = max((L - L_straight) / max(L_straight, 1.0), 0.0)
+                if slack_ratio > 0.005:
+                    t_prev = np.asarray(T, dtype=float)
+                    t_new = np.asarray(T_new, dtype=float)
+                    min_floor = 0.5
+                    denom = np.maximum(t_prev, min_floor)
+                    ratio = t_new / denom
+                    # Si le slack est grand, autoriser une décroissance plus forte
+                    if slack_ratio <= 0.01:
+                        min_ratio = 0.75
+                    elif slack_ratio >= 0.05:
+                        min_ratio = 0.4
+                    else:
+                        # interpolation linéaire entre 0.75 et 0.4
+                        frac = (slack_ratio - 0.01) / (0.05 - 0.01)
+                        min_ratio = 0.75 + (0.4 - 0.75) * frac
+                    ratio = np.clip(ratio, min_ratio, 1.25)
+                    T_new = ratio * denom
+            except Exception:
+                pass
+
         dT_dt = (T_new - T) / tau_tension
         
         # Assembler les dérivées

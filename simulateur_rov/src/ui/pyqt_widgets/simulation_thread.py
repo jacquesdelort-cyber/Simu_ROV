@@ -292,7 +292,7 @@ class SimulationThread(QThread):
 
                 if self.sc_fx_rov or self.sc_fy_rov or self.sc_v_bateau or self.sc_v_moulinet or dl_dt_mode == "auto":
                     try:
-                        (_, y_rov_current, _, _, _, _, _, _, T_current, L_current) = system.unpack_state(y_current)
+                        (x_rov_current, y_rov_current, _, _, x_boat_current, _, _, _, T_current, L_current) = system.unpack_state(y_current)
                         t_boat = None
                         if T_current is not None and len(T_current) > 0:
                             t_boat = float(T_current[0])
@@ -304,6 +304,7 @@ class SimulationThread(QThread):
                                 t_current,
                                 L_current,
                                 y_rov_current,
+                                x_rov_current,
                                 t_boat,
                                 step_triggers,
                             )
@@ -314,6 +315,7 @@ class SimulationThread(QThread):
                                 t_current,
                                 L_current,
                                 y_rov_current,
+                                x_rov_current,
                                 t_boat,
                                 step_triggers,
                             )
@@ -324,6 +326,7 @@ class SimulationThread(QThread):
                                 t_current,
                                 L_current,
                                 y_rov_current,
+                                x_rov_current,
                                 t_boat,
                                 step_triggers,
                             )
@@ -359,25 +362,61 @@ class SimulationThread(QThread):
                             if tcible is None or tcible == 0:
                                 tcible = trupt / 2.0
                             gamma_moulinet_max = None
+                            gamma_moulinet_min = None
+                            gamma_moulinet_max = None
                             try:
-                                gamma_moulinet_max = self.calc_params.get("Gamma_moulinet_max", None)
+                                boat_params = self.parameters.get("boat", {})
+                                gamma_moulinet_min = boat_params.get("gamma_moulinet_min", -0.5)
+                                gamma_moulinet_max = boat_params.get("gamma_moulinet_max", 0.5)
                             except Exception:
-                                gamma_moulinet_max = None
+                                gamma_moulinet_min = -0.5
+                                gamma_moulinet_max = 0.5
+                            dl_dt_min = None
+                            dl_dt_max = None
+                            try:
+                                boat_params = self.parameters.get("boat", {})
+                                dl_dt_min = boat_params.get("dl_dt_min", -1.0)
+                                dl_dt_max = boat_params.get("dl_dt_max", 1.0)
+                            except Exception:
+                                dl_dt_min = -1.0
+                                dl_dt_max = 1.0
                             t_boat = None
                             if T_current is not None and len(T_current) > 0:
                                 t_boat = float(T_current[0])
-                            auto_result = auto_func(
-                                t_current,
-                                y_rov_current,
-                                L_current,
-                                float(self.simulation_state.get('fx_rov', self.fx_rov)) if isinstance(self.simulation_state, dict) else self.fx_rov,
-                                float(self.simulation_state.get('fy_rov', self.fy_rov)) if isinstance(self.simulation_state, dict) else self.fy_rov,
-                                t_boat,
-                                Trupt=trupt,
-                                Tcible=tcible,
-                                Gamma_moulinet_max=gamma_moulinet_max,
-                                data=data,
-                            )
+                            if auto_func is scenario_utils.auto_L_7:
+                                auto_result = auto_func(
+                                    t_current,
+                                    y_rov_current,
+                                    L_current,
+                                    float(self.simulation_state.get('fx_rov', self.fx_rov)) if isinstance(self.simulation_state, dict) else self.fx_rov,
+                                    float(self.simulation_state.get('fy_rov', self.fy_rov)) if isinstance(self.simulation_state, dict) else self.fy_rov,
+                                    t_boat,
+                                    float(x_rov_current),
+                                    float(x_boat_current),
+                                    Trupt=trupt,
+                                    Tcible=tcible,
+                                    Gamma_moulinet_min=gamma_moulinet_min,
+                                    Gamma_moulinet_max=gamma_moulinet_max,
+                                    dl_dt_min=dl_dt_min,
+                                    dl_dt_max=dl_dt_max,
+                                    data=data,
+                                )
+                            else:
+                                auto_result = auto_func(
+                                    t_current,
+                                    y_rov_current,
+                                    L_current,
+                                    float(self.simulation_state.get('fx_rov', self.fx_rov)) if isinstance(self.simulation_state, dict) else self.fx_rov,
+                                    float(self.simulation_state.get('fy_rov', self.fy_rov)) if isinstance(self.simulation_state, dict) else self.fy_rov,
+                                    t_boat,
+                                    Trupt=trupt,
+                                    Tcible=tcible,
+                                    Gamma_moulinet_min=gamma_moulinet_min,
+                                    Gamma_moulinet_max=gamma_moulinet_max,
+                                    dl_dt_min=dl_dt_min,
+                                    dl_dt_max=dl_dt_max,
+                                    data=data,
+                                )
                             if isinstance(auto_result, tuple) and len(auto_result) >= 2:
                                 dl_dt_cmd = auto_result[0]
                                 dl_dt_auto_explain = str(auto_result[1])
@@ -397,6 +436,7 @@ class SimulationThread(QThread):
                                 t_current,
                                 L_current,
                                 y_rov_current,
+                                x_rov_current,
                                 t_boat,
                                 step_triggers,
                             )
@@ -724,6 +764,40 @@ class SimulationThread(QThread):
                     data.setdefault('Fx_total', []).append(float(Fx_total))
                     data.setdefault('Fy_total', []).append(float(Fy_total))
                     
+                    # Traînée câble (vectorielle, sans poids apparent)
+                    try:
+                        from src.solvers.forces import compute_cable_forces, compute_cable_apparent_weight
+                        if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
+                            x_cable_arr = np.asarray(x_cable_display)
+                            y_cable_arr = np.asarray(y_cable_display)
+                            vx_cable = np.linspace(vx_rov, vx_boat, len(x_cable_arr))
+                            vy_cable = np.linspace(vy_rov, 0.0, len(x_cable_arr))
+                            params_cable = {
+                                'd': system.cable.d,
+                                'rho_cable': system.cable.rho_cable,
+                                'Cx_cable': system.cable.Cx_cable
+                            }
+                            Fx_segments, Fy_segments = compute_cable_forces(
+                                x_cable_arr, y_cable_arr, vx_cable, vy_cable, system.environment, params_cable, L
+                            )
+                            F_drag_x = float(np.sum(Fx_segments)) if len(Fx_segments) > 0 else 0.0
+                            N_segments = max(len(x_cable_arr) - 1, 1)
+                            ds = L / N_segments if N_segments > 0 else L
+                            Fy_weight_seg = compute_cable_apparent_weight(
+                                system.cable.rho_cable,
+                                system.environment.rho_eau,
+                                system.cable.A_cable,
+                                system.environment.g,
+                                ds
+                            )
+                            F_weight_total = Fy_weight_seg * N_segments
+                            F_drag_y = (float(np.sum(Fy_segments)) - F_weight_total) if len(Fy_segments) > 0 else 0.0
+                            data.setdefault('cable_drag', []).append((F_drag_x, F_drag_y))
+                        else:
+                            data.setdefault('cable_drag', []).append((0.0, 0.0))
+                    except Exception:
+                        data.setdefault('cable_drag', []).append((0.0, 0.0))
+                    
                     # Calculer les forces sur le bateau
                     # Tension du câble au niveau du bateau
                     T_boat_val = T_boat if T is not None and len(T) > 0 else 0.0
@@ -924,7 +998,8 @@ class SimulationThread(QThread):
 
                         update_data = {
                             **data,
-                            'current_time': t_current
+                            'current_time': t_current,
+                            'L_step': float(L),
                         }
                         if fx_rov_cmd is not None:
                             update_data['fx_rov_cmd'] = float(fx_rov_cmd)
@@ -944,7 +1019,8 @@ class SimulationThread(QThread):
             if not self._stop_requested:
                 update_data = {
                     **data,
-                    'current_time': t_current
+                    'current_time': t_current,
+                    'L_step': float(L),
                 }
                 if fx_rov_cmd is not None:
                     update_data['fx_rov_cmd'] = float(fx_rov_cmd)
