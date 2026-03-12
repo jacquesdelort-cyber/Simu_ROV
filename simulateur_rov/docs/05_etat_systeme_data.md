@@ -30,11 +30,27 @@ alimentent l'interface, les graphiques et les exports.
 
 ## Forces sur le ROV
 
-- `Fx_drag`, `Fy_drag` : force de trainee ROV (N).
-- `Fx_traction`, `Fy_traction` : traction du cable sur le ROV (N).
-- `F_apparent_weight` : poids apparent (positif vers le bas) (N).
-- `F_buoyancy_net` : flottabilite nette (positif si flottabilite positive) (N).
-- `Fx_total`, `Fy_total` : somme des forces appliquees au ROV (N).
+**Convention de signe pour les forces verticales** : Positif = vers le haut (surface), Négatif = vers le bas (fond).
+
+- `Fx_drag_rov`, `Fy_drag_rov` : force de trainee ROV (N). `Fy_drag_rov` positif vers le haut, negatif vers le bas.
+- `Fx_traction_rov`, `Fy_traction_rov` : traction du cable sur le ROV (N). `Fy_traction_rov` positif vers le haut, negatif vers le bas.
+- `Fy_rov_app_w` : poids apparent du ROV (N). Positif si flottabilite positive (vers le haut), negatif si flottabilite negative (vers le bas).
+- `F_buoyancy_net` : flottabilite nette (positif si flottabilite positive) (N). Identique a `Fy_rov_app_w`.
+- `Fx_cmd_rov`, `Fy_cmd_rov` : forces de commande/propulsion du ROV (N). `Fy_cmd_rov` positif vers le haut, negatif vers le bas.
+- `Fx_rov_total`, `Fy_rov_total` : somme des forces appliquees au ROV (N). `Fy_rov_total` positif vers le haut, negatif vers le bas.
+
+## Forces sur le cable
+
+**Convention de signe pour les forces verticales** : Négatif = vers le bas (fond), Positif = vers le haut (surface).
+
+- `Fx_drag_cable`, `Fy_drag_cable` : composantes horizontale et verticale de la trainee totale sur le cable (N). `Fy_drag_cable` est la trainee verticale uniquement (sans le poids apparent).
+- `Fy_cable_app_w` : poids apparent total du cable (N, negatif vers le bas).
+- `Fx_drag_cable_longitudinal`, `Fy_drag_cable_longitudinal` : composantes de la trainee longitudinale (frottement de surface) sur le cable (N). Calculee dans le repère local puis reprojetee dans le repère global.
+- `Fx_drag_cable_perpendicular`, `Fy_drag_cable_perpendicular` : composantes de la trainee perpendiculaire (trainee normale) sur le cable (N). Calculee dans le repère local puis reprojetee dans le repère global.
+
+**Note** : La trainee totale est la somme des trainees longitudinale et perpendiculaire :
+- `Fx_drag_cable = Fx_drag_cable_longitudinal + Fx_drag_cable_perpendicular`
+- `Fy_drag_cable = Fy_drag_cable_longitudinal + Fy_drag_cable_perpendicular`
 
 ## Forces sur le bateau
 
@@ -57,7 +73,7 @@ alimentent l'interface, les graphiques et les exports.
 
 Quelques exemples d'acces aux dernieres valeurs disponibles :
 
-`python
+```python
 # Derniere position et vitesse
 y_rov_current = data['y_rov'][-1] if data.get('y_rov') else None
 vy_rov_current = data['vy_rov'][-1] if data.get('vy_rov') else None
@@ -73,41 +89,4 @@ last_explain = data['dl_dt_auto_explain'][-1] if data.get('dl_dt_auto_explain') 
 # Tension au bateau / ROV
 t_boat = data['T_boat'][-1] if data.get('T_boat') else None
 t_rov = data['T_rov'][-1] if data.get('T_rov') else None
-`
-
-### Exemples complementaires
-
-Moyenne glissante (fenetre de 20 points) :
-
-```python
-window = 20
-vals = data.get('T_rov', [])
-if len(vals) >= window:
-    avg_T_rov = sum(vals[-window:]) / window
-else:
-    avg_T_rov = None
-```
-
-Detection d'evenement (seuil) :
-
-```python
-threshold = 30.0  # N
-if data.get('T_rov') and data['T_rov'][-1] > threshold:
-    event = 'T_rov depasse le seuil'
-else:
-    event = None
-```
-
-Acces aux points du cable (cote bateau / cote ROV) :
-
-```python
-x_cable = data.get('x_cable_curr') or []
-y_cable = data.get('y_cable_curr') or []
-if len(x_cable) >= 2 and len(y_cable) >= 2:
-    # Index 0 = bateau, index -1 = ROV
-    x_boat_cable, y_boat_cable = x_cable[0], y_cable[0]
-    x_rov_cable, y_rov_cable = x_cable[-1], y_cable[-1]
-else:
-    x_boat_cable = y_boat_cable = None
-    x_rov_cable = y_rov_cable = None
 ```

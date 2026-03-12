@@ -9,7 +9,7 @@ format: "Markdown"
 ## Table des matières
 
 1. Repère et conventions
-2. Variables d’état et commandes
+2. Variables d'état et commandes
 3. Modèle ROV
 4. Modèle Bateau
 5. Modèle Câble
@@ -17,6 +17,9 @@ format: "Markdown"
 7. Influence du treuil (dL/dt)
 8. Profil de courant
 9. Schéma des interactions
+10. Récapitulatif des forces sur le ROV
+11. Récapitulatif des forces sur le câble
+12. Conventions de signe détaillées
 
 ## 1. Repère et conventions
 
@@ -24,6 +27,11 @@ format: "Markdown"
 - Convention de signe : y < 0 sous la surface, y = 0 à la surface.
 - Le bateau est contraint à y = 0.
 - Le câble et le ROV ne peuvent pas remonter au-dessus de la surface.
+
+**Convention de signe pour les forces verticales** :
+
+- **Positif** = vers le haut (surface)
+- **Négatif** = vers le bas (fond)
 
 ## 2. Variables d’état et commandes
 
@@ -65,29 +73,43 @@ Fy_drag = -Cy * 0.5 * rho_eau * Sy * vy * |vy|
 ```
 
 où :
+
 - vx_rel = vx_rov - v_current(y_rov)
 - Sx = a*h (section frontale horizontale)
 - Sy = a*b (section frontale verticale)
 
-### 3.2 Poids et poussée d’Archimède
+### 3.2 Poids et poussée d'Archimède
 
 ```
 F_weight = m * g
 F_buoyancy = rho_eau * V * g
-F_apparent_weight = F_weight - F_buoyancy
+F_apparent_weight = F_buoyancy - F_weight
 ```
+
+**Convention de signe** :
+
+- `F_apparent_weight > 0` : flottabilité positive (ROV plus léger que l'eau, force vers le haut)
+- `F_apparent_weight < 0` : flottabilité négative (ROV plus lourd que l'eau, force vers le bas)
 
 ### 3.3 Équations de mouvement (ROV)
 
-Avec la tension du câble appliquée selon l’angle local :
+Avec la tension du câble appliquée selon l'angle local :
 
 ```
 dvx_rov/dt = (Fx_drag + T_rov * cos(theta0) + Fx_rov) / m
 dvy_rov/dt = (F_apparent_weight + Fy_drag + T_rov * sin(theta0) + Fy_rov) / m
 ```
 
+**Convention de signe pour les forces verticales** :
+
+- Toutes les forces verticales sont positives vers le haut (surface), négatives vers le bas (fond)
+- `F_apparent_weight` : positif si flottabilité positive (vers le haut)
+- `Fy_drag` : traînée verticale (positif vers le haut, négatif vers le bas)
+- `T_rov * sin(theta0)` : composante verticale de la tension (positif vers le haut)
+- `Fy_rov` : commande verticale (positif vers le haut, négatif vers le bas)
+
 La direction (cos(theta0), sin(theta0)) est calculée à partir du segment du câble
-adjacent au ROV (orientation vers le bateau).
+adjacent au ROV (orientation vers le bateau). `sin(theta0) > 0` indique une direction vers le haut.
 
 ## 4. Modèle Bateau
 
@@ -109,17 +131,44 @@ négligé pour le mouvement horizontal.
 Le câble est discrétisé en N segments, N+1 nœuds. Chaque nœud a des coordonnées
 (x_i, y_i) et une tension T_i. La longueur totale est L.
 
-### 5.2 Tension et géométrie
+### 5.2 Longueur du câble et contraintes
+
+**Longueur L(t)** :
+
+La longueur du câble est entièrement déterminée par la commande `dL/dt` :
+
+```
+L(t) = L(0) + ∫₀ᵗ dL/dt dt
+```
+
+où `L(0)` est la longueur initiale. La longueur `L(t)` est **fixe** à chaque instant et ne doit **jamais** être ajustée en cours d'itération.
+
+**Contraintes critiques à chaque itération** :
+
+1. **Longueur exacte** : La longueur totale du câble doit être exactement égale à `L(t)`.
+
+2. **Segments de longueur égale** : Les N segments du câble doivent tous avoir la même longueur `ds = L(t) / N`.
+
+3. **Extrémités** :
+   - Premier point (bateau) : `(x_boat, 0.0)` avec abscisse curviligne `s = 0`
+   - Dernier point (ROV) : `(x_rov, y_rov)` avec abscisse curviligne `s = L(t)`
+
+4. **Slack** : Le slack est défini comme `slack = L(t) - D_straight`, où `D_straight` est la distance en ligne droite entre le bateau et le ROV. Le slack doit **toujours être >= 0**. Si le slack devient négatif, la tension au ROV est ajustée pour tirer le ROV vers le bateau et ramener le slack à >= 0.
+
+### 5.3 Tension et géométrie
 
 Deux régimes sont utilisés :
 
 1) **Statique (caténaire)**
-   - Si le câble est plus dense que l’eau : solution en caténaire
-   - Si le câble est tendu (L < distance droite) : câble rectiligne
+   
+   - Si le câble est plus dense que l'eau : solution en caténaire
+   - Si le slack est négatif (L < distance droite) : la tension au ROV est augmentée pour forcer slack >= 0
 
 2) **Dynamique**
+   
    - Résolution du profil de câble avec forces hydrodynamiques et poids apparent
    - Mise à jour des tensions via relaxation temporelle
+   - Ajustement de la tension au ROV si slack < 0 pour garantir slack >= 0
 
 ### 5.3 Poids apparent du câble
 
@@ -129,13 +178,43 @@ weight_per_unit = (rho_cable - rho_eau) * A_cable * g
 
 ### 5.4 Forces hydrodynamiques (câble)
 
-La traînée sur un segment est calculée par :
+**Calcul avec repère local (U, V)** :
 
-```
-F_drag = Cx_cable * 0.5 * rho_eau * d * v_rel * |v_rel| * ds
-```
+Pour chaque segment, la traînée est calculée dans un repère local :
 
-La direction du courant est horizontale. Le poids apparent est appliqué verticalement.
+- **U** : Vecteur tangent unitaire (direction du segment)
+
+- **V** : Vecteur normal unitaire (perpendiculaire à U)
+1. **Projection de la vitesse relative** dans le repère local :
+   
+   ```
+   v_longitudinal = v_rel · U    (composante le long du segment)
+   v_perpendicular = v_rel · V   (composante perpendiculaire)
+   ```
+
+2. **Traînée longitudinale** (frottement de surface) :
+   
+   ```
+   F_longitudinal = Cf_cable * 0.5 * rho_eau * π * d * ds * v_longitudinal * |v_longitudinal|
+   ```
+   
+   où `Cf_cable` est le coefficient de frottement longitudinal (typiquement 0.04).
+
+3. **Traînée perpendiculaire** (traînée normale) :
+   
+   ```
+   F_perpendicular = Cx_cable * 0.5 * rho_eau * d * ds * v_perpendicular * |v_perpendicular|
+   ```
+   
+   où `Cx_cable` est le coefficient de traînée perpendiculaire (typiquement 1.2).
+
+4. **Reprojection dans le repère global** :
+   
+   ```
+   F_drag = F_longitudinal * U + F_perpendicular * V
+   ```
+
+Cette approche permet de distinguer correctement la traînée selon l'angle entre le courant et l'orientation du segment.
 
 ## 6. Conditions aux limites
 
@@ -177,3 +256,128 @@ flowchart TB
     env --> cable
     bateau --> cable
 ```
+
+---
+
+## 10. Récapitulatif des forces sur le ROV
+
+### 10.1 Vue d'ensemble
+
+Le ROV est soumis à quatre types de forces :
+
+| Force | Description |
+|-------|-------------|
+| **Fx_drag_rov / Fy_drag_rov** | Traînée hydrodynamique (résistance au mouvement) |
+| **Fx_traction_rov / Fy_traction_rov** | Traction du câble sur le ROV |
+| **Fx_cmd_rov / Fy_cmd_rov** | Commandes de propulsion (pilote) |
+| **Fy_rov_app_w** | Poids apparent (flottabilité - poids) |
+
+### 10.2 Somme des forces
+
+**Horizontales** :
+```
+Fx_rov_total = Fx_drag_rov + Fx_traction_rov + Fx_cmd_rov
+```
+
+**Verticales** :
+```
+Fy_rov_total = Fy_rov_app_w + Fy_drag_rov + Fy_traction_rov + Fy_cmd_rov
+```
+
+### 10.3 Origine des forces
+
+- **Traînée** : `F_drag = -0.5 * rho * C * S * v * |v|` (résistance hydrodynamique)
+- **Traction** : `F_traction = T_rov * (-Urov)` où Urov est le vecteur unitaire du câble au ROV
+- **Poids apparent** : `F_apparent_weight = F_buoyancy - F_weight` (positif si flottabilité positive)
+- **Commandes** : Forces des propulseurs (pilote)
+
+### 10.4 Équations de mouvement
+
+```
+dvx_rov/dt = Fx_rov_total / m_rov
+dvy_rov/dt = Fy_rov_total / m_rov
+```
+
+---
+
+## 11. Récapitulatif des forces sur le câble
+
+### 11.1 Vue d'ensemble
+
+Le câble est soumis à :
+
+1. **Forces aux extrémités** : Tractions du bateau et du ROV
+2. **Forces distribuées** : Poids apparent et traînée hydrodynamique sur chaque segment
+
+### 11.2 Forces aux extrémités
+
+**Traction du bateau** : `F_bateau = -T_bateau * U_bateau` (le bateau tire le câble vers lui)
+
+**Traction du ROV** : `F_rov = T_rov * U_rov` (le ROV tire le câble vers lui)
+
+### 11.3 Forces distribuées
+
+**Poids apparent par segment** :
+```
+Fy_weight_segment = -(rho_cable - rho_eau) * A_cable * g * ds
+```
+- Négatif si câble plus dense que l'eau (vers le bas)
+- Positif si câble plus léger que l'eau (vers le haut)
+
+**Traînée hydrodynamique** : Calculée dans le repère local (U, V) de chaque segment :
+- **Traînée longitudinale** (frottement) : `Cf_cable * 0.5 * rho_eau * π * d * ds * v_longitudinal * |v_longitudinal|`
+- **Traînée perpendiculaire** (normale) : `Cx_cable * 0.5 * rho_eau * d * ds * v_perpendicular * |v_perpendicular|`
+- Reprojection dans le repère global : `F_drag = F_longitudinal * U + F_perpendicular * V`
+
+### 11.4 Équilibre du câble
+
+À l'équilibre : `F_bateau + F_rov + F_poids + F_drag ≈ 0`
+
+### 11.5 Variables stockées dans `data`
+
+- `Fx_drag_cable`, `Fy_drag_cable` : Traînée totale (repère local)
+- `Fx_drag_cable_longitudinal`, `Fy_drag_cable_longitudinal` : Composante frottement
+- `Fx_drag_cable_perpendicular`, `Fy_drag_cable_perpendicular` : Composante normale
+- `Fy_cable_app_w` : Poids apparent total (négatif vers le bas)
+
+---
+
+## 12. Conventions de signe détaillées
+
+### 12.1 Repère spatial
+
+- **Axe X** : Horizontal (positif vers la droite/avant)
+- **Axe Y** : Vertical
+  - **y < 0** : Sous la surface (profondeur)
+  - **y = 0** : Surface de l'eau
+  - **y > 0** : Au-dessus de la surface (interdit pour le ROV et le câble)
+
+### 12.2 Forces verticales (ROV)
+
+**Convention unifiée** : Positif = vers le haut (surface), Négatif = vers le bas (fond)
+
+S'applique à : `Fy_drag_rov`, `Fy_traction_rov`, `Fy_cmd_rov`, `Fy_rov_app_w`, `Fy_rov_total`
+
+### 12.3 Poids apparent
+
+```
+F_apparent_weight = F_buoyancy - F_weight
+```
+- **> 0** : Flottabilité positive (force vers le haut)
+- **< 0** : Flottabilité négative (force vers le bas)
+
+### 12.4 Traînée
+
+- **Horizontale** : `Fx_drag = -Cx * 0.5 * rho * Sx * vx_rel * |vx_rel|` (négatif si avance)
+- **Verticale** : `Fy_drag = -Cy * 0.5 * rho * Sy * vy * |vy|` (négatif si monte)
+
+### 12.5 Force de traction
+
+```
+Fy_traction = T_rov * (-Urov_y)
+```
+La traction est positive vers le haut quand le câble tire le ROV vers la surface.
+
+### 12.6 Forces verticales (câble)
+
+Pour le câble : **Négatif** = vers le bas, **Positif** = vers le haut (cohérent avec y < 0 = profondeur).

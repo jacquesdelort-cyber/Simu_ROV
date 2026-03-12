@@ -1,0 +1,63 @@
+{
+    "date_sauvegarde": "2026-03-03T15:08:12.275986",
+    "mission": "M_unit_1",
+    "description": "Position (3, -10) m/ Densité eau = densité câble.  ROV avec une flottabilité légèrement positive.Test de flottabilité\nLa misson s'arrête qd le ROV est à 0.5 m de la surface.",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.03,
+            "a": 0.4,
+            "b": 0.7,
+            "h": 0.4,
+            "Cx": 0.9,
+            "Cy": 0.9
+        },
+        "cable": {
+            "d": 0.001,
+            "rho_cable": 1030.0,
+            "Cx_cable": 1.2,
+            "Cf_cable": 0.04,
+            "tension_rupture": 50.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5,
+            "dl_dt_min": -1.0,
+            "dl_dt_max": 2.0,
+            "gamma_moulinet_min": -0.5,
+            "gamma_moulinet_max": 1.0
+        },
+        "environment": {
+            "rho_eau": 1030.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 3600.0,
+        "steps_per_update": 5,
+        "N_segments": 50,
+        "straight_blend_alpha": 1.0,
+        "max_data_size": 10000,
+        "excel_write_interval": 50,
+        "plot_points_limit": 1000,
+        "sc_fx_rov": "",
+        "sc_fy_rov": "(y>-0.5:x)",
+        "sc_v_bateau": "",
+        "sc_v_moulinet": "",
+        "auto_L": "auto_L_7",
+        "Tcible": 5.0
+    },
+    "init_params": {
+        "x_rov_init": 0.0,
+        "y_rov_init": -10.0,
+        "x_boat_init": 0.0,
+        "L_init": 10.0,
+        "v_courant": "0.0"
+    }
+}

@@ -25,7 +25,8 @@ def get_default_parameters():
         'cable': {
             'd': 0.01,       # Diamètre du câble (m)
             'rho_cable': 1500.0,  # Masse volumique (kg/m³)
-            'Cx_cable': 1.2       # Coefficient de traînée
+            'Cx_cable': 1.2,      # Coefficient de traînée perpendiculaire
+            'Cf_cable': 0.04      # Coefficient de frottement longitudinal
         },
         'boat': {
             'm': 10000.0,    # Masse du bateau (kg)

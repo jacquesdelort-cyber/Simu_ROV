@@ -104,8 +104,83 @@ class ROVSimulatorApp(QMainWindow):
         # Onglet Paramètres (unifié avec 3 colonnes)
         self.all_parameters_tab = AllParametersTab(self)
         self.tabs.addTab(self.all_parameters_tab, "⚙️ Paramètres")
+
+        # Onglet Performances (placeholder)
+        self.performances_tab = QWidget()
+        self.tabs.addTab(self.performances_tab, "📈 Performances")
+
+        # Onglet Aide (table des matières de la documentation)
+        from PyQt6.QtWidgets import QTextBrowser
+        self.help_tab = QWidget()
+        help_layout = QVBoxLayout(self.help_tab)
+        self.help_browser = QTextBrowser()
+        self.help_browser.setOpenExternalLinks(True)
+        help_layout.addWidget(self.help_browser)
+        self.help_tab_index = self.tabs.addTab(self.help_tab, "❓ Aide")
+
+        # Charger la table des matières une première fois
+        self._load_help_toc()
+
+        # Recharger la table des matières à chaque fois que l'on revient sur l'onglet Aide
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         
         layout.addWidget(self.tabs)
+
+    def _load_help_toc(self):
+        """Charge ou recharge la table des matières de l'aide dans l'onglet Aide."""
+        from PyQt6.QtCore import QUrl
+        import os
+        import re
+
+        try:
+            docs_dir = os.path.abspath(
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "docs")
+            )
+            toc_path = os.path.abspath(os.path.join(docs_dir, "00_table_des_matieres.md"))
+            if os.path.isfile(toc_path):
+                with open(toc_path, "r", encoding="utf-8") as f:
+                    toc_text = f.read()
+
+                # Extraire les lignes numérotées de type "N. [Titre](fichier.md)"
+                lines = toc_text.splitlines()
+                link_lines = []
+                pattern = re.compile(r"^\s*\d+\.\s+\[")
+                for line in lines:
+                    if pattern.match(line):
+                        link_lines.append(line.strip())
+
+                if not link_lines:
+                    # Fallback : utiliser tout le contenu si le parsing échoue
+                    link_lines = [l.strip() for l in lines if l.strip()]
+
+                # Convertir la liste markdown en HTML avec liens vers les fichiers docs/*
+                html_parts = ['<h2>Table des matières</h2>', "<ul>"]
+                for line in link_lines:
+                    # Format attendu : "N. [Titre](fichier.md)"
+                    try:
+                        _, rest = line.split("[", 1)
+                        title, rest2 = rest.split("]", 1)
+                        link_part = rest2.strip()
+                        if link_part.startswith("(") and ")" in link_part:
+                            filename = link_part[1:link_part.index(")")]
+                            file_path = os.path.abspath(os.path.join(docs_dir, filename))
+                            url = QUrl.fromLocalFile(file_path).toString()
+                            html_parts.append(f'<li><a href="{url}">{title}</a></li>')
+                    except ValueError:
+                        continue
+                html_parts.append("</ul>")
+                html = "\n".join(html_parts)
+                self.help_browser.setHtml(html)
+            else:
+                self.help_browser.setHtml("<p><b>Table des matières introuvable.</b></p>")
+        except Exception as e:
+            self.help_browser.setHtml(f"<p><b>Erreur lors du chargement de l'aide :</b> {e}</p>")
+
+    def _on_tab_changed(self, index: int):
+        """Callback appelé quand on change d'onglet principal."""
+        if hasattr(self, "help_tab_index") and index == self.help_tab_index:
+            # Réinitialiser le contenu de l'onglet Aide avec la table des matières
+            self._load_help_toc()
     
     def get_simulation_state(self):
         """Retourne l'état de la simulation"""

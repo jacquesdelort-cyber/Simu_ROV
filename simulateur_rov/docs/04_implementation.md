@@ -92,10 +92,23 @@ Autres répertoires :
 
 `cable_solver.py` fournit :
 
-- équilibre statique (caténaire / câble tendu)
+- équilibre statique (caténaire / ajustement de tension si slack < 0)
 - statique avec courant (solveur complet ou itératif)
 - dynamique avec relaxation des tensions
-- normalisation de la longueur par rééchantillonnage curviligne
+- normalisation de la longueur par rééchantillonnage curviligne avec segments de longueur égale
+- garantie que le dernier point a `s = L(t)` et correspond au ROV
+
+La normalisation de la géométrie est assurée par `_normalize_cable_length(x_cable, y_cable, L_target)`. Cette fonction :
+
+1. calcule la longueur curviligne actuelle ;
+2. construit l'abscisse curviligne cumulée ;
+3. remet cette abscisse à l'échelle pour atteindre exactement `L_target` ;
+4. interpole les nœuds sur une discrétisation uniforme `s = 0, ds, 2ds, ..., L_target` ;
+5. corrige explicitement les segments pour obtenir `ds = L_target / N` ;
+6. réapplique les contraintes physiques simples comme `y <= 0` ;
+7. effectue un ajustement final si nécessaire pour supprimer les écarts résiduels de longueur.
+
+Point important sur les tensions : `_normalize_cable_length` ne recalcule pas les tensions. Elle modifie uniquement la géométrie du câble. Les tensions sont recalculées ensuite sur la géométrie finale retenue par le solveur, via le calcul des forces réparties puis la reconstruction d'un champ de tension cohérent. Dans `ROVSystem`, ces tensions recalculées deviennent ensuite des tensions cibles ; l'état dynamique des tensions est mis à jour par relaxation, et non par remplacement instantané, sauf adaptation beaucoup plus rapide au niveau du ROV en cas de slack négatif.
 
 ### 4.3 Forces sur le câble
 

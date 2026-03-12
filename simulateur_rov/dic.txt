@@ -1,0 +1,46 @@
+Liste des cles du dictionnaire data:
+================================================================================
+
+Total: 38 cles
+
+  1. D_straight                  : Distance en ligne droite entre le bateau et le ROV (m)
+  2. F_prop_boat                 : Force de propulsion du bateau (N)
+  3. Fx_cmd_rov                  : Composante horizontale de la force de propulsion du ROV résultant des commandes envoyées par le pilote du ROV (N)
+  4. Fx_drag_cable               : Composante horizontale de la force de traînée exercée sur le câble (N)
+  5. Fx_drag_cable_longitudinal  : Composante horizontale de la traînée longitudinale (frottement) sur le câble (N)
+  6. Fx_drag_cable_perpendicular : Composante horizontale de la traînée perpendiculaire (normale) sur le câble (N)
+  7. Fx_drag_rov                 : Force de traînée horizontale sur le ROV (N)
+  8. Fx_rov_total                : Force horizontale totale sur le ROV (N)
+  9. Fx_total_boat               : Force horizontale totale sur le bateau (N)
+ 10. Fx_traction_boat            : Force de traction horizontale du câble sur le bateau (N)
+ 11. Fx_traction_rov             : Force de traction horizontale du câble sur le ROV (N)
+ 12. Fy_cable_app_w              : Poids apparent du câble (N, positif vers le bas)
+ 13. Fy_cmd_rov                  : Composante verticale de la force de propulsion du ROV résultant des commandes envoyées par le pilote du ROV (N, positif vers le haut/surface, négatif vers le bas/fond)
+ 14. Fy_drag_cable               : Composante verticale de la force de traînée exercée sur le câble (N)
+ 15. Fy_drag_cable_longitudinal  : Composante verticale de la traînée longitudinale (frottement) sur le câble (N)
+ 16. Fy_drag_cable_perpendicular : Composante verticale de la traînée perpendiculaire (normale) sur le câble (N)
+ 17. Fy_drag_rov                 : Force de traînée verticale sur le ROV (N, positif vers le haut/surface, négatif vers le bas/fond)
+ 18. Fy_rov_app_w                : Poids apparent du ROV (N, positif vers le haut/surface si flottabilité positive, négatif vers le bas/fond si flottabilité négative)
+ 19. Fy_rov_total                : Force verticale totale sur le ROV (N, positif vers le haut/surface, négatif vers le bas/fond)
+ 20. Fy_total_boat               : Force verticale totale sur le bateau (N)
+ 21. Fy_traction_boat            : Force de traction verticale du câble sur le bateau (N)
+ 22. Fy_traction_rov             : Force de traction verticale du câble sur le ROV (N, positif vers le haut/surface, négatif vers le bas/fond)
+ 23. L                           : Longueur du câble déployée (m)
+ 24. L_seg                       : Somme des longueurs des segments du câble (m)
+ 25. T_boat                      : Tension du câble au niveau du bateau (N)
+ 26. T_max                       : Tension maximale le long du câble (N)
+ 27. T_rov                       : Tension du câble au niveau du ROV (N)
+ 28. dl_dt_auto_explain          : Explication de la commande automatique dL/dt
+ 29. dl_dt_cmd                   : Commande de vitesse de déroulement du câble (m/s)
+ 30. time                        : Temps de simulation (s)
+ 31. vx_boat                     : Vitesse horizontale du bateau (m/s)
+ 32. vx_rov                      : Vitesse horizontale du ROV (m/s)
+ 33. vy_rov                      : Vitesse verticale du ROV (m/s)
+ 34. x_boat                      : Position horizontale du bateau (m)
+ 35. x_cable_curr                : Positions horizontales actuelles des points du câble (liste)
+ 36. x_rov                       : Position horizontale du ROV (m)
+ 37. y_cable_curr                : Positions verticales actuelles des points du câble (liste)
+ 38. y_rov                       : Position verticale (profondeur) du ROV (m, négatif vers le bas)
+
+================================================================================
+Genere automatiquement par simulation_thread.py

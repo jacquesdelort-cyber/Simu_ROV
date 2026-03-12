@@ -1,0 +1,1230 @@
+IC_L_7: t= 0.10, L= 403.00, L_straight= 401.12, slack=  1.88, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.20, L= 403.00, L_straight= 401.13, slack=  1.87, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.30, L= 403.00, L_straight= 401.14, slack=  1.86, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.40, L= 403.00, L_straight= 401.15, slack=  1.85, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.50, L= 403.00, L_straight= 401.16, slack=  1.84, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.60, L= 403.00, L_straight= 401.17, slack=  1.83, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.70, L= 403.00, L_straight= 401.19, slack=  1.81, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.80, L= 403.00, L_straight= 401.20, slack=  1.80, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 0.90, L= 403.00, L_straight= 401.22, slack=  1.78, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.00, L= 403.00, L_straight= 401.24, slack=  1.76, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.10, L= 403.00, L_straight= 401.26, slack=  1.74, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.20, L= 403.00, L_straight= 401.29, slack=  1.71, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.30, L= 403.00, L_straight= 401.31, slack=  1.69, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.40, L= 403.00, L_straight= 401.33, slack=  1.67, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.50, L= 403.00, L_straight= 401.36, slack=  1.64, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.60, L= 403.00, L_straight= 401.38, slack=  1.62, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.70, L= 403.00, L_straight= 401.40, slack=  1.60, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.80, L= 403.00, L_straight= 401.43, slack=  1.57, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 1.90, L= 403.00, L_straight= 401.45, slack=  1.55, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.00, L= 403.00, L_straight= 401.48, slack=  1.52, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.10, L= 403.00, L_straight= 401.50, slack=  1.50, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.20, L= 403.00, L_straight= 401.53, slack=  1.47, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.30, L= 403.00, L_straight= 401.55, slack=  1.45, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.40, L= 403.00, L_straight= 401.58, slack=  1.42, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.50, L= 403.00, L_straight= 401.61, slack=  1.39, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.60, L= 403.00, L_straight= 401.63, slack=  1.37, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.70, L= 403.00, L_straight= 401.66, slack=  1.34, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.80, L= 403.00, L_straight= 401.68, slack=  1.32, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 2.90, L= 403.00, L_straight= 401.71, slack=  1.29, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.00, L= 403.00, L_straight= 401.73, slack=  1.27, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.10, L= 403.00, L_straight= 401.76, slack=  1.24, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.20, L= 403.00, L_straight= 401.78, slack=  1.22, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.30, L= 403.00, L_straight= 401.81, slack=  1.19, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.40, L= 403.00, L_straight= 401.84, slack=  1.16, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.50, L= 403.00, L_straight= 401.86, slack=  1.14, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.60, L= 403.00, L_straight= 401.89, slack=  1.11, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.70, L= 403.00, L_straight= 401.91, slack=  1.09, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.80, L= 403.00, L_straight= 401.94, slack=  1.06, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 3.90, L= 403.00, L_straight= 401.96, slack=  1.04, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.00, L= 403.00, L_straight= 401.99, slack=  1.01, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.10, L= 403.00, L_straight= 402.01, slack=  0.99, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.20, L= 403.00, L_straight= 402.04, slack=  0.96, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.30, L= 403.00, L_straight= 402.07, slack=  0.93, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.40, L= 403.00, L_straight= 402.09, slack=  0.91, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.50, L= 403.00, L_straight= 402.12, slack=  0.88, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.60, L= 403.00, L_straight= 402.14, slack=  0.86, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.70, L= 403.00, L_straight= 402.17, slack=  0.83, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.80, L= 403.00, L_straight= 402.19, slack=  0.81, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 4.90, L= 403.00, L_straight= 402.22, slack=  0.78, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 5.00, L= 403.00, L_straight= 402.24, slack=  0.76, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+[SCEN] t=5.10 scen=Fy crit=(t>5:-2) T_bat=0.008337781180859672 y=-401.15 x=29.99 L=403.00
+IC_L_7: t= 5.10, L= 403.00, L_straight= 402.27, slack=  0.73, T_bat= 0.01, T_rov= 0.26, Fy_cmd=  0.00, desired=  0.00, ret=  0.00, exp=PILOT_ASC_HOLD_ACC
+IC_L_7: t= 5.20, L= 403.00, L_straight= 402.30, slack=  0.70, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.10, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.30, L= 403.01, L_straight= 402.32, slack=  0.69, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.19, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.40, L= 403.03, L_straight= 402.35, slack=  0.68, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.27, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.50, L= 403.06, L_straight= 402.38, slack=  0.68, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.34, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.60, L= 403.09, L_straight= 402.40, slack=  0.69, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.41, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.70, L= 403.13, L_straight= 402.43, slack=  0.70, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.47, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.80, L= 403.18, L_straight= 402.46, slack=  0.72, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.52, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 5.90, L= 403.23, L_straight= 402.49, slack=  0.74, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.57, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.00, L= 403.29, L_straight= 402.52, slack=  0.77, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.61, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.10, L= 403.35, L_straight= 402.54, slack=  0.80, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.65, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.20, L= 403.41, L_straight= 402.57, slack=  0.84, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.69, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.30, L= 403.48, L_straight= 402.60, slack=  0.88, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.72, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.40, L= 403.55, L_straight= 402.63, slack=  0.93, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.75, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.50, L= 403.63, L_straight= 402.66, slack=  0.97, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.77, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.60, L= 403.71, L_straight= 402.69, slack=  1.02, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.79, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.70, L= 403.79, L_straight= 402.71, slack=  1.07, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.81, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.80, L= 403.87, L_straight= 402.74, slack=  1.12, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.83, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 6.90, L= 403.95, L_straight= 402.77, slack=  1.18, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.85, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.00, L= 404.04, L_straight= 402.80, slack=  1.24, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.86, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.10, L= 404.12, L_straight= 402.83, slack=  1.29, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.88, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.20, L= 404.21, L_straight= 402.86, slack=  1.35, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.89, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.30, L= 404.30, L_straight= 402.88, slack=  1.41, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.90, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.40, L= 404.39, L_straight= 402.91, slack=  1.48, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.91, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.50, L= 404.48, L_straight= 402.94, slack=  1.54, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.92, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.60, L= 404.57, L_straight= 402.97, slack=  1.60, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.93, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.70, L= 404.66, L_straight= 403.00, slack=  1.67, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.94, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.80, L= 404.76, L_straight= 403.03, slack=  1.73, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.94, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 7.90, L= 404.85, L_straight= 403.06, slack=  1.80, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.95, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.00, L= 404.95, L_straight= 403.08, slack=  1.86, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.95, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.10, L= 405.04, L_straight= 403.11, slack=  1.93, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.96, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.20, L= 405.14, L_straight= 403.14, slack=  2.00, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.96, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.30, L= 405.23, L_straight= 403.17, slack=  2.07, T_bat= 0.01, T_rov= 0.26, Fy_cmd= -2.00, desired=  1.00, ret=  0.97, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.40, L= 405.33, L_straight= 403.20, slack=  2.13, T_bat= 1.24, T_rov= 0.49, Fy_cmd= -2.00, desired=  1.00, ret=  0.97, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.50, L= 405.43, L_straight= 403.23, slack=  2.20, T_bat= 1.86, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.97, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.60, L= 405.52, L_straight= 403.25, slack=  2.27, T_bat= 2.79, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.97, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.70, L= 405.62, L_straight= 403.28, slack=  2.34, T_bat= 4.19, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.80, L= 405.72, L_straight= 403.31, slack=  2.41, T_bat= 6.29, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 8.90, L= 405.82, L_straight= 403.34, slack=  2.48, T_bat= 8.62, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.00, L= 405.92, L_straight= 403.37, slack=  2.55, T_bat= 6.26, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.10, L= 406.01, L_straight= 403.40, slack=  2.62, T_bat= 8.61, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.99, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.20, L= 406.11, L_straight= 403.42, slack=  2.69, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  1.00, ret=  0.99, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.30, L= 406.21, L_straight= 403.45, slack=  2.76, T_bat= 8.60, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.99, ret=  0.99, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.40, L= 406.31, L_straight= 403.48, slack=  2.83, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.98, ret=  0.99, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.50, L= 406.41, L_straight= 403.51, slack=  2.90, T_bat= 8.60, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.97, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.60, L= 406.51, L_straight= 403.54, slack=  2.97, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.96, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.70, L= 406.61, L_straight= 403.56, slack=  3.04, T_bat= 8.60, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.95, ret=  0.98, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.80, L= 406.70, L_straight= 403.59, slack=  3.11, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.94, ret=  0.97, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 9.90, L= 406.80, L_straight= 403.62, slack=  3.18, T_bat= 8.60, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.93, ret=  0.97, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.00, L= 406.90, L_straight= 403.65, slack=  3.25, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.92, ret=  0.96, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.10, L= 406.99, L_straight= 403.68, slack=  3.32, T_bat= 8.60, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.91, ret=  0.96, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.20, L= 407.09, L_straight= 403.70, slack=  3.39, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.90, ret=  0.95, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.30, L= 407.19, L_straight= 403.73, slack=  3.45, T_bat= 8.60, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.89, ret=  0.95, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.40, L= 407.28, L_straight= 403.76, slack=  3.52, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.88, ret=  0.94, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.50, L= 407.37, L_straight= 403.79, slack=  3.59, T_bat= 8.61, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.87, ret=  0.93, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.60, L= 407.47, L_straight= 403.82, slack=  3.65, T_bat= 6.25, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.86, ret=  0.92, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.70, L= 407.56, L_straight= 403.85, slack=  3.71, T_bat= 8.61, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.85, ret=  0.92, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.80, L= 407.65, L_straight= 403.87, slack=  3.78, T_bat= 6.26, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.84, ret=  0.91, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 10.90, L= 407.74, L_straight= 403.90, slack=  3.84, T_bat= 8.61, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.83, ret=  0.90, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.00, L= 407.83, L_straight= 403.93, slack=  3.90, T_bat= 6.26, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.82, ret=  0.89, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.10, L= 407.92, L_straight= 403.96, slack=  3.96, T_bat= 8.62, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.81, ret=  0.88, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.20, L= 408.01, L_straight= 403.99, slack=  4.02, T_bat= 6.26, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.80, ret=  0.88, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.30, L= 408.10, L_straight= 404.01, slack=  4.08, T_bat= 8.62, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.79, ret=  0.87, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.40, L= 408.18, L_straight= 404.04, slack=  4.14, T_bat= 8.03, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.78, ret=  0.86, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.50, L= 408.27, L_straight= 404.07, slack=  4.20, T_bat= 7.74, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.78, ret=  0.85, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.60, L= 408.36, L_straight= 404.10, slack=  4.26, T_bat= 7.59, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.77, ret=  0.84, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.70, L= 408.44, L_straight= 404.13, slack=  4.31, T_bat= 7.52, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.76, ret=  0.83, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.80, L= 408.52, L_straight= 404.15, slack=  4.37, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.75, ret=  0.83, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 11.90, L= 408.61, L_straight= 404.18, slack=  4.42, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.74, ret=  0.82, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.00, L= 408.69, L_straight= 404.21, slack=  4.48, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.74, ret=  0.81, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.10, L= 408.77, L_straight= 404.24, slack=  4.53, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.73, ret=  0.80, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.20, L= 408.85, L_straight= 404.27, slack=  4.58, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.72, ret=  0.79, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.30, L= 408.93, L_straight= 404.29, slack=  4.63, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.71, ret=  0.79, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.40, L= 409.01, L_straight= 404.32, slack=  4.68, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.70, ret=  0.78, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.50, L= 409.08, L_straight= 404.35, slack=  4.73, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.70, ret=  0.77, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.60, L= 409.16, L_straight= 404.38, slack=  4.78, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.69, ret=  0.76, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.70, L= 409.24, L_straight= 404.41, slack=  4.83, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.68, ret=  0.75, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.80, L= 409.31, L_straight= 404.43, slack=  4.88, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.68, ret=  0.75, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 12.90, L= 409.39, L_straight= 404.46, slack=  4.92, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.67, ret=  0.74, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.00, L= 409.46, L_straight= 404.49, slack=  4.97, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.66, ret=  0.73, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.10, L= 409.53, L_straight= 404.52, slack=  5.02, T_bat= 7.46, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.66, ret=  0.72, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.20, L= 409.61, L_straight= 404.55, slack=  5.06, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.65, ret=  0.72, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.30, L= 409.68, L_straight= 404.58, slack=  5.10, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.64, ret=  0.71, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.40, L= 409.75, L_straight= 404.60, slack=  5.15, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.64, ret=  0.70, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.50, L= 409.82, L_straight= 404.63, slack=  5.19, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.63, ret=  0.69, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.60, L= 409.89, L_straight= 404.66, slack=  5.23, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.62, ret=  0.69, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.70, L= 409.96, L_straight= 404.69, slack=  5.27, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.62, ret=  0.68, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.80, L= 410.03, L_straight= 404.72, slack=  5.31, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.61, ret=  0.67, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 13.90, L= 410.09, L_straight= 404.74, slack=  5.35, T_bat= 7.47, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.61, ret=  0.67, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.00, L= 410.16, L_straight= 404.77, slack=  5.39, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.60, ret=  0.66, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.10, L= 410.23, L_straight= 404.80, slack=  5.43, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.60, ret=  0.65, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.20, L= 410.29, L_straight= 404.83, slack=  5.46, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.59, ret=  0.65, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.30, L= 410.36, L_straight= 404.86, slack=  5.50, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.58, ret=  0.64, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.40, L= 410.42, L_straight= 404.88, slack=  5.54, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.58, ret=  0.64, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.50, L= 410.48, L_straight= 404.91, slack=  5.57, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.57, ret=  0.63, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.60, L= 410.55, L_straight= 404.94, slack=  5.61, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.57, ret=  0.62, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.70, L= 410.61, L_straight= 404.97, slack=  5.64, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.56, ret=  0.62, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.80, L= 410.67, L_straight= 405.00, slack=  5.67, T_bat= 7.48, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.56, ret=  0.61, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 14.90, L= 410.73, L_straight= 405.02, slack=  5.71, T_bat= 7.49, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.55, ret=  0.61, exp=PILOT_DESC_ADD_SLACK_ACC
+IC_L_7: t= 15.00, L= 410.79, L_straight= 405.05, slack=  5.74, T_bat= 7.49, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.55, ret=  0.60, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+[SCEN] t=15.10 scen=Fy crit=(t>15:-25) T_bat=7.487413663358971 y=-403.97 x=29.95 L=410.85
+IC_L_7: t= 15.10, L= 410.85, L_straight= 405.08, slack=  5.77, T_bat= 7.49, T_rov= 0.50, Fy_cmd= -2.00, desired=  0.55, ret=  0.60, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.20, L= 410.91, L_straight= 405.11, slack=  5.80, T_bat= 7.49, T_rov= 0.50, Fy_cmd=-25.00, desired=  0.78, ret=  0.61, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.30, L= 410.97, L_straight= 405.14, slack=  5.83, T_bat= 8.42, T_rov= 0.50, Fy_cmd=-25.00, desired=  0.88, ret=  0.64, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.40, L= 411.04, L_straight= 405.19, slack=  5.85, T_bat= 9.48, T_rov= 0.50, Fy_cmd=-25.00, desired=  0.95, ret=  0.67, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.50, L= 411.10, L_straight= 405.23, slack=  5.87, T_bat= 10.66, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.01, ret=  0.71, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.60, L= 411.17, L_straight= 405.28, slack=  5.90, T_bat= 12.00, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.06, ret=  0.74, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.70, L= 411.25, L_straight= 405.33, slack=  5.92, T_bat= 13.49, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.11, ret=  0.78, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.80, L= 411.33, L_straight= 405.38, slack=  5.95, T_bat= 15.18, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.15, ret=  0.81, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 15.90, L= 411.41, L_straight= 405.43, slack=  5.98, T_bat= 17.08, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.19, ret=  0.85, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.00, L= 411.49, L_straight= 405.48, slack=  6.02, T_bat= 19.21, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.24, ret=  0.89, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.10, L= 411.58, L_straight= 405.53, slack=  6.06, T_bat= 20.79, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.27, ret=  0.93, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.20, L= 411.68, L_straight= 405.58, slack=  6.10, T_bat= 21.61, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.29, ret=  0.96, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.30, L= 411.77, L_straight= 405.63, slack=  6.14, T_bat= 22.05, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.30, ret=  1.00, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.40, L= 411.87, L_straight= 405.68, slack=  6.19, T_bat= 22.28, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.30, ret=  1.03, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.50, L= 411.97, L_straight= 405.73, slack=  6.25, T_bat= 22.40, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.30, ret=  1.05, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.60, L= 412.08, L_straight= 405.78, slack=  6.30, T_bat= 22.47, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.30, ret=  1.08, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.70, L= 412.19, L_straight= 405.83, slack=  6.36, T_bat= 22.51, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.30, ret=  1.10, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.80, L= 412.30, L_straight= 405.88, slack=  6.42, T_bat= 22.53, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.12, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 16.90, L= 412.41, L_straight= 405.93, slack=  6.48, T_bat= 22.55, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.14, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.00, L= 412.52, L_straight= 405.98, slack=  6.54, T_bat= 22.56, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.16, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.10, L= 412.64, L_straight= 406.03, slack=  6.61, T_bat= 22.57, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.17, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.20, L= 412.76, L_straight= 406.08, slack=  6.68, T_bat= 22.58, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.19, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.30, L= 412.88, L_straight= 406.13, slack=  6.74, T_bat= 22.58, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.20, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.40, L= 413.00, L_straight= 406.18, slack=  6.81, T_bat= 22.59, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.21, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.50, L= 413.12, L_straight= 406.23, slack=  6.88, T_bat= 22.60, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.22, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.60, L= 413.24, L_straight= 406.28, slack=  6.96, T_bat= 22.60, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.23, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.70, L= 413.36, L_straight= 406.33, slack=  7.03, T_bat= 22.61, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.24, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.80, L= 413.48, L_straight= 406.38, slack=  7.10, T_bat= 22.62, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.24, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 17.90, L= 413.61, L_straight= 406.43, slack=  7.17, T_bat= 22.62, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.25, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.00, L= 413.73, L_straight= 406.49, slack=  7.25, T_bat= 22.63, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.25, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.10, L= 413.86, L_straight= 406.54, slack=  7.32, T_bat= 22.64, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.26, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.20, L= 413.99, L_straight= 406.59, slack=  7.40, T_bat= 22.64, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.26, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.30, L= 414.11, L_straight= 406.64, slack=  7.48, T_bat= 22.65, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.27, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.40, L= 414.24, L_straight= 406.69, slack=  7.55, T_bat= 22.66, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.27, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.50, L= 414.37, L_straight= 406.74, slack=  7.63, T_bat= 22.66, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.28, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.60, L= 414.49, L_straight= 406.79, slack=  7.71, T_bat= 22.67, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.28, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.70, L= 414.62, L_straight= 406.84, slack=  7.78, T_bat= 22.68, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.28, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.80, L= 414.75, L_straight= 406.89, slack=  7.86, T_bat= 22.68, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.29, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 18.90, L= 414.88, L_straight= 406.94, slack=  7.94, T_bat= 22.69, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.29, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 19.00, L= 415.01, L_straight= 406.99, slack=  8.02, T_bat= 22.70, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.29, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 19.10, L= 415.14, L_straight= 407.04, slack=  8.10, T_bat= 22.70, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.29, exp=PILOT_DESC_ADD_SLACK_MINPAY_ACC
+IC_L_7: t= 19.20, L= 415.26, L_straight= 407.09, slack=  8.17, T_bat= 22.71, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.29, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.30, L= 415.39, L_straight= 407.14, slack=  8.25, T_bat= 22.72, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.29, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.40, L= 415.52, L_straight= 407.19, slack=  8.33, T_bat= 22.72, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.50, L= 415.65, L_straight= 407.24, slack=  8.41, T_bat= 22.73, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.60, L= 415.78, L_straight= 407.29, slack=  8.49, T_bat= 22.74, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.70, L= 415.91, L_straight= 407.34, slack=  8.57, T_bat= 22.75, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.80, L= 416.04, L_straight= 407.39, slack=  8.65, T_bat= 22.75, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 19.90, L= 416.17, L_straight= 407.44, slack=  8.73, T_bat= 22.76, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.00, L= 416.30, L_straight= 407.49, slack=  8.81, T_bat= 22.77, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.10, L= 416.43, L_straight= 407.54, slack=  8.89, T_bat= 22.77, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.20, L= 416.56, L_straight= 407.60, slack=  8.97, T_bat= 22.78, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.30, L= 416.69, L_straight= 407.65, slack=  9.05, T_bat= 22.79, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.30, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.40, L= 416.82, L_straight= 407.70, slack=  9.13, T_bat= 22.79, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.50, L= 416.96, L_straight= 407.75, slack=  9.21, T_bat= 22.80, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.60, L= 417.09, L_straight= 407.80, slack=  9.29, T_bat= 22.81, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.70, L= 417.22, L_straight= 407.85, slack=  9.37, T_bat= 22.82, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.80, L= 417.35, L_straight= 407.90, slack=  9.45, T_bat= 22.82, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 20.90, L= 417.48, L_straight= 407.95, slack=  9.53, T_bat= 22.83, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.00, L= 417.61, L_straight= 408.00, slack=  9.61, T_bat= 22.84, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.10, L= 417.74, L_straight= 408.05, slack=  9.69, T_bat= 22.84, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.20, L= 417.87, L_straight= 408.10, slack=  9.77, T_bat= 22.85, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.30, L= 418.00, L_straight= 408.15, slack=  9.85, T_bat= 22.86, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.40, L= 418.13, L_straight= 408.20, slack=  9.93, T_bat= 22.86, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.50, L= 418.26, L_straight= 408.25, slack= 10.01, T_bat= 22.87, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.60, L= 418.39, L_straight= 408.30, slack= 10.09, T_bat= 22.88, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.70, L= 418.52, L_straight= 408.35, slack= 10.17, T_bat= 22.89, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.80, L= 418.66, L_straight= 408.40, slack= 10.25, T_bat= 22.89, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 21.90, L= 418.79, L_straight= 408.45, slack= 10.33, T_bat= 22.90, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.00, L= 418.92, L_straight= 408.50, slack= 10.41, T_bat= 22.91, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.10, L= 419.05, L_straight= 408.55, slack= 10.49, T_bat= 22.91, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.20, L= 419.18, L_straight= 408.60, slack= 10.58, T_bat= 22.92, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.30, L= 419.31, L_straight= 408.66, slack= 10.66, T_bat= 22.93, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.40, L= 419.44, L_straight= 408.71, slack= 10.74, T_bat= 22.93, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.50, L= 419.57, L_straight= 408.76, slack= 10.82, T_bat= 22.94, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.60, L= 419.70, L_straight= 408.81, slack= 10.90, T_bat= 22.95, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.70, L= 419.84, L_straight= 408.86, slack= 10.98, T_bat= 22.96, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.80, L= 419.97, L_straight= 408.91, slack= 11.06, T_bat= 22.96, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 22.90, L= 420.10, L_straight= 408.96, slack= 11.14, T_bat= 22.97, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.00, L= 420.23, L_straight= 409.01, slack= 11.22, T_bat= 22.98, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.10, L= 420.36, L_straight= 409.06, slack= 11.30, T_bat= 22.98, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.20, L= 420.49, L_straight= 409.11, slack= 11.38, T_bat= 22.99, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.30, L= 420.62, L_straight= 409.16, slack= 11.46, T_bat= 23.00, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.40, L= 420.75, L_straight= 409.21, slack= 11.54, T_bat= 23.00, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.50, L= 420.89, L_straight= 409.26, slack= 11.63, T_bat= 23.01, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.60, L= 421.02, L_straight= 409.31, slack= 11.71, T_bat= 23.02, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.31, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.70, L= 421.15, L_straight= 409.36, slack= 11.79, T_bat= 23.03, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.80, L= 421.28, L_straight= 409.41, slack= 11.87, T_bat= 23.03, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 23.90, L= 421.41, L_straight= 409.46, slack= 11.95, T_bat= 23.04, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.00, L= 421.54, L_straight= 409.51, slack= 12.03, T_bat= 23.05, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.10, L= 421.67, L_straight= 409.56, slack= 12.11, T_bat= 23.05, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.20, L= 421.81, L_straight= 409.61, slack= 12.19, T_bat= 23.06, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.30, L= 421.94, L_straight= 409.66, slack= 12.27, T_bat= 23.07, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.40, L= 422.07, L_straight= 409.71, slack= 12.35, T_bat= 23.07, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.50, L= 422.20, L_straight= 409.77, slack= 12.43, T_bat= 23.08, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.60, L= 422.33, L_straight= 409.82, slack= 12.52, T_bat= 23.09, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.70, L= 422.46, L_straight= 409.87, slack= 12.60, T_bat= 23.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.80, L= 422.59, L_straight= 409.92, slack= 12.68, T_bat= 23.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 24.90, L= 422.73, L_straight= 409.97, slack= 12.76, T_bat= 23.11, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.00, L= 422.86, L_straight= 410.02, slack= 12.84, T_bat= 23.12, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.10, L= 422.99, L_straight= 410.07, slack= 12.92, T_bat= 23.12, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.20, L= 423.12, L_straight= 410.12, slack= 13.00, T_bat= 23.13, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.30, L= 423.25, L_straight= 410.17, slack= 13.08, T_bat= 23.14, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.40, L= 423.38, L_straight= 410.22, slack= 13.16, T_bat= 23.15, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.50, L= 423.52, L_straight= 410.27, slack= 13.25, T_bat= 23.15, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.60, L= 423.65, L_straight= 410.32, slack= 13.33, T_bat= 23.16, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.70, L= 423.78, L_straight= 410.37, slack= 13.41, T_bat= 23.17, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.80, L= 423.91, L_straight= 410.42, slack= 13.49, T_bat= 23.17, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 25.90, L= 424.04, L_straight= 410.47, slack= 13.57, T_bat= 23.18, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.00, L= 424.17, L_straight= 410.52, slack= 13.65, T_bat= 23.19, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.10, L= 424.31, L_straight= 410.57, slack= 13.73, T_bat= 23.19, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.20, L= 424.44, L_straight= 410.62, slack= 13.81, T_bat= 23.20, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.30, L= 424.57, L_straight= 410.67, slack= 13.90, T_bat= 23.21, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.40, L= 424.70, L_straight= 410.72, slack= 13.98, T_bat= 23.22, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.50, L= 424.83, L_straight= 410.77, slack= 14.06, T_bat= 23.22, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.60, L= 424.96, L_straight= 410.82, slack= 14.14, T_bat= 23.23, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.70, L= 425.10, L_straight= 410.88, slack= 14.22, T_bat= 23.24, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.80, L= 425.23, L_straight= 410.93, slack= 14.30, T_bat= 23.24, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 26.90, L= 425.36, L_straight= 410.98, slack= 14.38, T_bat= 23.25, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.00, L= 425.49, L_straight= 411.03, slack= 14.47, T_bat= 23.26, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.10, L= 425.62, L_straight= 411.08, slack= 14.55, T_bat= 23.27, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.20, L= 425.76, L_straight= 411.13, slack= 14.63, T_bat= 23.27, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.30, L= 425.89, L_straight= 411.18, slack= 14.71, T_bat= 23.28, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.40, L= 426.02, L_straight= 411.23, slack= 14.79, T_bat= 23.29, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.50, L= 426.15, L_straight= 411.28, slack= 14.87, T_bat= 23.29, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.60, L= 426.28, L_straight= 411.33, slack= 14.95, T_bat= 23.30, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.70, L= 426.42, L_straight= 411.38, slack= 15.04, T_bat= 23.31, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.80, L= 426.55, L_straight= 411.43, slack= 15.12, T_bat= 23.31, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 27.90, L= 426.68, L_straight= 411.48, slack= 15.20, T_bat= 23.32, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.00, L= 426.81, L_straight= 411.53, slack= 15.28, T_bat= 23.33, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.10, L= 426.94, L_straight= 411.58, slack= 15.36, T_bat= 23.34, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.20, L= 427.07, L_straight= 411.63, slack= 15.44, T_bat= 23.34, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.30, L= 427.21, L_straight= 411.68, slack= 15.52, T_bat= 23.35, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.40, L= 427.34, L_straight= 411.73, slack= 15.61, T_bat= 23.36, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.50, L= 427.47, L_straight= 411.78, slack= 15.69, T_bat= 23.36, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.60, L= 427.60, L_straight= 411.83, slack= 15.77, T_bat= 23.37, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.70, L= 427.74, L_straight= 411.88, slack= 15.85, T_bat= 23.38, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.80, L= 427.87, L_straight= 411.93, slack= 15.93, T_bat= 23.39, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 28.90, L= 428.00, L_straight= 411.99, slack= 16.01, T_bat= 23.39, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.00, L= 428.13, L_straight= 412.04, slack= 16.10, T_bat= 23.40, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.10, L= 428.26, L_straight= 412.09, slack= 16.18, T_bat= 23.41, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.20, L= 428.40, L_straight= 412.14, slack= 16.26, T_bat= 23.41, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.30, L= 428.53, L_straight= 412.19, slack= 16.34, T_bat= 23.42, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.40, L= 428.66, L_straight= 412.24, slack= 16.42, T_bat= 23.43, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.50, L= 428.79, L_straight= 412.29, slack= 16.50, T_bat= 23.43, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.60, L= 428.92, L_straight= 412.34, slack= 16.59, T_bat= 23.44, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.70, L= 429.06, L_straight= 412.39, slack= 16.67, T_bat= 23.45, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.80, L= 429.19, L_straight= 412.44, slack= 16.75, T_bat= 23.46, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 29.90, L= 429.32, L_straight= 412.49, slack= 16.83, T_bat= 23.46, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.00, L= 429.45, L_straight= 412.54, slack= 16.91, T_bat= 23.47, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.10, L= 429.59, L_straight= 412.59, slack= 16.99, T_bat= 23.48, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.20, L= 429.72, L_straight= 412.64, slack= 17.08, T_bat= 23.48, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.30, L= 429.85, L_straight= 412.69, slack= 17.16, T_bat= 23.49, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.40, L= 429.98, L_straight= 412.74, slack= 17.24, T_bat= 23.50, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.50, L= 430.11, L_straight= 412.79, slack= 17.32, T_bat= 23.51, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.60, L= 430.25, L_straight= 412.84, slack= 17.40, T_bat= 23.51, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.70, L= 430.38, L_straight= 412.89, slack= 17.49, T_bat= 23.52, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.32, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.80, L= 430.51, L_straight= 412.94, slack= 17.57, T_bat= 23.53, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 30.90, L= 430.64, L_straight= 412.99, slack= 17.65, T_bat= 23.53, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.00, L= 430.78, L_straight= 413.04, slack= 17.73, T_bat= 23.54, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.10, L= 430.91, L_straight= 413.10, slack= 17.81, T_bat= 23.55, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.20, L= 431.04, L_straight= 413.15, slack= 17.90, T_bat= 23.56, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.30, L= 431.17, L_straight= 413.20, slack= 17.98, T_bat= 23.56, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.40, L= 431.31, L_straight= 413.25, slack= 18.06, T_bat= 23.57, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.50, L= 431.44, L_straight= 413.30, slack= 18.14, T_bat= 23.58, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.60, L= 431.57, L_straight= 413.35, slack= 18.22, T_bat= 23.58, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.32, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.70, L= 431.70, L_straight= 413.40, slack= 18.31, T_bat= 23.59, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.80, L= 431.84, L_straight= 413.45, slack= 18.39, T_bat= 23.60, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 31.90, L= 431.97, L_straight= 413.50, slack= 18.47, T_bat= 23.60, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.00, L= 432.10, L_straight= 413.55, slack= 18.55, T_bat= 23.61, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.10, L= 432.23, L_straight= 413.60, slack= 18.63, T_bat= 23.62, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.20, L= 432.37, L_straight= 413.65, slack= 18.72, T_bat= 23.63, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.30, L= 432.50, L_straight= 413.70, slack= 18.80, T_bat= 23.63, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.40, L= 432.63, L_straight= 413.75, slack= 18.88, T_bat= 23.64, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.50, L= 432.76, L_straight= 413.80, slack= 18.96, T_bat= 23.65, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.60, L= 432.90, L_straight= 413.85, slack= 19.04, T_bat= 23.65, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.70, L= 433.03, L_straight= 413.90, slack= 19.13, T_bat= 23.66, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.80, L= 433.16, L_straight= 413.95, slack= 19.21, T_bat= 23.67, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 32.90, L= 433.29, L_straight= 414.00, slack= 19.29, T_bat= 23.68, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.00, L= 433.43, L_straight= 414.05, slack= 19.37, T_bat= 23.68, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.10, L= 433.56, L_straight= 414.10, slack= 19.46, T_bat= 23.69, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.20, L= 433.69, L_straight= 414.15, slack= 19.54, T_bat= 23.70, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.30, L= 433.83, L_straight= 414.21, slack= 19.62, T_bat= 23.70, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.40, L= 433.96, L_straight= 414.26, slack= 19.70, T_bat= 23.71, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.50, L= 434.09, L_straight= 414.31, slack= 19.78, T_bat= 23.72, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.60, L= 434.22, L_straight= 414.36, slack= 19.87, T_bat= 23.73, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.70, L= 434.36, L_straight= 414.41, slack= 19.95, T_bat= 23.73, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.80, L= 434.49, L_straight= 414.46, slack= 20.03, T_bat= 23.74, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 33.90, L= 434.62, L_straight= 414.51, slack= 20.11, T_bat= 23.75, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.00, L= 434.75, L_straight= 414.56, slack= 20.20, T_bat= 23.75, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.10, L= 434.89, L_straight= 414.61, slack= 20.28, T_bat= 23.76, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.20, L= 435.02, L_straight= 414.66, slack= 20.36, T_bat= 23.77, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.30, L= 435.15, L_straight= 414.71, slack= 20.44, T_bat= 23.78, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.40, L= 435.29, L_straight= 414.76, slack= 20.53, T_bat= 23.78, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.50, L= 435.42, L_straight= 414.81, slack= 20.61, T_bat= 23.79, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.60, L= 435.55, L_straight= 414.86, slack= 20.69, T_bat= 23.80, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.70, L= 435.69, L_straight= 414.91, slack= 20.77, T_bat= 23.80, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.80, L= 435.82, L_straight= 414.96, slack= 20.86, T_bat= 23.81, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 34.90, L= 435.95, L_straight= 415.01, slack= 20.94, T_bat= 23.82, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.00, L= 436.08, L_straight= 415.06, slack= 21.02, T_bat= 23.82, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.10, L= 436.22, L_straight= 415.11, slack= 21.10, T_bat= 23.83, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.20, L= 436.35, L_straight= 415.16, slack= 21.19, T_bat= 23.84, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.30, L= 436.48, L_straight= 415.21, slack= 21.27, T_bat= 23.85, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.40, L= 436.62, L_straight= 415.26, slack= 21.35, T_bat= 23.85, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.50, L= 436.75, L_straight= 415.32, slack= 21.43, T_bat= 23.86, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.60, L= 436.88, L_straight= 415.37, slack= 21.52, T_bat= 23.87, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.70, L= 437.01, L_straight= 415.42, slack= 21.60, T_bat= 23.87, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.80, L= 437.15, L_straight= 415.47, slack= 21.68, T_bat= 23.88, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 35.90, L= 437.28, L_straight= 415.52, slack= 21.76, T_bat= 23.89, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.00, L= 437.41, L_straight= 415.57, slack= 21.85, T_bat= 23.90, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.10, L= 437.55, L_straight= 415.62, slack= 21.93, T_bat= 23.90, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.20, L= 437.68, L_straight= 415.67, slack= 22.01, T_bat= 23.91, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.30, L= 437.81, L_straight= 415.72, slack= 22.09, T_bat= 23.92, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.40, L= 437.95, L_straight= 415.77, slack= 22.18, T_bat= 23.92, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.50, L= 438.08, L_straight= 415.82, slack= 22.26, T_bat= 23.93, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.60, L= 438.21, L_straight= 415.87, slack= 22.34, T_bat= 23.94, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.70, L= 438.35, L_straight= 415.92, slack= 22.43, T_bat= 23.95, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.80, L= 438.48, L_straight= 415.97, slack= 22.51, T_bat= 23.95, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 36.90, L= 438.61, L_straight= 416.02, slack= 22.59, T_bat= 23.96, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.00, L= 438.75, L_straight= 416.07, slack= 22.67, T_bat= 23.97, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.10, L= 438.88, L_straight= 416.12, slack= 22.76, T_bat= 23.97, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.20, L= 439.01, L_straight= 416.17, slack= 22.84, T_bat= 23.98, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.30, L= 439.15, L_straight= 416.22, slack= 22.92, T_bat= 23.99, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.40, L= 439.28, L_straight= 416.27, slack= 23.01, T_bat= 24.00, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.50, L= 439.41, L_straight= 416.32, slack= 23.09, T_bat= 24.00, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.60, L= 439.55, L_straight= 416.37, slack= 23.17, T_bat= 24.01, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.70, L= 439.68, L_straight= 416.43, slack= 23.25, T_bat= 24.02, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.80, L= 439.81, L_straight= 416.48, slack= 23.34, T_bat= 24.02, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.33, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 37.90, L= 439.95, L_straight= 416.53, slack= 23.42, T_bat= 24.03, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.00, L= 440.08, L_straight= 416.58, slack= 23.50, T_bat= 24.04, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.10, L= 440.21, L_straight= 416.63, slack= 23.59, T_bat= 24.05, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.20, L= 440.35, L_straight= 416.68, slack= 23.67, T_bat= 24.05, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.30, L= 440.48, L_straight= 416.73, slack= 23.75, T_bat= 24.06, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.40, L= 440.61, L_straight= 416.78, slack= 23.83, T_bat= 24.07, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.50, L= 440.75, L_straight= 416.83, slack= 23.92, T_bat= 24.07, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.60, L= 440.88, L_straight= 416.88, slack= 24.00, T_bat= 24.08, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.70, L= 441.01, L_straight= 416.93, slack= 24.08, T_bat= 24.09, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.33, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.80, L= 441.15, L_straight= 416.98, slack= 24.17, T_bat= 24.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 38.90, L= 441.28, L_straight= 417.03, slack= 24.25, T_bat= 24.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.00, L= 441.41, L_straight= 417.08, slack= 24.33, T_bat= 24.11, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.10, L= 441.55, L_straight= 417.13, slack= 24.42, T_bat= 24.12, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.20, L= 441.68, L_straight= 417.18, slack= 24.50, T_bat= 24.12, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.30, L= 441.81, L_straight= 417.23, slack= 24.58, T_bat= 24.13, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.40, L= 441.95, L_straight= 417.28, slack= 24.67, T_bat= 24.14, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.50, L= 442.08, L_straight= 417.33, slack= 24.75, T_bat= 24.15, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.60, L= 442.22, L_straight= 417.38, slack= 24.83, T_bat= 24.15, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.70, L= 442.35, L_straight= 417.43, slack= 24.91, T_bat= 24.16, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.80, L= 442.48, L_straight= 417.48, slack= 25.00, T_bat= 24.17, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 39.90, L= 442.62, L_straight= 417.54, slack= 25.08, T_bat= 24.17, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+[SCEN] t=40.00 scen=Fx crit=(t>40:5) T_bat=24.181528545205314 y=-416.53 x=29.65 L=442.75
+IC_L_7: t= 40.00, L= 442.75, L_straight= 417.59, slack= 25.16, T_bat= 24.18, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.10, L= 442.88, L_straight= 417.64, slack= 25.25, T_bat= 24.19, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.20, L= 443.02, L_straight= 417.69, slack= 25.33, T_bat= 24.20, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.30, L= 443.15, L_straight= 417.74, slack= 25.41, T_bat= 24.20, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.40, L= 443.28, L_straight= 417.79, slack= 25.50, T_bat= 24.21, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.50, L= 443.42, L_straight= 417.84, slack= 25.58, T_bat= 24.22, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.60, L= 443.55, L_straight= 417.89, slack= 25.66, T_bat= 24.23, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.34, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.70, L= 443.69, L_straight= 417.94, slack= 25.75, T_bat= 24.24, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.80, L= 443.82, L_straight= 417.99, slack= 25.83, T_bat= 24.25, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 40.90, L= 443.95, L_straight= 418.04, slack= 25.91, T_bat= 24.27, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.00, L= 444.09, L_straight= 418.10, slack= 25.99, T_bat= 24.29, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.10, L= 444.22, L_straight= 418.15, slack= 26.08, T_bat= 24.31, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.20, L= 444.36, L_straight= 418.20, slack= 26.16, T_bat= 24.34, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.34, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.30, L= 444.49, L_straight= 418.25, slack= 26.24, T_bat= 24.37, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.35, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.40, L= 444.63, L_straight= 418.30, slack= 26.32, T_bat= 24.41, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.50, L= 444.76, L_straight= 418.35, slack= 26.41, T_bat= 24.45, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.60, L= 444.90, L_straight= 418.41, slack= 26.49, T_bat= 24.49, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.70, L= 445.03, L_straight= 418.46, slack= 26.57, T_bat= 24.53, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.80, L= 445.17, L_straight= 418.51, slack= 26.66, T_bat= 24.58, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 41.90, L= 445.30, L_straight= 418.56, slack= 26.74, T_bat= 24.62, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.00, L= 445.44, L_straight= 418.61, slack= 26.82, T_bat= 24.67, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.36, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.10, L= 445.57, L_straight= 418.67, slack= 26.91, T_bat= 24.71, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.20, L= 445.71, L_straight= 418.72, slack= 26.99, T_bat= 24.76, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.30, L= 445.84, L_straight= 418.77, slack= 27.07, T_bat= 24.80, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.40, L= 445.98, L_straight= 418.82, slack= 27.16, T_bat= 24.84, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.50, L= 446.11, L_straight= 418.87, slack= 27.24, T_bat= 24.88, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.60, L= 446.25, L_straight= 418.93, slack= 27.32, T_bat= 24.91, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.70, L= 446.39, L_straight= 418.98, slack= 27.41, T_bat= 24.95, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.80, L= 446.52, L_straight= 419.03, slack= 27.49, T_bat= 24.98, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 42.90, L= 446.66, L_straight= 419.08, slack= 27.57, T_bat= 25.01, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.00, L= 446.79, L_straight= 419.14, slack= 27.66, T_bat= 25.03, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.36, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.10, L= 446.93, L_straight= 419.19, slack= 27.74, T_bat= 25.06, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.37, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.20, L= 447.07, L_straight= 419.24, slack= 27.83, T_bat= 25.08, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.30, L= 447.20, L_straight= 419.29, slack= 27.91, T_bat= 25.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.40, L= 447.34, L_straight= 419.35, slack= 28.00, T_bat= 25.12, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.50, L= 447.48, L_straight= 419.40, slack= 28.08, T_bat= 25.14, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.60, L= 447.61, L_straight= 419.45, slack= 28.16, T_bat= 25.16, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.70, L= 447.75, L_straight= 419.50, slack= 28.25, T_bat= 25.18, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.80, L= 447.89, L_straight= 419.55, slack= 28.33, T_bat= 25.19, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 43.90, L= 448.03, L_straight= 419.61, slack= 28.42, T_bat= 25.21, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.00, L= 448.16, L_straight= 419.66, slack= 28.50, T_bat= 25.22, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.10, L= 448.30, L_straight= 419.71, slack= 28.59, T_bat= 25.23, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.20, L= 448.44, L_straight= 419.76, slack= 28.67, T_bat= 25.24, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.30, L= 448.58, L_straight= 419.82, slack= 28.76, T_bat= 25.26, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.40, L= 448.71, L_straight= 419.87, slack= 28.84, T_bat= 25.27, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.37, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.50, L= 448.85, L_straight= 419.92, slack= 28.93, T_bat= 25.28, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.60, L= 448.99, L_straight= 419.97, slack= 29.01, T_bat= 25.29, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.70, L= 449.13, L_straight= 420.03, slack= 29.10, T_bat= 25.30, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.80, L= 449.26, L_straight= 420.08, slack= 29.18, T_bat= 25.31, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 44.90, L= 449.40, L_straight= 420.13, slack= 29.27, T_bat= 25.32, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.00, L= 449.54, L_straight= 420.18, slack= 29.35, T_bat= 25.33, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.10, L= 449.68, L_straight= 420.24, slack= 29.44, T_bat= 25.33, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.20, L= 449.81, L_straight= 420.29, slack= 29.52, T_bat= 25.34, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.30, L= 449.95, L_straight= 420.34, slack= 29.61, T_bat= 25.35, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.40, L= 450.09, L_straight= 420.39, slack= 29.70, T_bat= 25.36, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.50, L= 450.23, L_straight= 420.45, slack= 29.78, T_bat= 25.37, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.60, L= 450.37, L_straight= 420.50, slack= 29.87, T_bat= 25.38, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.70, L= 450.50, L_straight= 420.55, slack= 29.95, T_bat= 25.39, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.80, L= 450.64, L_straight= 420.60, slack= 30.04, T_bat= 25.39, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 45.90, L= 450.78, L_straight= 420.66, slack= 30.12, T_bat= 25.40, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.00, L= 450.92, L_straight= 420.71, slack= 30.21, T_bat= 25.41, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.10, L= 451.06, L_straight= 420.76, slack= 30.29, T_bat= 25.42, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.20, L= 451.19, L_straight= 420.81, slack= 30.38, T_bat= 25.43, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.30, L= 451.33, L_straight= 420.87, slack= 30.47, T_bat= 25.43, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.40, L= 451.47, L_straight= 420.92, slack= 30.55, T_bat= 25.44, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.50, L= 451.61, L_straight= 420.97, slack= 30.64, T_bat= 25.45, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.60, L= 451.75, L_straight= 421.02, slack= 30.72, T_bat= 25.46, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.70, L= 451.88, L_straight= 421.08, slack= 30.81, T_bat= 25.46, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.80, L= 452.02, L_straight= 421.13, slack= 30.89, T_bat= 25.47, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 46.90, L= 452.16, L_straight= 421.18, slack= 30.98, T_bat= 25.48, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.00, L= 452.30, L_straight= 421.23, slack= 31.07, T_bat= 25.49, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.10, L= 452.44, L_straight= 421.29, slack= 31.15, T_bat= 25.50, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.20, L= 452.57, L_straight= 421.34, slack= 31.24, T_bat= 25.50, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.30, L= 452.71, L_straight= 421.39, slack= 31.32, T_bat= 25.51, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.40, L= 452.85, L_straight= 421.44, slack= 31.41, T_bat= 25.52, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.38, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.50, L= 452.99, L_straight= 421.50, slack= 31.49, T_bat= 25.53, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.60, L= 453.13, L_straight= 421.55, slack= 31.58, T_bat= 25.53, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.70, L= 453.27, L_straight= 421.60, slack= 31.67, T_bat= 25.54, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.80, L= 453.40, L_straight= 421.65, slack= 31.75, T_bat= 25.55, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 47.90, L= 453.54, L_straight= 421.70, slack= 31.84, T_bat= 25.56, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.00, L= 453.68, L_straight= 421.76, slack= 31.92, T_bat= 25.56, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.10, L= 453.82, L_straight= 421.81, slack= 32.01, T_bat= 25.57, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.20, L= 453.96, L_straight= 421.86, slack= 32.10, T_bat= 25.58, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.30, L= 454.10, L_straight= 421.91, slack= 32.18, T_bat= 25.59, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.38, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.40, L= 454.24, L_straight= 421.97, slack= 32.27, T_bat= 25.60, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.50, L= 454.37, L_straight= 422.02, slack= 32.35, T_bat= 25.60, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.60, L= 454.51, L_straight= 422.07, slack= 32.44, T_bat= 25.61, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.70, L= 454.65, L_straight= 422.12, slack= 32.53, T_bat= 25.62, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.80, L= 454.79, L_straight= 422.18, slack= 32.61, T_bat= 25.63, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 48.90, L= 454.93, L_straight= 422.23, slack= 32.70, T_bat= 25.63, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.00, L= 455.07, L_straight= 422.28, slack= 32.78, T_bat= 25.64, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.10, L= 455.21, L_straight= 422.33, slack= 32.87, T_bat= 25.65, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.20, L= 455.34, L_straight= 422.39, slack= 32.96, T_bat= 25.66, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.30, L= 455.48, L_straight= 422.44, slack= 33.04, T_bat= 25.66, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.40, L= 455.62, L_straight= 422.49, slack= 33.13, T_bat= 25.67, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.50, L= 455.76, L_straight= 422.54, slack= 33.22, T_bat= 25.68, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.60, L= 455.90, L_straight= 422.60, slack= 33.30, T_bat= 25.69, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.70, L= 456.04, L_straight= 422.65, slack= 33.39, T_bat= 25.70, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.80, L= 456.18, L_straight= 422.70, slack= 33.47, T_bat= 25.70, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 49.90, L= 456.31, L_straight= 422.75, slack= 33.56, T_bat= 25.71, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.00, L= 456.45, L_straight= 422.81, slack= 33.65, T_bat= 25.72, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.10, L= 456.59, L_straight= 422.86, slack= 33.73, T_bat= 25.73, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.20, L= 456.73, L_straight= 422.91, slack= 33.82, T_bat= 25.73, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.30, L= 456.87, L_straight= 422.96, slack= 33.91, T_bat= 25.74, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.40, L= 457.01, L_straight= 423.02, slack= 33.99, T_bat= 25.75, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.50, L= 457.15, L_straight= 423.07, slack= 34.08, T_bat= 25.76, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.60, L= 457.29, L_straight= 423.12, slack= 34.16, T_bat= 25.76, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.70, L= 457.43, L_straight= 423.17, slack= 34.25, T_bat= 25.77, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.80, L= 457.56, L_straight= 423.23, slack= 34.34, T_bat= 25.78, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 50.90, L= 457.70, L_straight= 423.28, slack= 34.42, T_bat= 25.79, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.00, L= 457.84, L_straight= 423.33, slack= 34.51, T_bat= 25.79, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.10, L= 457.98, L_straight= 423.38, slack= 34.60, T_bat= 25.80, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.20, L= 458.12, L_straight= 423.44, slack= 34.68, T_bat= 25.81, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.30, L= 458.26, L_straight= 423.49, slack= 34.77, T_bat= 25.82, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.40, L= 458.40, L_straight= 423.54, slack= 34.86, T_bat= 25.83, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.50, L= 458.54, L_straight= 423.59, slack= 34.94, T_bat= 25.83, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.60, L= 458.68, L_straight= 423.65, slack= 35.03, T_bat= 25.84, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.70, L= 458.82, L_straight= 423.70, slack= 35.12, T_bat= 25.85, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.80, L= 458.95, L_straight= 423.75, slack= 35.20, T_bat= 25.86, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 51.90, L= 459.09, L_straight= 423.80, slack= 35.29, T_bat= 25.86, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.00, L= 459.23, L_straight= 423.86, slack= 35.38, T_bat= 25.87, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.10, L= 459.37, L_straight= 423.91, slack= 35.46, T_bat= 25.88, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.20, L= 459.51, L_straight= 423.96, slack= 35.55, T_bat= 25.89, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.30, L= 459.65, L_straight= 424.01, slack= 35.64, T_bat= 25.89, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.40, L= 459.79, L_straight= 424.07, slack= 35.72, T_bat= 25.90, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.50, L= 459.93, L_straight= 424.12, slack= 35.81, T_bat= 25.91, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.60, L= 460.07, L_straight= 424.17, slack= 35.90, T_bat= 25.92, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.70, L= 460.21, L_straight= 424.22, slack= 35.98, T_bat= 25.93, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.80, L= 460.35, L_straight= 424.28, slack= 36.07, T_bat= 25.93, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 52.90, L= 460.48, L_straight= 424.33, slack= 36.16, T_bat= 25.94, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.00, L= 460.62, L_straight= 424.38, slack= 36.24, T_bat= 25.95, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.10, L= 460.76, L_straight= 424.43, slack= 36.33, T_bat= 25.96, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.20, L= 460.90, L_straight= 424.49, slack= 36.42, T_bat= 25.96, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.30, L= 461.04, L_straight= 424.54, slack= 36.50, T_bat= 25.97, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.40, L= 461.18, L_straight= 424.59, slack= 36.59, T_bat= 25.98, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.39, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.50, L= 461.32, L_straight= 424.64, slack= 36.68, T_bat= 25.99, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.60, L= 461.46, L_straight= 424.70, slack= 36.76, T_bat= 25.99, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.70, L= 461.60, L_straight= 424.75, slack= 36.85, T_bat= 26.00, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.80, L= 461.74, L_straight= 424.80, slack= 36.94, T_bat= 26.01, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 53.90, L= 461.88, L_straight= 424.85, slack= 37.02, T_bat= 26.02, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.00, L= 462.02, L_straight= 424.91, slack= 37.11, T_bat= 26.03, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.10, L= 462.16, L_straight= 424.96, slack= 37.20, T_bat= 26.03, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.20, L= 462.30, L_straight= 425.01, slack= 37.28, T_bat= 26.04, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.30, L= 462.44, L_straight= 425.07, slack= 37.37, T_bat= 26.05, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.39, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.40, L= 462.58, L_straight= 425.12, slack= 37.46, T_bat= 26.06, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.50, L= 462.72, L_straight= 425.17, slack= 37.54, T_bat= 26.06, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.60, L= 462.85, L_straight= 425.22, slack= 37.63, T_bat= 26.07, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.70, L= 462.99, L_straight= 425.28, slack= 37.72, T_bat= 26.08, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.80, L= 463.13, L_straight= 425.33, slack= 37.81, T_bat= 26.09, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 54.90, L= 463.27, L_straight= 425.38, slack= 37.89, T_bat= 26.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.00, L= 463.41, L_straight= 425.43, slack= 37.98, T_bat= 26.10, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.10, L= 463.55, L_straight= 425.49, slack= 38.07, T_bat= 26.11, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.20, L= 463.69, L_straight= 425.54, slack= 38.15, T_bat= 26.12, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.30, L= 463.83, L_straight= 425.59, slack= 38.24, T_bat= 26.13, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.40, L= 463.97, L_straight= 425.64, slack= 38.33, T_bat= 26.13, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.50, L= 464.11, L_straight= 425.70, slack= 38.42, T_bat= 26.14, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.60, L= 464.25, L_straight= 425.75, slack= 38.50, T_bat= 26.15, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.70, L= 464.39, L_straight= 425.80, slack= 38.59, T_bat= 26.16, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.80, L= 464.53, L_straight= 425.85, slack= 38.68, T_bat= 26.16, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 55.90, L= 464.67, L_straight= 425.91, slack= 38.76, T_bat= 26.17, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.00, L= 464.81, L_straight= 425.96, slack= 38.85, T_bat= 26.18, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.10, L= 464.95, L_straight= 426.01, slack= 38.94, T_bat= 26.19, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.20, L= 465.09, L_straight= 426.06, slack= 39.03, T_bat= 26.20, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.30, L= 465.23, L_straight= 426.12, slack= 39.11, T_bat= 26.20, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.40, L= 465.37, L_straight= 426.17, slack= 39.20, T_bat= 26.21, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.50, L= 465.51, L_straight= 426.22, slack= 39.29, T_bat= 26.22, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.60, L= 465.65, L_straight= 426.27, slack= 39.37, T_bat= 26.23, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.70, L= 465.79, L_straight= 426.33, slack= 39.46, T_bat= 26.23, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+[SCEN] t=56.80 scen=Fy crit=(y<-425:-50) T_bat=26.241775854942098 y=-425.04 x=33.70 L=465.93
+IC_L_7: t= 56.80, L= 465.93, L_straight= 426.38, slack= 39.55, T_bat= 26.24, T_rov= 0.50, Fy_cmd=-25.00, desired=  1.40, ret=  1.40, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 56.90, L= 466.07, L_straight= 426.43, slack= 39.64, T_bat= 26.25, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.65, ret=  1.42, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.00, L= 466.21, L_straight= 426.49, slack= 39.72, T_bat= 29.53, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.80, ret=  1.46, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.10, L= 466.36, L_straight= 426.56, slack= 39.80, T_bat= 33.22, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.92, ret=  1.51, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.20, L= 466.51, L_straight= 426.62, slack= 39.88, T_bat= 37.37, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.97, ret=  1.55, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.30, L= 466.66, L_straight= 426.69, slack= 39.97, T_bat= 40.48, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.98, ret=  1.60, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.40, L= 466.82, L_straight= 426.76, slack= 40.06, T_bat= 42.30, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.64, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.50, L= 466.99, L_straight= 426.83, slack= 40.16, T_bat= 43.31, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.67, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.60, L= 467.15, L_straight= 426.90, slack= 40.25, T_bat= 43.88, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.70, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.70, L= 467.32, L_straight= 426.97, slack= 40.36, T_bat= 44.18, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.73, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.80, L= 467.50, L_straight= 427.04, slack= 40.46, T_bat= 44.35, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.76, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 57.90, L= 467.67, L_straight= 427.11, slack= 40.57, T_bat= 44.45, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.78, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.00, L= 467.85, L_straight= 427.17, slack= 40.68, T_bat= 44.51, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.80, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.10, L= 468.03, L_straight= 427.24, slack= 40.79, T_bat= 44.54, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.20, L= 468.21, L_straight= 427.31, slack= 40.90, T_bat= 44.57, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.84, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.30, L= 468.40, L_straight= 427.38, slack= 41.01, T_bat= 44.59, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.85, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.40, L= 468.58, L_straight= 427.45, slack= 41.13, T_bat= 44.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.87, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.50, L= 468.77, L_straight= 427.52, slack= 41.25, T_bat= 44.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.88, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.60, L= 468.96, L_straight= 427.59, slack= 41.37, T_bat= 44.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.89, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.70, L= 469.14, L_straight= 427.66, slack= 41.49, T_bat= 44.67, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.90, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.80, L= 469.33, L_straight= 427.73, slack= 41.61, T_bat= 44.69, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.91, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 58.90, L= 469.53, L_straight= 427.79, slack= 41.73, T_bat= 44.70, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.00, L= 469.72, L_straight= 427.86, slack= 41.85, T_bat= 44.72, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.10, L= 469.91, L_straight= 427.93, slack= 41.98, T_bat= 44.74, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.93, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.20, L= 470.10, L_straight= 428.00, slack= 42.10, T_bat= 44.76, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.94, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.30, L= 470.30, L_straight= 428.07, slack= 42.23, T_bat= 44.78, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.94, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.40, L= 470.49, L_straight= 428.14, slack= 42.35, T_bat= 44.80, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.95, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.50, L= 470.68, L_straight= 428.21, slack= 42.48, T_bat= 44.81, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.95, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.60, L= 470.88, L_straight= 428.28, slack= 42.60, T_bat= 44.83, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.95, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.70, L= 471.07, L_straight= 428.35, slack= 42.73, T_bat= 44.85, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.96, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.80, L= 471.27, L_straight= 428.42, slack= 42.86, T_bat= 44.87, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.96, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 59.90, L= 471.47, L_straight= 428.48, slack= 42.98, T_bat= 44.89, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.96, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.00, L= 471.66, L_straight= 428.55, slack= 43.11, T_bat= 44.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.10, L= 471.86, L_straight= 428.62, slack= 43.24, T_bat= 44.92, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.20, L= 472.06, L_straight= 428.69, slack= 43.37, T_bat= 44.94, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.30, L= 472.25, L_straight= 428.76, slack= 43.49, T_bat= 44.96, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.40, L= 472.45, L_straight= 428.83, slack= 43.62, T_bat= 44.98, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.50, L= 472.65, L_straight= 428.90, slack= 43.75, T_bat= 45.00, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.60, L= 472.85, L_straight= 428.97, slack= 43.88, T_bat= 45.02, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.70, L= 473.04, L_straight= 429.04, slack= 44.01, T_bat= 45.03, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.80, L= 473.24, L_straight= 429.10, slack= 44.14, T_bat= 45.05, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 60.90, L= 473.44, L_straight= 429.17, slack= 44.27, T_bat= 45.07, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.00, L= 473.64, L_straight= 429.24, slack= 44.40, T_bat= 45.09, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.10, L= 473.84, L_straight= 429.31, slack= 44.52, T_bat= 45.11, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.20, L= 474.03, L_straight= 429.38, slack= 44.65, T_bat= 45.13, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.30, L= 474.23, L_straight= 429.45, slack= 44.78, T_bat= 45.15, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.40, L= 474.43, L_straight= 429.52, slack= 44.91, T_bat= 45.17, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.50, L= 474.63, L_straight= 429.59, slack= 45.04, T_bat= 45.18, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.60, L= 474.83, L_straight= 429.66, slack= 45.17, T_bat= 45.20, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.98, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.70, L= 475.03, L_straight= 429.72, slack= 45.30, T_bat= 45.22, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.80, L= 475.22, L_straight= 429.79, slack= 45.43, T_bat= 45.24, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 61.90, L= 475.42, L_straight= 429.86, slack= 45.56, T_bat= 45.26, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.00, L= 475.62, L_straight= 429.93, slack= 45.69, T_bat= 45.28, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.10, L= 475.82, L_straight= 430.00, slack= 45.82, T_bat= 45.30, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.20, L= 476.02, L_straight= 430.07, slack= 45.95, T_bat= 45.32, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.30, L= 476.22, L_straight= 430.14, slack= 46.08, T_bat= 45.33, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.40, L= 476.42, L_straight= 430.21, slack= 46.21, T_bat= 45.35, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.50, L= 476.61, L_straight= 430.28, slack= 46.34, T_bat= 45.37, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.60, L= 476.81, L_straight= 430.34, slack= 46.47, T_bat= 45.39, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.70, L= 477.01, L_straight= 430.41, slack= 46.60, T_bat= 45.41, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.80, L= 477.21, L_straight= 430.48, slack= 46.73, T_bat= 45.43, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 62.90, L= 477.41, L_straight= 430.55, slack= 46.86, T_bat= 45.45, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.00, L= 477.61, L_straight= 430.62, slack= 46.99, T_bat= 45.46, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.10, L= 477.81, L_straight= 430.69, slack= 47.12, T_bat= 45.48, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.20, L= 478.01, L_straight= 430.76, slack= 47.25, T_bat= 45.50, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.30, L= 478.21, L_straight= 430.83, slack= 47.38, T_bat= 45.52, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.40, L= 478.40, L_straight= 430.90, slack= 47.51, T_bat= 45.54, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.50, L= 478.60, L_straight= 430.97, slack= 47.64, T_bat= 45.56, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.60, L= 478.80, L_straight= 431.03, slack= 47.77, T_bat= 45.58, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.70, L= 479.00, L_straight= 431.10, slack= 47.90, T_bat= 45.60, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.80, L= 479.20, L_straight= 431.17, slack= 48.03, T_bat= 45.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 63.90, L= 479.40, L_straight= 431.24, slack= 48.16, T_bat= 45.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.00, L= 479.60, L_straight= 431.31, slack= 48.29, T_bat= 45.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.10, L= 479.80, L_straight= 431.38, slack= 48.42, T_bat= 45.67, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.20, L= 480.00, L_straight= 431.45, slack= 48.55, T_bat= 45.69, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.30, L= 480.19, L_straight= 431.52, slack= 48.68, T_bat= 45.71, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.40, L= 480.39, L_straight= 431.59, slack= 48.81, T_bat= 45.73, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.50, L= 480.59, L_straight= 431.65, slack= 48.94, T_bat= 45.75, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.60, L= 480.79, L_straight= 431.72, slack= 49.07, T_bat= 45.76, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.70, L= 480.99, L_straight= 431.79, slack= 49.20, T_bat= 45.78, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.80, L= 481.19, L_straight= 431.86, slack= 49.33, T_bat= 45.80, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 64.90, L= 481.39, L_straight= 431.93, slack= 49.46, T_bat= 45.82, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.00, L= 481.59, L_straight= 432.00, slack= 49.59, T_bat= 45.84, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.10, L= 481.79, L_straight= 432.07, slack= 49.72, T_bat= 45.86, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.20, L= 481.98, L_straight= 432.14, slack= 49.85, T_bat= 45.88, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.30, L= 482.18, L_straight= 432.21, slack= 49.98, T_bat= 45.90, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.40, L= 482.38, L_straight= 432.28, slack= 50.11, T_bat= 45.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.50, L= 482.58, L_straight= 432.34, slack= 50.24, T_bat= 45.93, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.60, L= 482.78, L_straight= 432.41, slack= 50.37, T_bat= 45.95, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.70, L= 482.98, L_straight= 432.48, slack= 50.50, T_bat= 45.97, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.80, L= 483.18, L_straight= 432.55, slack= 50.63, T_bat= 45.99, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 65.90, L= 483.38, L_straight= 432.62, slack= 50.76, T_bat= 46.01, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.00, L= 483.58, L_straight= 432.69, slack= 50.89, T_bat= 46.03, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.10, L= 483.77, L_straight= 432.76, slack= 51.02, T_bat= 46.05, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.20, L= 483.97, L_straight= 432.83, slack= 51.15, T_bat= 46.06, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.30, L= 484.17, L_straight= 432.90, slack= 51.28, T_bat= 46.08, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.40, L= 484.37, L_straight= 432.97, slack= 51.41, T_bat= 46.10, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.50, L= 484.57, L_straight= 433.03, slack= 51.54, T_bat= 46.12, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.60, L= 484.77, L_straight= 433.10, slack= 51.67, T_bat= 46.14, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.70, L= 484.97, L_straight= 433.17, slack= 51.80, T_bat= 46.16, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.80, L= 485.17, L_straight= 433.24, slack= 51.93, T_bat= 46.18, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.99, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 66.90, L= 485.37, L_straight= 433.31, slack= 52.06, T_bat= 46.20, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.94, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.00, L= 485.56, L_straight= 433.38, slack= 52.18, T_bat= 46.21, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.89, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.10, L= 485.75, L_straight= 433.45, slack= 52.30, T_bat= 46.23, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.84, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.20, L= 485.93, L_straight= 433.52, slack= 52.42, T_bat= 46.25, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.79, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.30, L= 486.11, L_straight= 433.59, slack= 52.53, T_bat= 46.27, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.74, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.40, L= 486.29, L_straight= 433.65, slack= 52.63, T_bat= 46.29, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.69, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.50, L= 486.46, L_straight= 433.72, slack= 52.73, T_bat= 46.30, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.64, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.60, L= 486.62, L_straight= 433.79, slack= 52.83, T_bat= 46.32, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.59, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.70, L= 486.78, L_straight= 433.86, slack= 52.92, T_bat= 46.34, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.54, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.80, L= 486.93, L_straight= 433.93, slack= 53.00, T_bat= 46.35, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.49, exp=PILOT_DESC_ACC
+IC_L_7: t= 67.90, L= 487.08, L_straight= 434.00, slack= 53.08, T_bat= 46.37, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.44, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.00, L= 487.23, L_straight= 434.07, slack= 53.16, T_bat= 46.38, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.39, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.10, L= 487.36, L_straight= 434.14, slack= 53.23, T_bat= 46.39, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.34, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.20, L= 487.50, L_straight= 434.21, slack= 53.29, T_bat= 46.41, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.29, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.30, L= 487.63, L_straight= 434.28, slack= 53.35, T_bat= 46.42, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.24, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.40, L= 487.75, L_straight= 434.34, slack= 53.41, T_bat= 46.43, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.19, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.50, L= 487.87, L_straight= 434.41, slack= 53.46, T_bat= 46.45, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.14, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.60, L= 487.98, L_straight= 434.48, slack= 53.50, T_bat= 46.46, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.09, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.70, L= 488.09, L_straight= 434.55, slack= 53.54, T_bat= 46.47, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.04, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.80, L= 488.20, L_straight= 434.62, slack= 53.58, T_bat= 46.48, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.99, exp=PILOT_DESC_ACC
+IC_L_7: t= 68.90, L= 488.30, L_straight= 434.69, slack= 53.61, T_bat= 46.49, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.94, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.00, L= 488.39, L_straight= 434.76, slack= 53.63, T_bat= 46.50, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.89, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.10, L= 488.48, L_straight= 434.83, slack= 53.65, T_bat= 46.51, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.84, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.20, L= 488.56, L_straight= 434.90, slack= 53.67, T_bat= 46.52, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.79, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.30, L= 488.64, L_straight= 434.97, slack= 53.68, T_bat= 46.53, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.74, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.40, L= 488.72, L_straight= 435.03, slack= 53.68, T_bat= 46.53, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.69, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.50, L= 488.78, L_straight= 435.10, slack= 53.68, T_bat= 46.54, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.64, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.60, L= 488.85, L_straight= 435.17, slack= 53.68, T_bat= 46.55, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.60, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.70, L= 488.91, L_straight= 435.24, slack= 53.67, T_bat= 46.55, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.56, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.80, L= 488.96, L_straight= 435.31, slack= 53.65, T_bat= 46.56, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.52, exp=PILOT_DESC_ACC
+IC_L_7: t= 69.90, L= 489.02, L_straight= 435.38, slack= 53.64, T_bat= 46.57, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.49, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.00, L= 489.07, L_straight= 435.45, slack= 53.62, T_bat= 46.57, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.46, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.10, L= 489.11, L_straight= 435.52, slack= 53.59, T_bat= 46.58, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.43, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.20, L= 489.15, L_straight= 435.59, slack= 53.57, T_bat= 46.58, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.41, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.30, L= 489.20, L_straight= 435.66, slack= 53.54, T_bat= 46.59, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.39, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.40, L= 489.23, L_straight= 435.72, slack= 53.51, T_bat= 46.59, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.37, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.50, L= 489.27, L_straight= 435.79, slack= 53.48, T_bat= 46.59, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.35, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.60, L= 489.31, L_straight= 435.86, slack= 53.44, T_bat= 46.60, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.34, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.70, L= 489.34, L_straight= 435.93, slack= 53.41, T_bat= 46.60, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.32, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.80, L= 489.37, L_straight= 436.00, slack= 53.37, T_bat= 46.60, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.31, exp=PILOT_DESC_ACC
+IC_L_7: t= 70.90, L= 489.40, L_straight= 436.07, slack= 53.33, T_bat= 46.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.30, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.00, L= 489.43, L_straight= 436.14, slack= 53.30, T_bat= 46.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.29, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.10, L= 489.46, L_straight= 436.21, slack= 53.26, T_bat= 46.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.28, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.20, L= 489.49, L_straight= 436.28, slack= 53.22, T_bat= 46.62, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.27, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.30, L= 489.52, L_straight= 436.35, slack= 53.17, T_bat= 46.62, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.27, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.40, L= 489.55, L_straight= 436.41, slack= 53.13, T_bat= 46.62, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.26, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.50, L= 489.57, L_straight= 436.48, slack= 53.09, T_bat= 46.62, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.25, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.60, L= 489.60, L_straight= 436.55, slack= 53.04, T_bat= 46.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.25, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.70, L= 489.62, L_straight= 436.62, slack= 53.00, T_bat= 46.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.24, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.80, L= 489.65, L_straight= 436.69, slack= 52.96, T_bat= 46.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.24, exp=PILOT_DESC_ACC
+IC_L_7: t= 71.90, L= 489.67, L_straight= 436.76, slack= 52.91, T_bat= 46.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.24, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.00, L= 489.69, L_straight= 436.83, slack= 52.86, T_bat= 46.64, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.23, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.10, L= 489.72, L_straight= 436.90, slack= 52.82, T_bat= 46.64, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.23, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.20, L= 489.74, L_straight= 436.97, slack= 52.77, T_bat= 46.64, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.23, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.30, L= 489.76, L_straight= 437.04, slack= 52.73, T_bat= 46.64, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.22, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.40, L= 489.78, L_straight= 437.11, slack= 52.68, T_bat= 46.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.22, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.50, L= 489.81, L_straight= 437.17, slack= 52.63, T_bat= 46.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.22, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.60, L= 489.83, L_straight= 437.24, slack= 52.59, T_bat= 46.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.22, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.70, L= 489.85, L_straight= 437.31, slack= 52.54, T_bat= 46.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.22, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.80, L= 489.87, L_straight= 437.38, slack= 52.49, T_bat= 46.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.21, exp=PILOT_DESC_ACC
+IC_L_7: t= 72.90, L= 489.89, L_straight= 437.45, slack= 52.44, T_bat= 46.66, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.31, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.00, L= 489.92, L_straight= 437.52, slack= 52.41, T_bat= 46.66, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.41, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.10, L= 489.97, L_straight= 437.59, slack= 52.38, T_bat= 46.66, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.51, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.20, L= 490.02, L_straight= 437.66, slack= 52.36, T_bat= 46.66, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.61, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.30, L= 490.08, L_straight= 437.73, slack= 52.35, T_bat= 46.67, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.71, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.40, L= 490.15, L_straight= 437.80, slack= 52.35, T_bat= 46.67, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.81, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.50, L= 490.23, L_straight= 437.86, slack= 52.37, T_bat= 46.68, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.91, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.60, L= 490.32, L_straight= 437.93, slack= 52.39, T_bat= 46.68, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.01, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.70, L= 490.42, L_straight= 438.00, slack= 52.42, T_bat= 46.69, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.11, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.80, L= 490.54, L_straight= 438.07, slack= 52.46, T_bat= 46.70, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.20, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 73.90, L= 490.66, L_straight= 438.14, slack= 52.51, T_bat= 46.71, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.28, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 74.00, L= 490.78, L_straight= 438.21, slack= 52.57, T_bat= 46.72, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.35, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 74.10, L= 490.92, L_straight= 438.28, slack= 52.64, T_bat= 46.73, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.30, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.20, L= 491.05, L_straight= 438.35, slack= 52.70, T_bat= 46.74, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.25, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.30, L= 491.17, L_straight= 438.42, slack= 52.76, T_bat= 46.76, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.20, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.40, L= 491.29, L_straight= 438.49, slack= 52.81, T_bat= 46.77, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.15, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.50, L= 491.41, L_straight= 438.55, slack= 52.85, T_bat= 46.78, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.10, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.60, L= 491.52, L_straight= 438.62, slack= 52.89, T_bat= 46.79, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.05, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.70, L= 491.62, L_straight= 438.69, slack= 52.93, T_bat= 46.80, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.00, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.80, L= 491.72, L_straight= 438.76, slack= 52.96, T_bat= 46.81, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.95, exp=PILOT_DESC_ACC
+IC_L_7: t= 74.90, L= 491.82, L_straight= 438.83, slack= 52.99, T_bat= 46.82, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.90, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.00, L= 491.91, L_straight= 438.90, slack= 53.01, T_bat= 46.83, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.85, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.10, L= 491.99, L_straight= 438.97, slack= 53.02, T_bat= 46.84, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.80, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.20, L= 492.07, L_straight= 439.04, slack= 53.03, T_bat= 46.85, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.75, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.30, L= 492.15, L_straight= 439.11, slack= 53.04, T_bat= 46.86, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.70, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.40, L= 492.22, L_straight= 439.18, slack= 53.04, T_bat= 46.86, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.65, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.50, L= 492.28, L_straight= 439.25, slack= 53.04, T_bat= 46.87, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.60, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.60, L= 492.34, L_straight= 439.31, slack= 53.03, T_bat= 46.88, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.56, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.70, L= 492.40, L_straight= 439.38, slack= 53.02, T_bat= 46.88, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.53, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.80, L= 492.45, L_straight= 439.45, slack= 53.00, T_bat= 46.89, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.49, exp=PILOT_DESC_ACC
+IC_L_7: t= 75.90, L= 492.50, L_straight= 439.52, slack= 52.98, T_bat= 46.90, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.47, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.00, L= 492.55, L_straight= 439.59, slack= 52.96, T_bat= 46.90, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.44, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.10, L= 492.59, L_straight= 439.66, slack= 52.93, T_bat= 46.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.42, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.20, L= 492.63, L_straight= 439.73, slack= 52.90, T_bat= 46.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.39, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.30, L= 492.67, L_straight= 439.80, slack= 52.87, T_bat= 46.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.37, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.40, L= 492.71, L_straight= 439.87, slack= 52.84, T_bat= 46.92, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.36, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.50, L= 492.75, L_straight= 439.94, slack= 52.81, T_bat= 46.92, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.34, exp=PILOT_DESC_ACC
+IC_L_7: t= 76.60, L= 492.78, L_straight= 440.01, slack= 52.77, T_bat= 46.92, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.44, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 76.70, L= 492.82, L_straight= 440.07, slack= 52.75, T_bat= 46.93, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.54, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 76.80, L= 492.88, L_straight= 440.14, slack= 52.73, T_bat= 46.93, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.64, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 76.90, L= 492.94, L_straight= 440.21, slack= 52.73, T_bat= 46.94, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.74, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 77.00, L= 493.02, L_straight= 440.28, slack= 52.73, T_bat= 46.94, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.84, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 77.10, L= 493.10, L_straight= 440.35, slack= 52.75, T_bat= 46.95, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.94, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 77.20, L= 493.19, L_straight= 440.42, slack= 52.78, T_bat= 46.95, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.04, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 77.30, L= 493.30, L_straight= 440.49, slack= 52.81, T_bat= 46.96, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.14, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 77.40, L= 493.41, L_straight= 440.56, slack= 52.85, T_bat= 46.97, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.22, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 77.50, L= 493.53, L_straight= 440.63, slack= 52.91, T_bat= 46.98, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.17, exp=PILOT_DESC_ACC
+IC_L_7: t= 77.60, L= 493.65, L_straight= 440.70, slack= 52.96, T_bat= 46.99, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.12, exp=PILOT_DESC_ACC
+IC_L_7: t= 77.70, L= 493.76, L_straight= 440.76, slack= 53.00, T_bat= 47.00, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 77.80, L= 493.87, L_straight= 440.83, slack= 53.04, T_bat= 47.01, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 77.90, L= 493.97, L_straight= 440.90, slack= 53.07, T_bat= 47.02, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.00, L= 494.07, L_straight= 440.97, slack= 53.10, T_bat= 47.03, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.10, L= 494.16, L_straight= 441.04, slack= 53.12, T_bat= 47.04, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.20, L= 494.25, L_straight= 441.11, slack= 53.14, T_bat= 47.05, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.30, L= 494.33, L_straight= 441.18, slack= 53.15, T_bat= 47.06, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.40, L= 494.41, L_straight= 441.25, slack= 53.16, T_bat= 47.07, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.50, L= 494.48, L_straight= 441.32, slack= 53.16, T_bat= 47.08, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.67, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.60, L= 494.55, L_straight= 441.39, slack= 53.16, T_bat= 47.08, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.62, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.70, L= 494.61, L_straight= 441.46, slack= 53.15, T_bat= 47.09, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.58, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.80, L= 494.67, L_straight= 441.52, slack= 53.14, T_bat= 47.10, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.54, exp=PILOT_DESC_ACC
+IC_L_7: t= 78.90, L= 494.72, L_straight= 441.59, slack= 53.13, T_bat= 47.10, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.51, exp=PILOT_DESC_ACC
+IC_L_7: t= 79.00, L= 494.77, L_straight= 441.66, slack= 53.11, T_bat= 47.11, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.48, exp=PILOT_DESC_ACC
+IC_L_7: t= 79.10, L= 494.82, L_straight= 441.73, slack= 53.09, T_bat= 47.11, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.45, exp=PILOT_DESC_ACC
+IC_L_7: t= 79.20, L= 494.87, L_straight= 441.80, slack= 53.07, T_bat= 47.12, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.43, exp=PILOT_DESC_ACC
+IC_L_7: t= 79.30, L= 494.91, L_straight= 441.87, slack= 53.04, T_bat= 47.12, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.40, exp=PILOT_DESC_ACC
+IC_L_7: t= 79.40, L= 494.95, L_straight= 441.94, slack= 53.01, T_bat= 47.13, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.50, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 79.50, L= 495.00, L_straight= 442.01, slack= 52.99, T_bat= 47.13, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.60, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 79.60, L= 495.06, L_straight= 442.08, slack= 52.98, T_bat= 47.14, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.70, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 79.70, L= 495.13, L_straight= 442.15, slack= 52.98, T_bat= 47.14, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.80, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 79.80, L= 495.21, L_straight= 442.22, slack= 53.00, T_bat= 47.15, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.90, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 79.90, L= 495.30, L_straight= 442.28, slack= 53.02, T_bat= 47.15, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.00, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 80.00, L= 495.40, L_straight= 442.35, slack= 53.05, T_bat= 47.16, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.10, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 80.10, L= 495.51, L_straight= 442.42, slack= 53.09, T_bat= 47.17, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.19, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 80.20, L= 495.63, L_straight= 442.49, slack= 53.14, T_bat= 47.18, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.14, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.30, L= 495.74, L_straight= 442.56, slack= 53.18, T_bat= 47.19, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.09, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.40, L= 495.85, L_straight= 442.63, slack= 53.22, T_bat= 47.20, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.04, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.50, L= 495.96, L_straight= 442.70, slack= 53.26, T_bat= 47.21, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.99, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.60, L= 496.06, L_straight= 442.77, slack= 53.29, T_bat= 47.22, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.94, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.70, L= 496.15, L_straight= 442.84, slack= 53.31, T_bat= 47.23, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.89, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.80, L= 496.24, L_straight= 442.91, slack= 53.33, T_bat= 47.24, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.84, exp=PILOT_DESC_ACC
+IC_L_7: t= 80.90, L= 496.32, L_straight= 442.98, slack= 53.35, T_bat= 47.25, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.79, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.00, L= 496.40, L_straight= 443.04, slack= 53.36, T_bat= 47.26, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.74, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.10, L= 496.48, L_straight= 443.11, slack= 53.36, T_bat= 47.27, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.69, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.20, L= 496.55, L_straight= 443.18, slack= 53.36, T_bat= 47.27, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.64, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.30, L= 496.61, L_straight= 443.25, slack= 53.36, T_bat= 47.28, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.60, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.40, L= 496.67, L_straight= 443.32, slack= 53.35, T_bat= 47.29, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.56, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.50, L= 496.73, L_straight= 443.39, slack= 53.34, T_bat= 47.29, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.52, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.60, L= 496.78, L_straight= 443.46, slack= 53.32, T_bat= 47.30, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.49, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.70, L= 496.83, L_straight= 443.53, slack= 53.30, T_bat= 47.30, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.46, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.80, L= 496.87, L_straight= 443.60, slack= 53.28, T_bat= 47.31, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.43, exp=PILOT_DESC_ACC
+IC_L_7: t= 81.90, L= 496.92, L_straight= 443.67, slack= 53.25, T_bat= 47.31, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.41, exp=PILOT_DESC_ACC
+IC_L_7: t= 82.00, L= 496.96, L_straight= 443.74, slack= 53.22, T_bat= 47.32, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.51, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.10, L= 497.01, L_straight= 443.81, slack= 53.20, T_bat= 47.32, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.61, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.20, L= 497.07, L_straight= 443.87, slack= 53.20, T_bat= 47.33, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.71, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.30, L= 497.14, L_straight= 443.94, slack= 53.20, T_bat= 47.33, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.81, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.40, L= 497.22, L_straight= 444.01, slack= 53.21, T_bat= 47.34, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.91, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.50, L= 497.31, L_straight= 444.08, slack= 53.23, T_bat= 47.34, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.01, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.60, L= 497.41, L_straight= 444.15, slack= 53.26, T_bat= 47.35, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.11, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.70, L= 497.53, L_straight= 444.22, slack= 53.31, T_bat= 47.36, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.20, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 82.80, L= 497.65, L_straight= 444.29, slack= 53.36, T_bat= 47.37, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.15, exp=PILOT_DESC_ACC
+IC_L_7: t= 82.90, L= 497.76, L_straight= 444.36, slack= 53.40, T_bat= 47.38, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.10, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.00, L= 497.87, L_straight= 444.43, slack= 53.44, T_bat= 47.39, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.05, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.10, L= 497.97, L_straight= 444.50, slack= 53.48, T_bat= 47.40, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.00, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.20, L= 498.07, L_straight= 444.57, slack= 53.51, T_bat= 47.41, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.95, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.30, L= 498.17, L_straight= 444.63, slack= 53.53, T_bat= 47.42, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.90, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.40, L= 498.26, L_straight= 444.70, slack= 53.56, T_bat= 47.43, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.85, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.50, L= 498.34, L_straight= 444.77, slack= 53.57, T_bat= 47.44, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.80, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.60, L= 498.42, L_straight= 444.84, slack= 53.58, T_bat= 47.45, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.75, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.70, L= 498.50, L_straight= 444.91, slack= 53.59, T_bat= 47.46, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.70, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.80, L= 498.57, L_straight= 444.98, slack= 53.59, T_bat= 47.46, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.65, exp=PILOT_DESC_ACC
+IC_L_7: t= 83.90, L= 498.63, L_straight= 445.05, slack= 53.58, T_bat= 47.47, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.60, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.00, L= 498.69, L_straight= 445.12, slack= 53.57, T_bat= 47.48, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.56, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.10, L= 498.75, L_straight= 445.19, slack= 53.56, T_bat= 47.48, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.53, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.20, L= 498.80, L_straight= 445.26, slack= 53.55, T_bat= 47.49, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.49, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.30, L= 498.85, L_straight= 445.33, slack= 53.53, T_bat= 47.49, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.46, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.40, L= 498.90, L_straight= 445.40, slack= 53.50, T_bat= 47.50, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.44, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.50, L= 498.94, L_straight= 445.46, slack= 53.48, T_bat= 47.50, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.41, exp=PILOT_DESC_ACC
+IC_L_7: t= 84.60, L= 498.98, L_straight= 445.53, slack= 53.45, T_bat= 47.51, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.51, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 84.70, L= 499.03, L_straight= 445.60, slack= 53.43, T_bat= 47.51, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.61, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 84.80, L= 499.10, L_straight= 445.67, slack= 53.42, T_bat= 47.52, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.71, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 84.90, L= 499.17, L_straight= 445.74, slack= 53.43, T_bat= 47.52, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.81, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 85.00, L= 499.25, L_straight= 445.81, slack= 53.44, T_bat= 47.53, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.91, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 85.10, L= 499.34, L_straight= 445.88, slack= 53.46, T_bat= 47.53, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.01, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 85.20, L= 499.44, L_straight= 445.95, slack= 53.49, T_bat= 47.54, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.11, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 85.30, L= 499.55, L_straight= 446.02, slack= 53.54, T_bat= 47.55, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.06, exp=PILOT_DESC_ACC
+IC_L_7: t= 85.40, L= 499.66, L_straight= 446.09, slack= 53.57, T_bat= 47.56, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.01, exp=PILOT_DESC_ACC
+IC_L_7: t= 85.50, L= 499.76, L_straight= 446.16, slack= 53.60, T_bat= 47.57, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.96, exp=PILOT_DESC_ACC
+IC_L_7: t= 85.60, L= 499.86, L_straight= 446.22, slack= 53.63, T_bat= 47.58, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.91, exp=PILOT_DESC_ACC
+IC_L_7: t= 85.70, L= 499.95, L_straight= 446.29, slack= 53.65, T_bat= 47.59, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.86, exp=PILOT_DESC_ACC
+IC_L_7: t= 85.80, L= 500.03, L_straight= 446.36, slack= 53.67, T_bat= 47.60, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.81, exp=PILOT_DESC_ACC
+IC_L_7: t= 85.90, L= 500.11, L_straight= 446.43, slack= 53.68, T_bat= 47.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.76, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.00, L= 500.19, L_straight= 446.50, slack= 53.69, T_bat= 47.61, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.71, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.10, L= 500.26, L_straight= 446.57, slack= 53.69, T_bat= 47.62, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.66, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.20, L= 500.33, L_straight= 446.64, slack= 53.69, T_bat= 47.63, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.62, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.30, L= 500.39, L_straight= 446.71, slack= 53.68, T_bat= 47.64, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.57, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.40, L= 500.45, L_straight= 446.78, slack= 53.67, T_bat= 47.64, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.54, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.50, L= 500.50, L_straight= 446.85, slack= 53.65, T_bat= 47.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.50, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.60, L= 500.55, L_straight= 446.92, slack= 53.63, T_bat= 47.65, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.47, exp=PILOT_DESC_ACC
+IC_L_7: t= 86.70, L= 500.60, L_straight= 446.99, slack= 53.61, T_bat= 47.66, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.57, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 86.80, L= 500.66, L_straight= 447.05, slack= 53.60, T_bat= 47.66, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.67, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 86.90, L= 500.72, L_straight= 447.12, slack= 53.60, T_bat= 47.67, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.77, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 87.00, L= 500.80, L_straight= 447.19, slack= 53.61, T_bat= 47.67, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.87, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 87.10, L= 500.89, L_straight= 447.26, slack= 53.63, T_bat= 47.68, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 87.20, L= 500.98, L_straight= 447.33, slack= 53.65, T_bat= 47.69, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.07, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 87.30, L= 501.09, L_straight= 447.40, slack= 53.69, T_bat= 47.70, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 87.40, L= 501.19, L_straight= 447.47, slack= 53.72, T_bat= 47.71, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 87.50, L= 501.29, L_straight= 447.54, slack= 53.75, T_bat= 47.71, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 87.60, L= 501.38, L_straight= 447.61, slack= 53.78, T_bat= 47.72, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 87.70, L= 501.47, L_straight= 447.68, slack= 53.79, T_bat= 47.73, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 87.80, L= 501.55, L_straight= 447.75, slack= 53.81, T_bat= 47.74, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 87.90, L= 501.63, L_straight= 447.82, slack= 53.82, T_bat= 47.75, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 88.00, L= 501.70, L_straight= 447.88, slack= 53.82, T_bat= 47.76, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.67, exp=PILOT_DESC_ACC
+IC_L_7: t= 88.10, L= 501.77, L_straight= 447.95, slack= 53.82, T_bat= 47.76, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.63, exp=PILOT_DESC_ACC
+IC_L_7: t= 88.20, L= 501.83, L_straight= 448.02, slack= 53.81, T_bat= 47.77, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.58, exp=PILOT_DESC_ACC
+IC_L_7: t= 88.30, L= 501.89, L_straight= 448.09, slack= 53.80, T_bat= 47.78, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.54, exp=PILOT_DESC_ACC
+IC_L_7: t= 88.40, L= 501.95, L_straight= 448.16, slack= 53.78, T_bat= 47.78, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.51, exp=PILOT_DESC_ACC
+IC_L_7: t= 88.50, L= 502.00, L_straight= 448.23, slack= 53.77, T_bat= 47.79, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.61, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 88.60, L= 502.06, L_straight= 448.30, slack= 53.76, T_bat= 47.79, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.71, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 88.70, L= 502.13, L_straight= 448.37, slack= 53.76, T_bat= 47.80, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.81, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 88.80, L= 502.21, L_straight= 448.44, slack= 53.77, T_bat= 47.81, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.91, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 88.90, L= 502.30, L_straight= 448.51, slack= 53.79, T_bat= 47.81, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.01, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 89.00, L= 502.40, L_straight= 448.58, slack= 53.83, T_bat= 47.82, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.11, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 89.10, L= 502.51, L_straight= 448.65, slack= 53.87, T_bat= 47.83, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.06, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.20, L= 502.62, L_straight= 448.71, slack= 53.90, T_bat= 47.84, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.01, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.30, L= 502.72, L_straight= 448.78, slack= 53.94, T_bat= 47.85, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.96, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.40, L= 502.81, L_straight= 448.85, slack= 53.96, T_bat= 47.86, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.91, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.50, L= 502.91, L_straight= 448.92, slack= 53.98, T_bat= 47.87, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.86, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.60, L= 502.99, L_straight= 448.99, slack= 54.00, T_bat= 47.88, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.81, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.70, L= 503.07, L_straight= 449.06, slack= 54.01, T_bat= 47.89, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.76, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.80, L= 503.15, L_straight= 449.13, slack= 54.02, T_bat= 47.89, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.71, exp=PILOT_DESC_ACC
+IC_L_7: t= 89.90, L= 503.22, L_straight= 449.20, slack= 54.02, T_bat= 47.90, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.66, exp=PILOT_DESC_ACC
+IC_L_7: t= 90.00, L= 503.28, L_straight= 449.27, slack= 54.02, T_bat= 47.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.61, exp=PILOT_DESC_ACC
+IC_L_7: t= 90.10, L= 503.35, L_straight= 449.34, slack= 54.01, T_bat= 47.91, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.57, exp=PILOT_DESC_ACC
+IC_L_7: t= 90.20, L= 503.40, L_straight= 449.41, slack= 54.00, T_bat= 47.92, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.53, exp=PILOT_DESC_ACC
+IC_L_7: t= 90.30, L= 503.46, L_straight= 449.48, slack= 53.98, T_bat= 47.93, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.50, exp=PILOT_DESC_ACC
+IC_L_7: t= 90.40, L= 503.51, L_straight= 449.54, slack= 53.96, T_bat= 47.93, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.47, exp=PILOT_DESC_ACC
+IC_L_7: t= 90.50, L= 503.55, L_straight= 449.61, slack= 53.94, T_bat= 47.94, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.57, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 90.60, L= 503.61, L_straight= 449.68, slack= 53.93, T_bat= 47.94, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.67, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 90.70, L= 503.68, L_straight= 449.75, slack= 53.93, T_bat= 47.95, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.77, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 90.80, L= 503.75, L_straight= 449.82, slack= 53.93, T_bat= 47.95, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.87, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 90.90, L= 503.84, L_straight= 449.89, slack= 53.95, T_bat= 47.96, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 91.00, L= 503.94, L_straight= 449.96, slack= 53.98, T_bat= 47.97, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.07, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 91.10, L= 504.05, L_straight= 450.03, slack= 54.02, T_bat= 47.97, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.20, L= 504.15, L_straight= 450.10, slack= 54.05, T_bat= 47.98, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.30, L= 504.25, L_straight= 450.17, slack= 54.08, T_bat= 47.99, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.40, L= 504.34, L_straight= 450.24, slack= 54.10, T_bat= 48.00, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.50, L= 504.42, L_straight= 450.31, slack= 54.12, T_bat= 48.01, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.60, L= 504.51, L_straight= 450.37, slack= 54.13, T_bat= 48.02, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.70, L= 504.58, L_straight= 450.44, slack= 54.14, T_bat= 48.03, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.80, L= 504.66, L_straight= 450.51, slack= 54.14, T_bat= 48.04, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.67, exp=PILOT_DESC_ACC
+IC_L_7: t= 91.90, L= 504.72, L_straight= 450.58, slack= 54.14, T_bat= 48.04, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.62, exp=PILOT_DESC_ACC
+IC_L_7: t= 92.00, L= 504.79, L_straight= 450.65, slack= 54.13, T_bat= 48.05, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.58, exp=PILOT_DESC_ACC
+IC_L_7: t= 92.10, L= 504.84, L_straight= 450.72, slack= 54.12, T_bat= 48.06, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.54, exp=PILOT_DESC_ACC
+IC_L_7: t= 92.20, L= 504.90, L_straight= 450.79, slack= 54.11, T_bat= 48.06, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.51, exp=PILOT_DESC_ACC
+IC_L_7: t= 92.30, L= 504.95, L_straight= 450.86, slack= 54.09, T_bat= 48.07, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.61, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 92.40, L= 505.01, L_straight= 450.93, slack= 54.08, T_bat= 48.07, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.71, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 92.50, L= 505.08, L_straight= 451.00, slack= 54.08, T_bat= 48.08, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.81, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 92.60, L= 505.16, L_straight= 451.07, slack= 54.09, T_bat= 48.08, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.91, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 92.70, L= 505.25, L_straight= 451.14, slack= 54.12, T_bat= 48.09, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  1.01, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 92.80, L= 505.35, L_straight= 451.21, slack= 54.15, T_bat= 48.10, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.96, exp=PILOT_DESC_ACC
+IC_L_7: t= 92.90, L= 505.45, L_straight= 451.27, slack= 54.17, T_bat= 48.11, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.91, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.00, L= 505.54, L_straight= 451.34, slack= 54.20, T_bat= 48.12, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.86, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.10, L= 505.63, L_straight= 451.41, slack= 54.21, T_bat= 48.12, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.81, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.20, L= 505.71, L_straight= 451.48, slack= 54.22, T_bat= 48.13, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.76, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.30, L= 505.78, L_straight= 451.55, slack= 54.23, T_bat= 48.14, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.71, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.40, L= 505.85, L_straight= 451.62, slack= 54.23, T_bat= 48.15, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.66, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.50, L= 505.92, L_straight= 451.69, slack= 54.23, T_bat= 48.16, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.61, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.60, L= 505.98, L_straight= 451.76, slack= 54.22, T_bat= 48.16, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.57, exp=PILOT_DESC_ACC
+IC_L_7: t= 93.70, L= 506.04, L_straight= 451.83, slack= 54.21, T_bat= 48.17, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.67, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 93.80, L= 506.10, L_straight= 451.90, slack= 54.21, T_bat= 48.17, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.77, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 93.90, L= 506.18, L_straight= 451.97, slack= 54.21, T_bat= 48.18, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.87, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 94.00, L= 506.27, L_straight= 452.04, slack= 54.23, T_bat= 48.19, T_rov= 0.50, Fy_cmd=-50.00, desired=  1.99, ret=  0.97, exp=PILOT_DESC_MINPAY_ACC
+[SCEN] t=94.10 scen=Fy crit=(y<-450:-75) T_bat=48.19485132460047 y=-450.02 x=43.37 L=506.37
+IC_L_7: t= 94.10, L= 506.37, L_straight= 452.11, slack= 54.26, T_bat= 48.19, T_rov= 0.50, Fy_cmd=-50.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 94.20, L= 506.46, L_straight= 452.17, slack= 54.28, T_bat= 48.20, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 94.30, L= 506.55, L_straight= 452.25, slack= 54.29, T_bat= 54.23, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 94.40, L= 506.63, L_straight= 452.33, slack= 54.29, T_bat= 59.92, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 94.50, L= 506.70, L_straight= 452.41, slack= 54.29, T_bat= 63.65, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 94.60, L= 506.78, L_straight= 452.50, slack= 54.28, T_bat= 65.80, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 94.70, L= 506.86, L_straight= 452.58, slack= 54.28, T_bat= 66.96, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 94.80, L= 506.95, L_straight= 452.66, slack= 54.29, T_bat= 67.58, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 94.90, L= 507.05, L_straight= 452.74, slack= 54.31, T_bat= 67.90, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 95.00, L= 507.17, L_straight= 452.83, slack= 54.34, T_bat= 68.07, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.10, L= 507.27, L_straight= 452.91, slack= 54.36, T_bat= 68.16, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.20, L= 507.37, L_straight= 452.99, slack= 54.38, T_bat= 68.22, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.30, L= 507.47, L_straight= 453.07, slack= 54.40, T_bat= 68.25, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.40, L= 507.56, L_straight= 453.15, slack= 54.41, T_bat= 68.28, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.50, L= 507.65, L_straight= 453.24, slack= 54.41, T_bat= 68.29, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.60, L= 507.73, L_straight= 453.32, slack= 54.41, T_bat= 68.31, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.70, L= 507.81, L_straight= 453.40, slack= 54.41, T_bat= 68.32, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 95.80, L= 507.88, L_straight= 453.48, slack= 54.40, T_bat= 68.33, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 95.90, L= 507.96, L_straight= 453.57, slack= 54.40, T_bat= 68.34, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 96.00, L= 508.06, L_straight= 453.65, slack= 54.41, T_bat= 68.35, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 96.10, L= 508.16, L_straight= 453.73, slack= 54.43, T_bat= 68.37, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 96.20, L= 508.27, L_straight= 453.81, slack= 54.46, T_bat= 68.38, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.30, L= 508.38, L_straight= 453.89, slack= 54.48, T_bat= 68.39, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.40, L= 508.48, L_straight= 453.98, slack= 54.50, T_bat= 68.41, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.50, L= 508.58, L_straight= 454.06, slack= 54.52, T_bat= 68.42, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.60, L= 508.67, L_straight= 454.14, slack= 54.53, T_bat= 68.43, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.70, L= 508.76, L_straight= 454.22, slack= 54.53, T_bat= 68.45, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.80, L= 508.84, L_straight= 454.31, slack= 54.53, T_bat= 68.46, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 96.90, L= 508.92, L_straight= 454.39, slack= 54.53, T_bat= 68.47, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 97.00, L= 508.99, L_straight= 454.47, slack= 54.52, T_bat= 68.48, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 97.10, L= 509.07, L_straight= 454.55, slack= 54.52, T_bat= 68.49, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 97.20, L= 509.16, L_straight= 454.64, slack= 54.53, T_bat= 68.50, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 97.30, L= 509.27, L_straight= 454.72, slack= 54.55, T_bat= 68.51, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 97.40, L= 509.38, L_straight= 454.80, slack= 54.58, T_bat= 68.53, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 97.50, L= 509.48, L_straight= 454.88, slack= 54.60, T_bat= 68.54, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 97.60, L= 509.59, L_straight= 454.96, slack= 54.62, T_bat= 68.55, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 97.70, L= 509.68, L_straight= 455.05, slack= 54.64, T_bat= 68.57, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 97.80, L= 509.78, L_straight= 455.13, slack= 54.65, T_bat= 68.58, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 97.90, L= 509.86, L_straight= 455.21, slack= 54.65, T_bat= 68.59, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 98.00, L= 509.95, L_straight= 455.29, slack= 54.65, T_bat= 68.61, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 98.10, L= 510.02, L_straight= 455.38, slack= 54.65, T_bat= 68.62, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 98.20, L= 510.09, L_straight= 455.46, slack= 54.64, T_bat= 68.63, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 98.30, L= 510.18, L_straight= 455.54, slack= 54.64, T_bat= 68.64, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 98.40, L= 510.27, L_straight= 455.62, slack= 54.65, T_bat= 68.65, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 98.50, L= 510.37, L_straight= 455.70, slack= 54.67, T_bat= 68.66, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 98.60, L= 510.48, L_straight= 455.79, slack= 54.70, T_bat= 68.67, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 98.70, L= 510.59, L_straight= 455.87, slack= 54.72, T_bat= 68.69, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 98.80, L= 510.69, L_straight= 455.95, slack= 54.74, T_bat= 68.70, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 98.90, L= 510.79, L_straight= 456.03, slack= 54.76, T_bat= 68.72, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 99.00, L= 510.88, L_straight= 456.12, slack= 54.77, T_bat= 68.73, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 99.10, L= 510.97, L_straight= 456.20, slack= 54.77, T_bat= 68.74, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 99.20, L= 511.05, L_straight= 456.28, slack= 54.77, T_bat= 68.75, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 99.30, L= 511.13, L_straight= 456.36, slack= 54.77, T_bat= 68.77, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 99.40, L= 511.20, L_straight= 456.45, slack= 54.76, T_bat= 68.78, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 99.50, L= 511.28, L_straight= 456.53, slack= 54.76, T_bat= 68.79, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 99.60, L= 511.37, L_straight= 456.61, slack= 54.77, T_bat= 68.80, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 99.70, L= 511.48, L_straight= 456.69, slack= 54.78, T_bat= 68.81, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 99.80, L= 511.59, L_straight= 456.77, slack= 54.81, T_bat= 68.82, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 99.90, L= 511.70, L_straight= 456.86, slack= 54.84, T_bat= 68.84, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.00, L= 511.80, L_straight= 456.94, slack= 54.86, T_bat= 68.85, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.10, L= 511.90, L_straight= 457.02, slack= 54.87, T_bat= 68.86, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.20, L= 511.99, L_straight= 457.10, slack= 54.88, T_bat= 68.88, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.30, L= 512.07, L_straight= 457.19, slack= 54.89, T_bat= 68.89, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.40, L= 512.16, L_straight= 457.27, slack= 54.89, T_bat= 68.90, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.50, L= 512.23, L_straight= 457.35, slack= 54.88, T_bat= 68.91, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 100.60, L= 512.31, L_straight= 457.43, slack= 54.87, T_bat= 68.92, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 100.70, L= 512.39, L_straight= 457.51, slack= 54.87, T_bat= 68.94, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 100.80, L= 512.48, L_straight= 457.60, slack= 54.88, T_bat= 68.95, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 100.90, L= 512.58, L_straight= 457.68, slack= 54.90, T_bat= 68.96, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 101.00, L= 512.70, L_straight= 457.76, slack= 54.93, T_bat= 68.97, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.10, L= 512.80, L_straight= 457.84, slack= 54.96, T_bat= 68.98, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.20, L= 512.90, L_straight= 457.93, slack= 54.98, T_bat= 69.00, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.30, L= 513.00, L_straight= 458.01, slack= 54.99, T_bat= 69.01, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.40, L= 513.09, L_straight= 458.09, slack= 55.00, T_bat= 69.02, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.50, L= 513.18, L_straight= 458.17, slack= 55.01, T_bat= 69.04, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.60, L= 513.26, L_straight= 458.26, slack= 55.01, T_bat= 69.05, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.70, L= 513.34, L_straight= 458.34, slack= 55.00, T_bat= 69.06, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 101.80, L= 513.41, L_straight= 458.42, slack= 54.99, T_bat= 69.07, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 101.90, L= 513.49, L_straight= 458.50, slack= 54.99, T_bat= 69.08, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 102.00, L= 513.59, L_straight= 458.58, slack= 55.00, T_bat= 69.09, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 102.10, L= 513.69, L_straight= 458.67, slack= 55.02, T_bat= 69.10, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 102.20, L= 513.80, L_straight= 458.75, slack= 55.05, T_bat= 69.12, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.30, L= 513.91, L_straight= 458.83, slack= 55.08, T_bat= 69.13, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.40, L= 514.01, L_straight= 458.91, slack= 55.10, T_bat= 69.15, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.50, L= 514.11, L_straight= 459.00, slack= 55.11, T_bat= 69.16, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.60, L= 514.20, L_straight= 459.08, slack= 55.12, T_bat= 69.17, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.70, L= 514.29, L_straight= 459.16, slack= 55.13, T_bat= 69.19, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.80, L= 514.37, L_straight= 459.24, slack= 55.13, T_bat= 69.20, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 102.90, L= 514.45, L_straight= 459.33, slack= 55.12, T_bat= 69.21, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 103.00, L= 514.52, L_straight= 459.41, slack= 55.11, T_bat= 69.22, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 103.10, L= 514.60, L_straight= 459.49, slack= 55.11, T_bat= 69.23, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 103.20, L= 514.69, L_straight= 459.57, slack= 55.12, T_bat= 69.24, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 103.30, L= 514.79, L_straight= 459.65, slack= 55.14, T_bat= 69.25, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 103.40, L= 514.91, L_straight= 459.74, slack= 55.17, T_bat= 69.27, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 103.50, L= 515.01, L_straight= 459.82, slack= 55.19, T_bat= 69.28, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 103.60, L= 515.12, L_straight= 459.90, slack= 55.21, T_bat= 69.29, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 103.70, L= 515.21, L_straight= 459.98, slack= 55.23, T_bat= 69.31, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 103.80, L= 515.31, L_straight= 460.07, slack= 55.24, T_bat= 69.32, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 103.90, L= 515.39, L_straight= 460.15, slack= 55.24, T_bat= 69.33, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 104.00, L= 515.47, L_straight= 460.23, slack= 55.24, T_bat= 69.35, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 104.10, L= 515.55, L_straight= 460.31, slack= 55.24, T_bat= 69.36, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 104.20, L= 515.62, L_straight= 460.40, slack= 55.23, T_bat= 69.37, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 104.30, L= 515.71, L_straight= 460.48, slack= 55.23, T_bat= 69.38, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 104.40, L= 515.80, L_straight= 460.56, slack= 55.24, T_bat= 69.39, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 104.50, L= 515.90, L_straight= 460.64, slack= 55.26, T_bat= 69.40, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 104.60, L= 516.01, L_straight= 460.72, slack= 55.29, T_bat= 69.41, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 104.70, L= 516.12, L_straight= 460.81, slack= 55.31, T_bat= 69.43, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 104.80, L= 516.22, L_straight= 460.89, slack= 55.33, T_bat= 69.44, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 104.90, L= 516.32, L_straight= 460.97, slack= 55.35, T_bat= 69.45, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 105.00, L= 516.41, L_straight= 461.05, slack= 55.36, T_bat= 69.47, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 105.10, L= 516.50, L_straight= 461.14, slack= 55.36, T_bat= 69.48, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 105.20, L= 516.58, L_straight= 461.22, slack= 55.36, T_bat= 69.49, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 105.30, L= 516.66, L_straight= 461.30, slack= 55.36, T_bat= 69.50, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 105.40, L= 516.73, L_straight= 461.38, slack= 55.35, T_bat= 69.52, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 105.50, L= 516.81, L_straight= 461.47, slack= 55.35, T_bat= 69.53, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 105.60, L= 516.90, L_straight= 461.55, slack= 55.36, T_bat= 69.54, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 105.70, L= 517.01, L_straight= 461.63, slack= 55.38, T_bat= 69.55, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 105.80, L= 517.12, L_straight= 461.71, slack= 55.41, T_bat= 69.56, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 105.90, L= 517.23, L_straight= 461.80, slack= 55.43, T_bat= 69.57, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.00, L= 517.33, L_straight= 461.88, slack= 55.45, T_bat= 69.59, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.10, L= 517.43, L_straight= 461.96, slack= 55.47, T_bat= 69.60, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.20, L= 517.52, L_straight= 462.04, slack= 55.48, T_bat= 69.62, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.30, L= 517.60, L_straight= 462.12, slack= 55.48, T_bat= 69.63, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.40, L= 517.69, L_straight= 462.21, slack= 55.48, T_bat= 69.64, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.50, L= 517.76, L_straight= 462.29, slack= 55.47, T_bat= 69.65, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 106.60, L= 517.84, L_straight= 462.37, slack= 55.46, T_bat= 69.66, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 106.70, L= 517.92, L_straight= 462.45, slack= 55.46, T_bat= 69.67, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 106.80, L= 518.01, L_straight= 462.54, slack= 55.47, T_bat= 69.68, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 106.90, L= 518.11, L_straight= 462.62, slack= 55.49, T_bat= 69.70, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 107.00, L= 518.22, L_straight= 462.70, slack= 55.52, T_bat= 69.71, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.22, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 107.10, L= 518.35, L_straight= 462.78, slack= 55.56, T_bat= 69.72, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.17, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.20, L= 518.46, L_straight= 462.87, slack= 55.60, T_bat= 69.74, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.12, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.30, L= 518.58, L_straight= 462.95, slack= 55.63, T_bat= 69.75, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.40, L= 518.68, L_straight= 463.03, slack= 55.65, T_bat= 69.77, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.50, L= 518.79, L_straight= 463.11, slack= 55.67, T_bat= 69.78, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.60, L= 518.88, L_straight= 463.19, slack= 55.69, T_bat= 69.80, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.70, L= 518.97, L_straight= 463.28, slack= 55.70, T_bat= 69.81, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.80, L= 519.06, L_straight= 463.36, slack= 55.70, T_bat= 69.82, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 107.90, L= 519.14, L_straight= 463.44, slack= 55.70, T_bat= 69.84, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 108.00, L= 519.22, L_straight= 463.52, slack= 55.70, T_bat= 69.85, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 108.10, L= 519.29, L_straight= 463.61, slack= 55.69, T_bat= 69.86, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.67, exp=PILOT_DESC_ACC
+IC_L_7: t= 108.20, L= 519.36, L_straight= 463.69, slack= 55.67, T_bat= 69.87, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.62, exp=PILOT_DESC_ACC
+IC_L_7: t= 108.30, L= 519.42, L_straight= 463.77, slack= 55.65, T_bat= 69.88, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.72, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 108.40, L= 519.50, L_straight= 463.85, slack= 55.64, T_bat= 69.89, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 108.50, L= 519.58, L_straight= 463.94, slack= 55.64, T_bat= 69.90, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 108.60, L= 519.67, L_straight= 464.02, slack= 55.65, T_bat= 69.91, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 108.70, L= 519.77, L_straight= 464.10, slack= 55.67, T_bat= 69.92, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 108.80, L= 519.89, L_straight= 464.18, slack= 55.70, T_bat= 69.93, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 108.90, L= 519.99, L_straight= 464.27, slack= 55.73, T_bat= 69.94, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.00, L= 520.10, L_straight= 464.35, slack= 55.75, T_bat= 69.96, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.10, L= 520.19, L_straight= 464.43, slack= 55.76, T_bat= 69.97, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.20, L= 520.29, L_straight= 464.51, slack= 55.77, T_bat= 69.99, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.30, L= 520.37, L_straight= 464.59, slack= 55.78, T_bat= 70.00, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.40, L= 520.46, L_straight= 464.68, slack= 55.78, T_bat= 70.01, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.50, L= 520.53, L_straight= 464.76, slack= 55.77, T_bat= 70.02, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 109.60, L= 520.60, L_straight= 464.84, slack= 55.76, T_bat= 70.03, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 109.70, L= 520.69, L_straight= 464.92, slack= 55.76, T_bat= 70.04, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 109.80, L= 520.78, L_straight= 465.01, slack= 55.77, T_bat= 70.05, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 109.90, L= 520.88, L_straight= 465.09, slack= 55.79, T_bat= 70.07, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 110.00, L= 520.99, L_straight= 465.17, slack= 55.82, T_bat= 70.08, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.10, L= 521.10, L_straight= 465.25, slack= 55.85, T_bat= 70.09, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.20, L= 521.20, L_straight= 465.34, slack= 55.87, T_bat= 70.11, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.30, L= 521.30, L_straight= 465.42, slack= 55.88, T_bat= 70.12, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.40, L= 521.39, L_straight= 465.50, slack= 55.89, T_bat= 70.13, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.50, L= 521.48, L_straight= 465.58, slack= 55.90, T_bat= 70.15, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.60, L= 521.56, L_straight= 465.67, slack= 55.90, T_bat= 70.16, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.70, L= 521.64, L_straight= 465.75, slack= 55.89, T_bat= 70.17, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 110.80, L= 521.71, L_straight= 465.83, slack= 55.88, T_bat= 70.18, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 110.90, L= 521.80, L_straight= 465.91, slack= 55.88, T_bat= 70.19, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 111.00, L= 521.89, L_straight= 465.99, slack= 55.89, T_bat= 70.20, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 111.10, L= 521.99, L_straight= 466.08, slack= 55.91, T_bat= 70.21, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 111.20, L= 522.10, L_straight= 466.16, slack= 55.94, T_bat= 70.23, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.30, L= 522.21, L_straight= 466.24, slack= 55.97, T_bat= 70.24, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.40, L= 522.31, L_straight= 466.32, slack= 55.99, T_bat= 70.25, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.50, L= 522.41, L_straight= 466.41, slack= 56.00, T_bat= 70.27, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.60, L= 522.50, L_straight= 466.49, slack= 56.01, T_bat= 70.28, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.70, L= 522.59, L_straight= 466.57, slack= 56.02, T_bat= 70.29, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.80, L= 522.67, L_straight= 466.65, slack= 56.02, T_bat= 70.31, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 111.90, L= 522.75, L_straight= 466.74, slack= 56.02, T_bat= 70.32, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 112.00, L= 522.82, L_straight= 466.82, slack= 56.01, T_bat= 70.33, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 112.10, L= 522.91, L_straight= 466.90, slack= 56.01, T_bat= 70.34, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 112.20, L= 523.00, L_straight= 466.98, slack= 56.02, T_bat= 70.35, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 112.30, L= 523.10, L_straight= 467.07, slack= 56.04, T_bat= 70.36, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 112.40, L= 523.21, L_straight= 467.15, slack= 56.07, T_bat= 70.37, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 112.50, L= 523.32, L_straight= 467.23, slack= 56.09, T_bat= 70.39, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 112.60, L= 523.42, L_straight= 467.31, slack= 56.11, T_bat= 70.40, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 112.70, L= 523.52, L_straight= 467.40, slack= 56.13, T_bat= 70.42, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 112.80, L= 523.61, L_straight= 467.48, slack= 56.14, T_bat= 70.43, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 112.90, L= 523.70, L_straight= 467.56, slack= 56.14, T_bat= 70.44, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 113.00, L= 523.78, L_straight= 467.64, slack= 56.14, T_bat= 70.46, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 113.10, L= 523.86, L_straight= 467.72, slack= 56.14, T_bat= 70.47, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 113.20, L= 523.93, L_straight= 467.81, slack= 56.13, T_bat= 70.48, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 113.30, L= 524.02, L_straight= 467.89, slack= 56.13, T_bat= 70.49, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 113.40, L= 524.11, L_straight= 467.97, slack= 56.14, T_bat= 70.50, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 113.50, L= 524.21, L_straight= 468.05, slack= 56.16, T_bat= 70.51, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 113.60, L= 524.32, L_straight= 468.14, slack= 56.19, T_bat= 70.52, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 113.70, L= 524.43, L_straight= 468.22, slack= 56.21, T_bat= 70.54, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 113.80, L= 524.53, L_straight= 468.30, slack= 56.23, T_bat= 70.55, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 113.90, L= 524.63, L_straight= 468.38, slack= 56.25, T_bat= 70.56, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 114.00, L= 524.72, L_straight= 468.47, slack= 56.26, T_bat= 70.58, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 114.10, L= 524.81, L_straight= 468.55, slack= 56.26, T_bat= 70.59, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 114.20, L= 524.89, L_straight= 468.63, slack= 56.26, T_bat= 70.60, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 114.30, L= 524.97, L_straight= 468.71, slack= 56.26, T_bat= 70.62, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 114.40, L= 525.04, L_straight= 468.80, slack= 56.25, T_bat= 70.63, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 114.50, L= 525.12, L_straight= 468.88, slack= 56.25, T_bat= 70.64, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 114.60, L= 525.22, L_straight= 468.96, slack= 56.26, T_bat= 70.65, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 114.70, L= 525.32, L_straight= 469.04, slack= 56.28, T_bat= 70.66, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 114.80, L= 525.43, L_straight= 469.13, slack= 56.31, T_bat= 70.67, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 114.90, L= 525.54, L_straight= 469.21, slack= 56.33, T_bat= 70.69, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.00, L= 525.64, L_straight= 469.29, slack= 56.35, T_bat= 70.70, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.10, L= 525.74, L_straight= 469.37, slack= 56.37, T_bat= 70.71, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.20, L= 525.83, L_straight= 469.45, slack= 56.38, T_bat= 70.73, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.30, L= 525.92, L_straight= 469.54, slack= 56.38, T_bat= 70.74, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.40, L= 526.00, L_straight= 469.62, slack= 56.38, T_bat= 70.75, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.50, L= 526.08, L_straight= 469.70, slack= 56.38, T_bat= 70.76, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 115.60, L= 526.15, L_straight= 469.78, slack= 56.37, T_bat= 70.77, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 115.70, L= 526.23, L_straight= 469.87, slack= 56.37, T_bat= 70.78, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 115.80, L= 526.33, L_straight= 469.95, slack= 56.38, T_bat= 70.80, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 115.90, L= 526.43, L_straight= 470.03, slack= 56.40, T_bat= 70.81, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 116.00, L= 526.54, L_straight= 470.11, slack= 56.43, T_bat= 70.82, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.10, L= 526.65, L_straight= 470.20, slack= 56.45, T_bat= 70.83, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.20, L= 526.75, L_straight= 470.28, slack= 56.47, T_bat= 70.85, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.30, L= 526.85, L_straight= 470.36, slack= 56.49, T_bat= 70.86, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.40, L= 526.94, L_straight= 470.44, slack= 56.50, T_bat= 70.87, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.50, L= 527.03, L_straight= 470.53, slack= 56.50, T_bat= 70.89, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.60, L= 527.11, L_straight= 470.61, slack= 56.50, T_bat= 70.90, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.70, L= 527.19, L_straight= 470.69, slack= 56.50, T_bat= 70.91, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 116.80, L= 527.26, L_straight= 470.77, slack= 56.49, T_bat= 70.92, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 116.90, L= 527.34, L_straight= 470.86, slack= 56.49, T_bat= 70.93, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 117.00, L= 527.44, L_straight= 470.94, slack= 56.50, T_bat= 70.94, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 117.10, L= 527.54, L_straight= 471.02, slack= 56.52, T_bat= 70.96, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 117.20, L= 527.65, L_straight= 471.10, slack= 56.55, T_bat= 70.97, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.30, L= 527.76, L_straight= 471.18, slack= 56.57, T_bat= 70.98, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.40, L= 527.86, L_straight= 471.27, slack= 56.59, T_bat= 71.00, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.50, L= 527.96, L_straight= 471.35, slack= 56.61, T_bat= 71.01, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.60, L= 528.05, L_straight= 471.43, slack= 56.62, T_bat= 71.02, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.70, L= 528.14, L_straight= 471.51, slack= 56.62, T_bat= 71.04, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.80, L= 528.22, L_straight= 471.60, slack= 56.62, T_bat= 71.05, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 117.90, L= 528.30, L_straight= 471.68, slack= 56.62, T_bat= 71.06, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 118.00, L= 528.37, L_straight= 471.76, slack= 56.61, T_bat= 71.07, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 118.10, L= 528.45, L_straight= 471.84, slack= 56.61, T_bat= 71.08, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 118.20, L= 528.55, L_straight= 471.93, slack= 56.62, T_bat= 71.09, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 118.30, L= 528.65, L_straight= 472.01, slack= 56.64, T_bat= 71.10, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 118.40, L= 528.76, L_straight= 472.09, slack= 56.67, T_bat= 71.12, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 118.50, L= 528.87, L_straight= 472.17, slack= 56.69, T_bat= 71.13, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 118.60, L= 528.97, L_straight= 472.26, slack= 56.71, T_bat= 71.14, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 118.70, L= 529.07, L_straight= 472.34, slack= 56.73, T_bat= 71.16, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 118.80, L= 529.16, L_straight= 472.42, slack= 56.74, T_bat= 71.17, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 118.90, L= 529.25, L_straight= 472.50, slack= 56.74, T_bat= 71.18, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 119.00, L= 529.33, L_straight= 472.59, slack= 56.74, T_bat= 71.20, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 119.10, L= 529.41, L_straight= 472.67, slack= 56.74, T_bat= 71.21, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 119.20, L= 529.48, L_straight= 472.75, slack= 56.73, T_bat= 71.22, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.82, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 119.30, L= 529.56, L_straight= 472.83, slack= 56.73, T_bat= 71.23, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.92, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 119.40, L= 529.65, L_straight= 472.92, slack= 56.74, T_bat= 71.24, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.02, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 119.50, L= 529.76, L_straight= 473.00, slack= 56.76, T_bat= 71.25, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.12, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 119.60, L= 529.87, L_straight= 473.08, slack= 56.79, T_bat= 71.26, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 119.70, L= 529.98, L_straight= 473.16, slack= 56.81, T_bat= 71.28, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 119.80, L= 530.08, L_straight= 473.25, slack= 56.83, T_bat= 71.29, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 119.90, L= 530.18, L_straight= 473.33, slack= 56.85, T_bat= 71.31, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 120.00, L= 530.27, L_straight= 473.41, slack= 56.86, T_bat= 71.32, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 120.10, L= 530.36, L_straight= 473.49, slack= 56.86, T_bat= 71.33, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 120.20, L= 530.44, L_straight= 473.57, slack= 56.86, T_bat= 71.34, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 120.30, L= 530.52, L_straight= 473.66, slack= 56.86, T_bat= 71.36, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 120.40, L= 530.59, L_straight= 473.74, slack= 56.85, T_bat= 71.37, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.67, exp=PILOT_DESC_ACC
+IC_L_7: t= 120.50, L= 530.66, L_straight= 473.82, slack= 56.83, T_bat= 71.38, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.77, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 120.60, L= 530.73, L_straight= 473.90, slack= 56.83, T_bat= 71.39, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.87, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 120.70, L= 530.82, L_straight= 473.99, slack= 56.83, T_bat= 71.40, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 120.80, L= 530.92, L_straight= 474.07, slack= 56.85, T_bat= 71.41, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.07, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 120.90, L= 531.03, L_straight= 474.15, slack= 56.87, T_bat= 71.42, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.17, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 121.00, L= 531.14, L_straight= 474.23, slack= 56.91, T_bat= 71.43, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.12, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.10, L= 531.26, L_straight= 474.32, slack= 56.94, T_bat= 71.45, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.20, L= 531.36, L_straight= 474.40, slack= 56.96, T_bat= 71.46, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.30, L= 531.47, L_straight= 474.48, slack= 56.98, T_bat= 71.48, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.97, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.40, L= 531.56, L_straight= 474.56, slack= 57.00, T_bat= 71.49, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.92, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.50, L= 531.66, L_straight= 474.65, slack= 57.01, T_bat= 71.50, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.87, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.60, L= 531.74, L_straight= 474.73, slack= 57.01, T_bat= 71.52, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.82, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.70, L= 531.83, L_straight= 474.81, slack= 57.01, T_bat= 71.53, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.77, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.80, L= 531.90, L_straight= 474.89, slack= 57.01, T_bat= 71.54, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.72, exp=PILOT_DESC_ACC
+IC_L_7: t= 121.90, L= 531.98, L_straight= 474.98, slack= 57.00, T_bat= 71.55, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  0.67, exp=PILOT_DESC_ACC
+IC_L_7: t= 122.00, L= 532.04, L_straight= 475.06, slack= 56.98, T_bat= 71.56, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.77, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 122.10, L= 532.12, L_straight= 475.14, slack= 56.98, T_bat= 71.57, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.87, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 122.20, L= 532.21, L_straight= 475.22, slack= 56.98, T_bat= 71.58, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  0.97, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 122.30, L= 532.31, L_straight= 475.31, slack= 57.00, T_bat= 71.59, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.07, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 122.40, L= 532.41, L_straight= 475.39, slack= 57.02, T_bat= 71.61, T_rov= 0.50, Fy_cmd=-75.00, desired=  2.22, ret=  1.17, exp=PILOT_DESC_MINPAY_ACC
+IC_L_7: t= 122.50, L= 532.53, L_straight= 475.47, slack= 57.06, T_bat= 71.62, T_rov= 0.50, Fy_cmd=-75.00, desired=  0.20, ret=  1.12, exp=PILOT_DESC_ACC

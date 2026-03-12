@@ -7,6 +7,8 @@ import time
 import sys
 import os
 import copy
+import re
+import json
 import concurrent.futures
 from src.utils.logger import trace_print, set_trace_file, close_trace_file
 
@@ -147,10 +149,7 @@ class SimulationThread(QThread):
                     'dL_dt': dl_dt
                 }
             
-            # Préparer la trace CSV et le fichier de messages (une par simulation)
-            trace_handle = None
-            trace_writer = None
-            trace_path = None
+            # Préparer le fichier de messages de trace
             trace_message_path = None
             try:
                 mission_name = getattr(system.environment, "mission_name", None) or self.mission_name
@@ -177,56 +176,38 @@ class SimulationThread(QThread):
                                         k += 1
                                 src_path.replace(dst_path)
 
-                    timestamp_str = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-                    trace_path = mission_dir / f"{mission_name}_{timestamp_str}_tr_trace.csv"
-                    trace_message_path = mission_dir / f"{mission_name}_{timestamp_str}_mess.txt"
-                    trace_handle = open(trace_path, "w", encoding="utf-8", newline="")
-                    trace_writer = csv.writer(trace_handle, delimiter=",")
+                    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+
+                    # Déterminer le répertoire Téléchargements de l'utilisateur
+                    user_home = os.path.expanduser("~")
+                    downloads_candidates = [
+                        os.path.join(user_home, "Téléchargements"),
+                        os.path.join(user_home, "Downloads"),
+                    ]
+                    downloads_dir = None
+                    for candidate in downloads_candidates:
+                        if os.path.isdir(candidate):
+                            downloads_dir = candidate
+                            break
+                    if downloads_dir is None:
+                        # Si aucun des dossiers n'existe, on crée le premier candidat ("Téléchargements")
+                        downloads_dir = downloads_candidates[0]
+                        try:
+                            os.makedirs(downloads_dir, exist_ok=True)
+                        except Exception:
+                            # En dernier recours, retomber sur le répertoire racine du projet
+                            downloads_dir = root_dir
+
+                    # Fichier de messages de trace dans Téléchargements
+                    trace_message_path = os.path.join(downloads_dir, "trace_print.txt")
+                    try:
+                        with open(trace_message_path, "w", encoding="utf-8") as f:
+                            f.write("")
+                    except Exception:
+                        pass
                     set_trace_file(trace_message_path)
-                    trace_writer.writerow(
-                        [
-                            "t",
-                            "x_bat",
-                            "L0",
-                            "L",
-                            "L_seg",
-                            "dL/dt",
-                            "Explain",
-                            "mode_câble",
-                            "Scénario",
-                            "Tbat",
-                            "Trov",
-                            "Tmax",
-                            "U_bat_x",
-                            "U_bat_y",
-                            "U_rov_x",
-                            "U_rov_y",
-                            "x_rov",
-                            "y_rov",
-                            "Fx_rov",
-                            "Fy_rov",
-                            "Tr_cable_rov_x",
-                            "Tr_cable_rov_y",
-                            "Trainee_rov_x",
-                            "Trainee_rov_y",
-                            "Poids_app_rov",
-                            "Sigma_f_rov_x",
-                            "Sigma_f_rov_y",
-                            "Tr_bat_cable_x",
-                            "Tr_bat_cable_y",
-                            "Tr_rov_cable_x",
-                            "Tr_rov_cable_y",
-                            "Poids_app_cable_y",
-                            "Trainee_cable_x",
-                            "Trainee_cable_y",
-                            "Sigma_f_cable_x",
-                            "Sigma_f_cable_y",
-                        ]
-                    )
             except Exception as e:
-                trace_print(8, f"[TRACE CSV] Initialisation impossible: {e}")
-                trace_handle = None
-                trace_writer = None
+                trace_print(8, f"[TRACE] Erreur initialisation: {e}")
 
             # Simulation avec pas adaptatifs
             t_current = 0.0
@@ -249,26 +230,353 @@ class SimulationThread(QThread):
                 'x_boat': [],
                 'vx_boat': [],
                 'L': [],
+                'L_seg': [],
+                'D_straight': [],
                 'T_rov': [],
                 'T_boat': [],
                 'T_max': [],
-                'Fx_drag': [],
-                'Fy_drag': [],
-                'F_apparent_weight': [],
-                'Fx_total': [],
-                'Fy_total': [],
+                'Fx_drag_rov': [],
+                'Fy_drag_rov': [],
+                'Fy_rov_app_w': [],
+                'Fx_rov_total': [],
+                'Fy_rov_total': [],
                 'Fx_traction_boat': [],
                 'Fy_traction_boat': [],
+                'Fx_traction_rov': [],
+                'Fy_traction_rov': [],
                 'F_prop_boat': [],
                 'Fx_total_boat': [],
                 'Fy_total_boat': [],
+                'Fx_drag_cable': [],
+                'Fy_drag_cable': [],
+                'Fy_cable_app_w': [],
+                'Fx_drag_cable_longitudinal': [],
+                'Fy_drag_cable_longitudinal': [],
+                'Fx_drag_cable_perpendicular': [],
+                'Fy_drag_cable_perpendicular': [],
+                'Fx_cmd_rov': [],
+                'Fy_cmd_rov': [],
                 'dl_dt_cmd': [],
                 'dl_dt_auto_explain': [],
                 'x_cable_curr': None,
                 'y_cable_curr': None,
             }
             
+            # Écrire la liste des clés du dictionnaire data dans dic.txt avec descriptions
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+            dic_file_path = os.path.join(root_dir, "dic.txt")
+            
+            # Dictionnaire des descriptions pour chaque clé
+            data_descriptions = {
+                'time': 'Temps de simulation (s)',
+                'x_rov': 'Position horizontale du ROV (m)',
+                'y_rov': 'Position verticale (profondeur) du ROV (m, négatif vers le bas)',
+                'vx_rov': 'Vitesse horizontale du ROV (m/s)',
+                'vy_rov': 'Vitesse verticale du ROV (m/s)',
+                'x_boat': 'Position horizontale du bateau (m)',
+                'vx_boat': 'Vitesse horizontale du bateau (m/s)',
+                'L': 'Longueur du câble déployée (m)',
+                'L_seg': 'Somme des longueurs des segments du câble (m)',
+                'D_straight': 'Distance en ligne droite entre le bateau et le ROV (m)',
+                'T_rov': 'Tension du câble au niveau du ROV (N)',
+                'T_boat': 'Tension du câble au niveau du bateau (N)',
+                'T_max': 'Tension maximale le long du câble (N)',
+                'Fx_drag_rov': 'Force de traînée horizontale sur le ROV (N)',
+                'Fy_drag_rov': 'Force de traînée verticale sur le ROV (N, positif vers le haut/surface, négatif vers le bas/fond)',
+                'Fy_rov_app_w': 'Poids apparent du ROV (N, positif vers le haut/surface si flottabilité positive, négatif vers le bas/fond si flottabilité négative)',
+                'Fx_rov_total': 'Force horizontale totale sur le ROV (N)',
+                'Fy_rov_total': 'Force verticale totale sur le ROV (N, positif vers le haut/surface, négatif vers le bas/fond)',
+                'Fx_traction_boat': 'Force de traction horizontale du câble sur le bateau (N)',
+                'Fy_traction_boat': 'Force de traction verticale du câble sur le bateau (N)',
+                'Fx_traction_rov': 'Force de traction horizontale du câble sur le ROV (N)',
+                'Fy_traction_rov': 'Force de traction verticale du câble sur le ROV (N, positif vers le haut/surface, négatif vers le bas/fond)',
+                'F_prop_boat': 'Force de propulsion du bateau (N)',
+                'Fx_total_boat': 'Force horizontale totale sur le bateau (N)',
+                'Fy_total_boat': 'Force verticale totale sur le bateau (N)',
+                'Fx_drag_cable': 'Composante horizontale de la force de traînée exercée sur le câble (N)',
+                'Fy_drag_cable': 'Composante verticale de la force de traînée exercée sur le câble (N)',
+                'Fy_cable_app_w': 'Poids apparent du câble (N, positif vers le bas)',
+                'Fx_drag_cable_longitudinal': 'Composante horizontale de la traînée longitudinale (frottement) sur le câble (N)',
+                'Fy_drag_cable_longitudinal': 'Composante verticale de la traînée longitudinale (frottement) sur le câble (N)',
+                'Fx_drag_cable_perpendicular': 'Composante horizontale de la traînée perpendiculaire (normale) sur le câble (N)',
+                'Fy_drag_cable_perpendicular': 'Composante verticale de la traînée perpendiculaire (normale) sur le câble (N)',
+                'Fx_cmd_rov': 'Composante horizontale de la force de propulsion du ROV résultant des commandes envoyées par le pilote du ROV (N)',
+                'Fy_cmd_rov': 'Composante verticale de la force de propulsion du ROV résultant des commandes envoyées par le pilote du ROV (N, positif vers le haut/surface, négatif vers le bas/fond)',
+                'dl_dt_cmd': 'Commande de vitesse de déroulement du câble (m/s)',
+                'dl_dt_auto_explain': 'Explication de la commande automatique dL/dt',
+                'x_cable_curr': 'Positions horizontales actuelles des points du câble (liste)',
+                'y_cable_curr': 'Positions verticales actuelles des points du câble (liste)',
+                'cable_mode': 'Mode du câble: "catenary" (caténaire) ou "straight" (tendu)',
+                'scenario_triggers': 'Déclencheurs de scénario activés à cet instant (liste)',
+                'F_buoyancy_net': 'Flottabilité nette du ROV (N, positif si flottant)',
+                'cable_drag': 'Forces de traînée du câble (tuple: Fx, Fy) (N)',
+                'angle_rov': 'Angle du câble avec la verticale au niveau du ROV (degrés)',
+                'angle_boat': 'Angle du câble avec la verticale au niveau du bateau (degrés)',
+                'T_cable_curr': 'Tensions actuelles le long du câble (liste) (N)',
+                'fx_rov_cmd': 'Commande de force horizontale sur le ROV (N)',
+                'fx_rov_cmd_source': 'Source de la commande fx_rov: "scenario" ou autre',
+            }
+            
+            try:
+                with open(dic_file_path, "w", encoding="utf-8") as f:
+                    f.write("Liste des cles du dictionnaire data:\n")
+                    f.write("=" * 80 + "\n\n")
+                    f.write(f"Total: {len(data.keys())} cles\n\n")
+                    
+                    # Trouver la longueur maximale des clés pour l'alignement
+                    max_key_len = max(len(key) for key in data.keys())
+                    
+                    for i, key in enumerate(sorted(data.keys()), 1):
+                        description = data_descriptions.get(key, "Description non disponible")
+                        f.write(f"{i:3d}. {key:<{max_key_len}} : {description}\n")
+                    
+                    f.write("\n" + "=" * 80 + "\n")
+                    f.write("Genere automatiquement par simulation_thread.py\n")
+            except Exception as e:
+                trace_print(8, f"[DIC.TXT] Erreur écriture: {e}")
+
+            def check_cable_invariants(context=None):
+                """
+                Vérifie les contraintes physiques sur le câble :
+                - cohérence longueur L vs somme des segments L_seg,
+                - slack (L - D_straight),
+                - recollement des extrémités (bateau et ROV).
+
+                En cas de violation, trace un message détaillé au niveau 9.
+                """
+                try:
+                    ctx = context or {}
+                    t_chk = ctx.get('t')
+                    phase = ctx.get('phase', 'iteration')
+                    step = ctx.get('step')
+                    dl_dt_cmd_val = ctx.get('dl_dt_cmd')
+                    dl_dt_explain = ctx.get('dl_dt_explain')
+                    cable_mode_val = ctx.get('cable_mode')
+                    triggers = ctx.get('triggers')
+
+                    y_vec = ctx.get('y')
+                    if y_vec is None:
+                        return
+
+                    (x_rov_c, y_rov_c, vx_rov_c, vy_rov_c,
+                     x_boat_c, vx_boat_c, x_cable_c, y_cable_c, T_c, L_c) = system.unpack_state(y_vec)
+
+                    if x_cable_c is None or y_cable_c is None or len(x_cable_c) < 2:
+                        return
+
+                    # Somme des longueurs des segments + stats élémentaires
+                    L_seg = 0.0
+                    ds_list = []
+                    for i in range(len(x_cable_c) - 1):
+                        dx = float(x_cable_c[i + 1] - x_cable_c[i])
+                        dy = float(y_cable_c[i + 1] - y_cable_c[i])
+                        ds = float(np.hypot(dx, dy))
+                        L_seg += ds
+                        ds_list.append(ds)
+
+                    # Distance en ligne droite et slack
+                    dx_straight = float(x_rov_c - x_boat_c)
+                    dy_straight = float(y_rov_c - 0.0)
+                    D_straight = float(np.hypot(dx_straight, dy_straight))
+                    slack = float(L_c - D_straight)
+
+                    # Recollement des extrémités
+                    dist_boat = float(np.hypot(float(x_cable_c[0] - x_boat_c),
+                                               float(y_cable_c[0] - 0.0)))
+                    dist_rov = float(np.hypot(float(x_cable_c[-1] - x_rov_c),
+                                              float(y_cable_c[-1] - y_rov_c)))
+
+                    tol_L_rel = 1e-3
+                    tol_recol = 1e-3
+                    tol_slack_neg = 1e-3
+
+                    violations = []
+                    details = {}
+
+                    if float(L_c) > 1e-6:
+                        L_c_val = float(L_c)
+                        rel_err = abs(L_seg - L_c_val) / L_c_val
+                        if rel_err > tol_L_rel:
+                            violations.append(f"L_mismatch(rel={rel_err:.3e})")
+                        # Détails sur la distribution des longueurs de segments
+                        if ds_list:
+                            ds_min = float(np.min(ds_list))
+                            ds_max = float(np.max(ds_list))
+                            ds_mean = float(np.mean(ds_list))
+                            details["ds_min"] = ds_min
+                            details["ds_max"] = ds_max
+                            details["ds_mean"] = ds_mean
+                            details["ds_first"] = ds_list[0]
+                            details["ds_last"] = ds_list[-1]
+
+                            # Contrôle local : aucun segment ne doit être trop long
+                            # par rapport à la longueur moyenne ds_target = L_c / N.
+                            N_seg = len(ds_list)
+                            if N_seg > 0:
+                                ds_target = L_c_val / N_seg
+                                k_max = 2.0
+                                if ds_target > 0.0 and ds_max > k_max * ds_target:
+                                    i_max = int(np.argmax(ds_list))
+                                    ratio = ds_max / ds_target
+                                    violations.append(
+                                        f"segment_too_long(i={i_max},ratio={ratio:.3f})"
+                                    )
+                                    details["ds_max_ratio"] = float(ratio)
+                                    details["i_max_segment"] = i_max
+
+                    if dist_boat > tol_recol:
+                        violations.append(f"recollement_bateau(dist={dist_boat:.3e})")
+                    if dist_rov > tol_recol:
+                        violations.append(f"recollement_rov(dist={dist_rov:.3e})")
+
+                    if slack < -tol_slack_neg:
+                        violations.append(f"slack_neg(slack={slack:.3e})")
+
+                    if not violations:
+                        return
+
+                    mission_name = getattr(system.environment, "mission_name", None)
+                    dl_dt_str = (
+                        f"{float(dl_dt_cmd_val):.6f}"
+                        if isinstance(dl_dt_cmd_val, (int, float))
+                        else "None"
+                    )
+                    T_boat_val = float(T_c[0]) if T_c is not None and len(T_c) > 0 else 0.0
+                    T_rov_val = float(T_c[-1]) if T_c is not None and len(T_c) > 0 else 0.0
+
+                    base_prefix = "[CABLE INVARIANTS] VIOLATION "
+                    if t_chk is not None:
+                        base_prefix += f"phase={phase} t={t_chk:.3f} "
+                    else:
+                        base_prefix += f"phase={phase} "
+
+                    if step is not None:
+                        base_prefix += f"step={step} "
+
+                    message = (
+                        base_prefix
+                        + f"violations={','.join(violations)} "
+                        + f"L={float(L_c):.6f} L_seg={L_seg:.6f} "
+                        + f"D_straight={D_straight:.6f} slack={slack:.6f} "
+                        + f"dist_boat={dist_boat:.3e} dist_rov={dist_rov:.3e} "
+                        + f"T_boat={T_boat_val:.3f} T_rov={T_rov_val:.3f} "
+                        + (f"mode={cable_mode_val} " if cable_mode_val is not None else "")
+                        + f"dL_dt_cmd={dl_dt_str} "
+                        + (
+                            f"dL_dt_explain={dl_dt_explain} "
+                            if dl_dt_explain not in (None, "")
+                            else ""
+                        )
+                        + (
+                            f"triggers={triggers} " if triggers not in (None, []) else ""
+                        )
+                        + (
+                            f"mission={mission_name}" if mission_name is not None else ""
+                        )
+                        + (
+                            f" ds_mean={details.get('ds_mean', 0.0):.6f}"
+                            f" ds_min={details.get('ds_min', 0.0):.6f}"
+                            f" ds_max={details.get('ds_max', 0.0):.6f}"
+                            f" ds_first={details.get('ds_first', 0.0):.6f}"
+                            f" ds_last={details.get('ds_last', 0.0):.6f}"
+                            if details
+                            else ""
+                        )
+                        + (
+                            f" ds_max_ratio={details.get('ds_max_ratio', 0.0):.3f}"
+                            f" i_max_segment={details.get('i_max_segment', -1):d}"
+                            if "ds_max_ratio" in details and "i_max_segment" in details
+                            else ""
+                        )
+                    )
+
+                    trace_print(9, message)
+                except Exception as e:
+                    trace_print(8, f"[CABLE INVARIANTS] Erreur verification: {e}")
+            
+            # Initialiser le fichier Excel pour sauvegarder data dans Téléchargements
+            data_excel_path = None
+            data_excel_wb = None
+            data_excel_ws = None
+            data_excel_headers = None
+            data_excel_row = 2  # Ligne 1 = en-têtes
+            
+            try:
+                # Utiliser la même logique que pour "Analyse missions.xlsm"
+                user_home = os.path.expanduser("~")
+                downloads_candidates = [
+                    os.path.join(user_home, "Téléchargements"),
+                    os.path.join(user_home, "Downloads"),
+                ]
+                downloads_dir = None
+                for candidate in downloads_candidates:
+                    if os.path.isdir(candidate):
+                        downloads_dir = candidate
+                        break
+                if downloads_dir is None:
+                    downloads_dir = downloads_candidates[0]
+                    os.makedirs(downloads_dir, exist_ok=True)
+                
+                data_excel_path = os.path.join(downloads_dir, "trace_dic.xlsx")
+                
+                from openpyxl import Workbook
+                data_excel_wb = Workbook()
+                data_excel_ws = data_excel_wb.active
+                data_excel_ws.title = "Data"
+                
+                # Créer les en-têtes (toutes les clés du dictionnaire)
+                data_excel_headers = sorted(data.keys())
+                for col_idx, header in enumerate(data_excel_headers, 1):
+                    data_excel_ws.cell(row=1, column=col_idx, value=header)
+                
+                data_excel_wb.save(data_excel_path)
+                trace_print(1, f"[DATA EXCEL] Fichier initialise: {data_excel_path}")
+            except Exception as e:
+                trace_print(8, f"[DATA EXCEL] Erreur initialisation: {e}")
+                data_excel_path = None
+                data_excel_wb = None
+                data_excel_ws = None
+            
+            def extract_data_row(data):
+                """Extrait les valeurs actuelles du dictionnaire data pour une ligne Excel."""
+                row_values = {}
+                for key in sorted(data.keys()):
+                    value = data[key]
+                    if isinstance(value, list) and len(value) > 0:
+                        # Prendre la dernière valeur de la liste
+                        row_values[key] = value[-1]
+                    elif value is None:
+                        row_values[key] = None
+                    elif isinstance(value, (list, tuple)) and len(value) == 0:
+                        row_values[key] = None
+                    elif isinstance(value, (list, tuple)) and len(value) > 0:
+                        # Pour les listes/tuples complexes, convertir en JSON string
+                        try:
+                            row_values[key] = json.dumps(value)
+                        except:
+                            row_values[key] = str(value)
+                    else:
+                        row_values[key] = value
+                return row_values
+            
+            def trim_data(data, max_size=10000):
+                """Limite la taille des listes dans data à max_size points en gardant les N derniers points."""
+                for key, value in data.items():
+                    if isinstance(value, list) and len(value) > max_size:
+                        # Garder les N derniers points
+                        data[key] = value[-max_size:]
+            
             step_count = 0
+            fx_rov_cmd = None  # Initialiser pour l'émission finale
+            step_triggers = []
+
+            # Vérifier les invariants du câble à la fin de la phase d'initialisation
+            check_cable_invariants({
+                'phase': 'initialisation',
+                't': t_current,
+                'step': 0,
+                'y': y_current,
+            })
             
             while t_current < t_final and not self._stop_requested:
                 # Attendre si en pause
@@ -293,6 +601,8 @@ class SimulationThread(QThread):
                 if self.sc_fx_rov or self.sc_fy_rov or self.sc_v_bateau or self.sc_v_moulinet or dl_dt_mode == "auto":
                     try:
                         (x_rov_current, y_rov_current, _, _, x_boat_current, _, _, _, T_current, L_current) = system.unpack_state(y_current)
+                        # DEBUG: Traçage de L_current avant intégration
+                        trace_print(5, f"[DEBUG L] t={t_current:.2f} AVANT intégration: L_current={L_current:.6f} m")
                         t_boat = None
                         if T_current is not None and len(T_current) > 0:
                             t_boat = float(T_current[0])
@@ -331,22 +641,11 @@ class SimulationThread(QThread):
                                 step_triggers,
                             )
                         if dl_dt_mode == "auto":
-                            auto_index = 1
-                            if isinstance(self.calc_params, dict):
-                                try:
-                                    auto_index = int(self.calc_params.get("auto_L", 1))
-                                except Exception:
-                                    auto_index = 1
-                            if auto_index < 1:
-                                auto_index = 1
-                            auto_func_name = f"auto_L_{auto_index}"
-                            auto_func = getattr(scenario_utils, auto_func_name, None)
+                            auto_L_selector = self.calc_params.get("auto_L", "auto_L_1") if isinstance(self.calc_params, dict) else "auto_L_1"
+                            auto_func = scenario_utils.get_auto_L_function(auto_L_selector)
                             if auto_func is None:
-                                trace_print(
-                                    8,
-                                    f"[AUTO dL/dt] Fonction {auto_func_name} introuvable, fallback auto_L_1"
-                                )
-                                auto_func = scenario_utils.auto_L_1
+                                trace_print(8, f"[AUTO dL/dt] Fonction {auto_L_selector!r} introuvable, fallback auto_L_1")
+                                auto_func = scenario_utils.get_auto_L_function("auto_L_1") or scenario_utils.auto_L_1
                             if t_current == 0 and hasattr(auto_func, "_history"):
                                 auto_func._history = []
                             trupt = None
@@ -383,7 +682,6 @@ class SimulationThread(QThread):
                             t_boat = None
                             if T_current is not None and len(T_current) > 0:
                                 t_boat = float(T_current[0])
-                            if auto_func is scenario_utils.auto_L_7:
                                 auto_result = auto_func(
                                     t_current,
                                     y_rov_current,
@@ -401,30 +699,16 @@ class SimulationThread(QThread):
                                     dl_dt_max=dl_dt_max,
                                     data=data,
                                 )
-                            else:
-                                auto_result = auto_func(
-                                    t_current,
-                                    y_rov_current,
-                                    L_current,
-                                    float(self.simulation_state.get('fx_rov', self.fx_rov)) if isinstance(self.simulation_state, dict) else self.fx_rov,
-                                    float(self.simulation_state.get('fy_rov', self.fy_rov)) if isinstance(self.simulation_state, dict) else self.fy_rov,
-                                    t_boat,
-                                    Trupt=trupt,
-                                    Tcible=tcible,
-                                    Gamma_moulinet_min=gamma_moulinet_min,
-                                    Gamma_moulinet_max=gamma_moulinet_max,
-                                    dl_dt_min=dl_dt_min,
-                                    dl_dt_max=dl_dt_max,
-                                    data=data,
-                                )
                             if isinstance(auto_result, tuple) and len(auto_result) >= 2:
                                 dl_dt_cmd = auto_result[0]
                                 dl_dt_auto_explain = str(auto_result[1])
                             else:
                                 dl_dt_cmd = auto_result
-                            trace_print(
-                                1,
-                                f"[AUTO dL/dt] t={t_current:.2f} L={L_current:.2f} "
+                            # DEBUG: Traçage de dL_dt calculé
+                            trace_print(8, f"[DEBUG L] t={t_current:.2f} dL_dt_cmd={dl_dt_cmd:.6f} m/s "
+                                f"(L_current={L_current:.6f} m pour calcul)"
+                            )
+                            trace_print(1, f"[AUTO dL/dt] t={t_current:.2f} L={L_current:.2f} "
                                 f"T_boat={t_boat if t_boat is not None else 'None'} "
                                 f"Tcible={tcible:.3f} "
                                 f"cmd={dl_dt_cmd:.4f}"
@@ -456,9 +740,7 @@ class SimulationThread(QThread):
                             if float(L_current) <= L_min and dl_dt_cmd < 0:
                                 dl_dt_cmd = 0.0
                             elif dl_dt_cmd < min_dl_dt:
-                                trace_print(
-                                    8,
-                                    f"[AUTO dL/dt] Clamp dL/dt {dl_dt_cmd:.6f} -> {min_dl_dt:.6f} "
+                                trace_print(8, f"[AUTO dL/dt] Clamp dL/dt {dl_dt_cmd:.6f} -> {min_dl_dt:.6f} "
                                     f"pour éviter L<0 (L={L_current:.6f}, dt={dt:.6f})"
                                 )
                                 dl_dt_cmd = min_dl_dt
@@ -479,8 +761,74 @@ class SimulationThread(QThread):
                         self.simulation_state['dl_dt'] = float(dl_dt_cmd)
                         self.simulation_state['dl_dt_source'] = "auto" if dl_dt_mode == "auto" else "scenario"
 
+                # Mise à jour de l'interface graphique juste après l'appel à auto_L_7 (ou autres commandes)
+                # Utiliser les données de l'itération précédente (déjà dans data)
+                # pour correspondre aux valeurs utilisées dans auto_L_7
+                steps_per_update = int(self.calc_params.get('steps_per_update', 5))
+                if step_count % steps_per_update == 0 and len(data.get('time', [])) > 0:
+                    # Préparer les données optimisées pour l'UI
+                    plot_points_limit = int(self.calc_params.get('plot_points_limit', 1000))
+                    
+                    # Utiliser L_current (avant intégration) pour correspondre aux traces dans auto_L_7
+                    update_data = {
+                        'current_time': t_current,
+                        'L_step': float(L_current),  # Utiliser L_current (avant intégration)
+                    }
+                    
+                    # Ajouter les dernières valeurs pour les métriques
+                    for key, value in data.items():
+                        if isinstance(value, list) and len(value) > 0:
+                            # Pour les graphiques, garder seulement les N derniers points
+                            if key in ['time', 'x_rov', 'y_rov', 'vx_rov', 'vy_rov', 'x_boat', 'vx_boat',
+                                      'L', 'L_seg', 'D_straight', 'T_rov', 'T_boat', 'T_max',
+                                      'Fx_drag_rov', 'Fy_drag_rov', 'Fx_rov_total', 'Fy_rov_total',
+                                      'Fx_traction_boat', 'Fy_traction_boat', 'Fx_traction_rov', 'Fy_traction_rov',
+                                      'F_prop_boat', 'Fx_total_boat', 'Fy_total_boat',
+                                      'Fx_drag_cable', 'Fy_drag_cable', 'Fy_cable_app_w',
+                                      'Fx_drag_cable_longitudinal', 'Fy_drag_cable_longitudinal',
+                                      'Fx_drag_cable_perpendicular', 'Fy_drag_cable_perpendicular',
+                                      'Fx_cmd_rov', 'Fy_cmd_rov', 'dl_dt_cmd', 'dl_dt_auto_explain',
+                                      'Fy_rov_app_w', 'F_buoyancy_net', 'angle_rov', 'angle_boat',
+                                      'cable_mode', 'scenario_triggers']:
+                                # Limiter à plot_points_limit points pour les graphiques
+                                if len(value) > plot_points_limit:
+                                    update_data[key] = value[-plot_points_limit:]
+                                else:
+                                    update_data[key] = value
+                            else:
+                                # Pour les autres listes, garder toutes les valeurs
+                                update_data[key] = value
+                        elif key in ['x_cable_curr', 'y_cable_curr', 'T_cable_curr']:
+                            # Les données du câble actuelles sont toujours incluses
+                            update_data[key] = value
+                        else:
+                            # Autres valeurs (scalaires, None, etc.)
+                            update_data[key] = value
+                    
+                    if fx_rov_cmd is not None:
+                        update_data['fx_rov_cmd'] = float(fx_rov_cmd)
+                        update_data['fx_rov_cmd_source'] = "scenario"
+                    
+                    self.simulation_updated.emit(update_data)
+                    
+                    # Petit délai pour ne pas surcharger l'interface
+                    time.sleep(0.01)
+
+                # Fin de mission via événement de scénario
+                if hasattr(commande_scenario, "_mission_end") and commande_scenario._mission_end:
+                    trace_print(1, "[SCEN] Fin de mission déclenchée par evt x.")
+                    if isinstance(self.simulation_state, dict):
+                        self.simulation_state["mission_ended"] = True
+                        self.simulation_state["mission_end_time"] = getattr(
+                            commande_scenario, "_mission_end_time", t_current
+                        )
+                    self._stop_requested = True
+                    break
+
                 # Calculer le pas suivant
                 t_next = min(t_current + dt, t_final)
+                # Stocker dt pour le débogage
+                dt_used = t_next - t_current
                 
                 # Intégrer un pas (avec réduction adaptative si nécessaire)
                 try:
@@ -518,9 +866,7 @@ class SimulationThread(QThread):
                         try:
                             solution = future.result(timeout=ode_timeout_s)
                         except concurrent.futures.TimeoutError:
-                            trace_print(
-                                1,
-                                f"[WARN] Timeout ODE à t={t_current:.2f} "
+                            trace_print(1, f"[WARN] Timeout ODE à t={t_current:.2f} "
                                 f"(dt={dt:.6f}, >{ode_timeout_s:.2f}s) -> fallback Euler"
                             )
                             ode_fallback_mode = True
@@ -541,9 +887,7 @@ class SimulationThread(QThread):
                             nfev is not None and nfev > max_step_nfev
                         )
                         if solution.success and slow_step:
-                            trace_print(
-                                1,
-                                f"[WARN] Pas ODE lent à t={t_current:.2f} "
+                            trace_print(1, f"[WARN] Pas ODE lent à t={t_current:.2f} "
                                 f"(dt={dt:.6f}, nfev={nfev}, {step_elapsed:.3f}s) -> fallback Euler"
                             )
                             dy_dt = system.compute_derivatives(
@@ -605,17 +949,49 @@ class SimulationThread(QThread):
                     (x_rov, y_rov, vx_rov, vy_rov,
                      x_boat, vx_boat, x_cable, y_cable, T, L) = system.unpack_state(y_current)
 
-                    # Recaler le ROV si L < distance droite
+                    # DEBUG: Traçage de L après intégration et comparaison avec L_current
+                    # Récupérer la commande dL_dt qui a été utilisée pour cette intégration
+                    # Note: u_func est défini dans la portée de run(), donc on peut l'utiliser
+                    try:
+                        u_at_t = u_func(t_current) if callable(u_func) else None
+                        dL_dt_used = u_at_t.get('dL_dt') if u_at_t and isinstance(u_at_t, dict) else None
+                    except:
+                        dL_dt_used = None
+                    
+                    if hasattr(self, '_prev_L_current') and hasattr(self, '_prev_dt'):
+                        # Utiliser la commande dL_dt qui a été réellement utilisée pour cette intégration
+                        if dL_dt_used is not None:
+                            delta_L_expected = dL_dt_used * self._prev_dt
+                        else:
+                            delta_L_expected = self._prev_dl_dt_cmd * self._prev_dt if self._prev_dl_dt_cmd is not None and self._prev_dt > 0 else 0.0
+                        
+                        delta_L_actual = L - self._prev_L_current
+                        if abs(delta_L_actual - delta_L_expected) > 0.01:  # Seuil de 1 cm
+                            trace_print(8, f"[DEBUG L] t={t_current:.2f} APRÈS intégration: "
+                                f"L={L:.6f} m, L_prev={self._prev_L_current:.6f} m, "
+                                f"delta_L_actual={delta_L_actual:.6f} m, "
+                                f"delta_L_expected={delta_L_expected:.6f} m "
+                                f"(dL_dt_used={dL_dt_used:.6f} m/s si disponible, "
+                                f"dL_dt_cmd_prev={self._prev_dl_dt_cmd:.6f} m/s, dt={self._prev_dt:.6f} s), "
+                                f"ÉCART={abs(delta_L_actual - delta_L_expected):.6f} m"
+                            )
+                    # Stocker les valeurs pour la prochaine itération
+                    self._prev_L_current = L_current if 'L_current' in locals() else L
+                    self._prev_dl_dt_cmd = dl_dt_cmd if 'dl_dt_cmd' in locals() else None
+                    self._prev_dt = dt_used if 'dt_used' in locals() else None
+                    
+                    # IMPORTANT : Ne PAS recalculer le ROV si L < distance droite
+                    # La longueur L est fixe (déterminée par la somme des dL/dt)
+                    # Le slack doit être >= 0, et c'est la tension au ROV qui doit être ajustée
+                    # pour contraindre le mouvement et respecter slack >= 0
                     dx_straight = x_rov - x_boat
                     dy_straight = y_rov - 0.0
                     L_straight = float(np.hypot(dx_straight, dy_straight))
+                    slack = L - L_straight
                     cable_length_constrained = False
-                    if L_straight > 1e-9 and L < L_straight:
-                        scale = float(L / L_straight)
-                        x_rov = x_boat + dx_straight * scale
-                        y_rov = 0.0 + dy_straight * scale
-                        y_current[0] = x_rov
-                        y_current[1] = y_rov
+                    if slack < 0.0:
+                        # Le slack est négatif, le câble est tendu
+                        # La tension au ROV sera ajustée dans system_model pour forcer slack >= 0
                         cable_length_constrained = True
 
                     # Utiliser une vitesse cohérente avec les positions (pour traînée + affichage)
@@ -631,13 +1007,15 @@ class SimulationThread(QThread):
                             vx_rov = 0.0
                             vy_rov = 0.0
                     
-                    # Pour l'affichage, privilégier la géométrie d'équilibre calculée par le solveur
-                    x_cable_display = x_cable
-                    y_cable_display = y_cable
+                    # Pour l'affichage, privilégier la géométrie d'équilibre calculée par le solveur.
+                    # On travaille sur des copies, puis on resynchronise explicitement l'état
+                    # de l'itération pour garantir le recollement du point N avec le ROV.
+                    x_cable_display = np.asarray(x_cable, dtype=float).copy()
+                    y_cable_display = np.asarray(y_cable, dtype=float).copy()
                     if getattr(system, 'x_cable_prev', None) is not None and getattr(system, 'y_cable_prev', None) is not None:
                         if len(system.x_cable_prev) == len(x_cable) and len(system.y_cable_prev) == len(y_cable):
-                            x_cable_display = system.x_cable_prev
-                            y_cable_display = system.y_cable_prev
+                            x_cable_display = np.asarray(system.x_cable_prev, dtype=float).copy()
+                            y_cable_display = np.asarray(system.y_cable_prev, dtype=float).copy()
                     
                     # Garantir l'ordre bateau -> ROV pour les directions/tractions affichées
                     if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
@@ -647,20 +1025,55 @@ class SimulationThread(QThread):
                             x_cable_display = np.flip(x_cable_display)
                             y_cable_display = np.flip(y_cable_display)
                     
-                    # Normaliser l'affichage si la longueur dérive (évite des valeurs négatives de dérive)
+                    # IMPORTANT : Ne PAS forcer une ligne droite quand le câble est tendu
+                    # Le ROV n'est plus recalculé, donc le câble peut avoir une forme de caténaire
+                    # même si slack < 0. La tension au ROV sera ajustée pour ramener slack >= 0
+                    
+                    # Normaliser systématiquement l'affichage par rapport à L
+                    # pour garantir que la géométrie utilisée par l'IHM et par
+                    # check_cable_invariants reste cohérente avec la longueur scalaire L.
                     if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
-                        length_segments = 0.0
-                        for i in range(len(x_cable_display) - 1):
-                            dx_seg = x_cable_display[i + 1] - x_cable_display[i]
-                            dy_seg = y_cable_display[i + 1] - y_cable_display[i]
-                            length_segments += float(np.hypot(dx_seg, dy_seg))
-                        if L > 1e-6 and abs(length_segments - L) / L > 1e-3:
+                        try:
+                            x_cable_display, y_cable_display = system.cable.solver._normalize_cable_length(
+                                x_cable_display, y_cable_display, L
+                            )
+                        except Exception:
+                            pass
+                        
+                        # CORRECTION : Toujours forcer les extrémités à correspondre exactement
+                        if len(x_cable_display) > 0:
+                            x_cable_display[0] = x_boat
+                            y_cable_display[0] = 0.0
+                            x_cable_display[-1] = x_rov
+                            y_cable_display[-1] = y_rov
+                            
+                            # RENORMALISER après forçage des extrémités pour garantir
+                            # que tous les segments conservent la même longueur ds_target = L / N
+                            # Le forçage des extrémités peut modifier la longueur du premier
+                            # et/ou du dernier segment, donc on renormalise pour préserver
+                            # l'uniformité des segments tout en respectant les contraintes d'extrémités
                             try:
                                 x_cable_display, y_cable_display = system.cable.solver._normalize_cable_length(
                                     x_cable_display, y_cable_display, L
                                 )
-                            except Exception:
-                                pass
+                                # Réappliquer le forçage des extrémités après normalisation
+                                # (la normalisation devrait déjà les préserver, mais on s'assure)
+                                x_cable_display[0] = x_boat
+                                y_cable_display[0] = 0.0
+                                x_cable_display[-1] = x_rov
+                                y_cable_display[-1] = y_rov
+                            except Exception as e:
+                                trace_print(8, f"[WARN] Échec renormalisation après forçage extrémités: {e}")
+
+                        # Réinjecter la géométrie corrigée dans l'état de l'itération.
+                        # Sans cette resynchronisation, l'IHM peut parfois afficher une
+                        # géométrie dont le dernier point n'est pas exactement recollé au ROV.
+                        idx_x_cable = 6
+                        idx_y_cable = idx_x_cable + system.N + 1
+                        y_current[idx_x_cable:idx_y_cable] = x_cable_display
+                        y_current[idx_y_cable:idx_y_cable + system.N + 1] = y_cable_display
+                        system.x_cable_prev = np.asarray(x_cable_display, dtype=float).copy()
+                        system.y_cable_prev = np.asarray(y_cable_display, dtype=float).copy()
 
                     # Déterminer le mode câble
                     cable_mode = "catenary"
@@ -669,6 +1082,35 @@ class SimulationThread(QThread):
                     L_straight = float(np.hypot(dx_straight, dy_straight))
                     if L_straight > 1e-9 and L < L_straight * 1.000001:
                         cable_mode = "straight"
+
+                    # Calculer L_seg (somme des longueurs des segments du câble)
+                    L_seg = 0.0
+                    if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
+                        for i in range(len(x_cable_display) - 1):
+                            dx_seg = x_cable_display[i + 1] - x_cable_display[i]
+                            dy_seg = y_cable_display[i + 1] - y_cable_display[i]
+                            L_seg += float(np.hypot(dx_seg, dy_seg))
+                    
+                    # Calculer D_straight (distance en ligne droite entre bateau et ROV)
+                    # IMPORTANT : Ne PAS forcer D_straight = L même si le câble est tendu
+                    # Le ROV n'est plus recalculé, donc D_straight peut être > L
+                    # Le slack = L - D_straight peut être négatif, et c'est la tension qui doit
+                    # contraindre le mouvement pour ramener slack >= 0
+                    dx_straight = x_rov - x_boat
+                    dy_straight = y_rov - 0.0
+                    D_straight = float(np.hypot(dx_straight, dy_straight))
+
+                    # Vérifier les invariants câble en fin d'itération
+                    check_cable_invariants({
+                        'phase': 'iteration',
+                        't': t_current,
+                        'step': step_count,
+                        'y': y_current,
+                        'dl_dt_cmd': dl_dt_cmd,
+                        'dl_dt_explain': dl_dt_auto_explain,
+                        'cable_mode': cable_mode,
+                        'triggers': step_triggers,
+                    })
 
                     # Stocker les données
                     data['time'].append(t_current)
@@ -679,6 +1121,16 @@ class SimulationThread(QThread):
                     data['x_boat'].append(float(x_boat))
                     data['vx_boat'].append(float(vx_boat))
                     data['L'].append(float(L))
+                    data['L_seg'].append(float(L_seg))
+                    data['D_straight'].append(float(D_straight))
+                    # DEBUG: Vérifier cohérence entre L stocké et L_step
+                    if len(data['L']) > 0:
+                        L_stored = data['L'][-1]
+                        if abs(L_stored - L) > 1e-6:
+                            trace_print(8, f"[DEBUG L] t={t_current:.2f} INCOHÉRENCE: "
+                                f"L={L:.6f} m, L_stored={L_stored:.6f} m, "
+                                f"ÉCART={abs(L_stored - L):.6f} m"
+                            )
                     if isinstance(self.simulation_state, dict):
                         data['dl_dt_cmd'].append(float(self.simulation_state.get('dl_dt', self.dl_dt)))
                         if dl_dt_mode == "auto":
@@ -734,16 +1186,22 @@ class SimulationThread(QThread):
                     F_buoyancy = system.rov.compute_buoyancy_force(system.environment)
                     F_weight = system.rov.compute_weight_force(system.environment)
                     
-                    # Poids apparent utilisé pour la dynamique (positif vers le bas)
-                    F_apparent_weight_down = F_weight - F_buoyancy
+                    # Poids apparent : positif si flottabilité positive (vers le haut/surface)
+                    # Convention : F_apparent_weight = F_buoyancy - F_weight
+                    # - Positif si flottabilité positive (ROV plus léger que l'eau, force vers le haut)
+                    # - Négatif si flottabilité négative (ROV plus lourd que l'eau, force vers le bas)
+                    F_apparent_weight = F_buoyancy - F_weight
                     # Flottabilité nette affichée (positive si flottabilité positive)
-                    F_buoyancy_net = -F_apparent_weight_down
+                    F_buoyancy_net = F_apparent_weight
                     
                     # Forces de traction du câble sur le ROV
-                    # Force exercée PAR le câble SUR le ROV = -T_rov * Urov (opposée à Urov)
+                    # Urov pointe du point précédent vers le ROV (direction du câble vers le ROV)
+                    # Pour avoir la force exercée PAR le câble SUR le ROV vers le haut (positif),
+                    # on utilise T_rov * (-Urov_y) car Urov_y pointe vers le bas si le ROV est plus profond
+                    # Nouvelle convention : positif = vers le haut (surface)
                     T_rov_val = T_rov if T is not None and len(T) > 0 else 0.0
-                    Fx_traction = -T_rov_val * Urov_x
-                    Fy_traction = -T_rov_val * Urov_y
+                    Fx_traction = -T_rov_val * Urov_x  # Horizontal : signe inchangé
+                    Fy_traction = T_rov_val * (-Urov_y)  # Vertical : inversé pour positif = vers le haut
                     
                     # Commandes (pour l'instant nulles, mais on peut les récupérer de u_func)
                     u_current = u_func(t_current)
@@ -751,18 +1209,21 @@ class SimulationThread(QThread):
                     Fy_cmd = u_current.get('Fy_rov', 0.0)
                     
                     # Somme des forces appliquées au ROV
+                    # Convention : toutes les forces verticales sont positives vers le haut (surface)
                     Fx_total = Fx_drag_rov + Fx_traction + Fx_cmd
-                    Fy_total = Fy_drag_rov + Fy_traction + F_apparent_weight_down + Fy_cmd
+                    Fy_total = F_apparent_weight + Fy_drag_rov + Fy_traction + Fy_cmd
                     
                     # Stocker les forces ROV
-                    data.setdefault('Fx_drag', []).append(float(Fx_drag_rov))
-                    data.setdefault('Fy_drag', []).append(float(Fy_drag_rov))
-                    data.setdefault('Fx_traction', []).append(float(Fx_traction))
-                    data.setdefault('Fy_traction', []).append(float(Fy_traction))
-                    data.setdefault('F_apparent_weight', []).append(float(F_apparent_weight_down))
+                    data.setdefault('Fx_drag_rov', []).append(float(Fx_drag_rov))
+                    data.setdefault('Fy_drag_rov', []).append(float(Fy_drag_rov))
+                    data.setdefault('Fx_traction_rov', []).append(float(Fx_traction))
+                    data.setdefault('Fy_traction_rov', []).append(float(Fy_traction))
+                    data.setdefault('Fx_cmd_rov', []).append(float(Fx_cmd))
+                    data.setdefault('Fy_cmd_rov', []).append(float(Fy_cmd))
+                    data.setdefault('Fy_rov_app_w', []).append(float(F_apparent_weight))
                     data.setdefault('F_buoyancy_net', []).append(float(F_buoyancy_net))
-                    data.setdefault('Fx_total', []).append(float(Fx_total))
-                    data.setdefault('Fy_total', []).append(float(Fy_total))
+                    data.setdefault('Fx_rov_total', []).append(float(Fx_total))
+                    data.setdefault('Fy_rov_total', []).append(float(Fy_total))
                     
                     # Traînée câble (vectorielle, sans poids apparent)
                     try:
@@ -775,9 +1236,10 @@ class SimulationThread(QThread):
                             params_cable = {
                                 'd': system.cable.d,
                                 'rho_cable': system.cable.rho_cable,
-                                'Cx_cable': system.cable.Cx_cable
+                                'Cx_cable': system.cable.Cx_cable,
+                                'Cf_cable': system.cable.Cf_cable
                             }
-                            Fx_segments, Fy_segments = compute_cable_forces(
+                            Fx_segments, Fy_segments, Fx_long_seg, Fy_long_seg, Fx_perp_seg, Fy_perp_seg = compute_cable_forces(
                                 x_cable_arr, y_cable_arr, vx_cable, vy_cable, system.environment, params_cable, L
                             )
                             F_drag_x = float(np.sum(Fx_segments)) if len(Fx_segments) > 0 else 0.0
@@ -792,11 +1254,39 @@ class SimulationThread(QThread):
                             )
                             F_weight_total = Fy_weight_seg * N_segments
                             F_drag_y = (float(np.sum(Fy_segments)) - F_weight_total) if len(Fy_segments) > 0 else 0.0
+                            
+                            # Traînées décomposées
+                            F_drag_long_x = float(np.sum(Fx_long_seg)) if len(Fx_long_seg) > 0 else 0.0
+                            F_drag_long_y = float(np.sum(Fy_long_seg)) if len(Fy_long_seg) > 0 else 0.0
+                            F_drag_perp_x = float(np.sum(Fx_perp_seg)) if len(Fx_perp_seg) > 0 else 0.0
+                            F_drag_perp_y = float(np.sum(Fy_perp_seg)) if len(Fy_perp_seg) > 0 else 0.0
+                            
                             data.setdefault('cable_drag', []).append((F_drag_x, F_drag_y))
+                            data.setdefault('Fx_drag_cable', []).append(float(F_drag_x))
+                            data.setdefault('Fy_drag_cable', []).append(float(F_drag_y))
+                            data.setdefault('Fy_cable_app_w', []).append(float(F_weight_total))
+                            data.setdefault('Fx_drag_cable_longitudinal', []).append(float(F_drag_long_x))
+                            data.setdefault('Fy_drag_cable_longitudinal', []).append(float(F_drag_long_y))
+                            data.setdefault('Fx_drag_cable_perpendicular', []).append(float(F_drag_perp_x))
+                            data.setdefault('Fy_drag_cable_perpendicular', []).append(float(F_drag_perp_y))
                         else:
                             data.setdefault('cable_drag', []).append((0.0, 0.0))
+                            data.setdefault('Fx_drag_cable', []).append(0.0)
+                            data.setdefault('Fy_drag_cable', []).append(0.0)
+                            data.setdefault('Fy_cable_app_w', []).append(0.0)
+                            data.setdefault('Fx_drag_cable_longitudinal', []).append(0.0)
+                            data.setdefault('Fy_drag_cable_longitudinal', []).append(0.0)
+                            data.setdefault('Fx_drag_cable_perpendicular', []).append(0.0)
+                            data.setdefault('Fy_drag_cable_perpendicular', []).append(0.0)
                     except Exception:
                         data.setdefault('cable_drag', []).append((0.0, 0.0))
+                        data.setdefault('Fx_drag_cable', []).append(0.0)
+                        data.setdefault('Fy_drag_cable', []).append(0.0)
+                        data.setdefault('Fy_cable_app_w', []).append(0.0)
+                        data.setdefault('Fx_drag_cable_longitudinal', []).append(0.0)
+                        data.setdefault('Fy_drag_cable_longitudinal', []).append(0.0)
+                        data.setdefault('Fx_drag_cable_perpendicular', []).append(0.0)
+                        data.setdefault('Fy_drag_cable_perpendicular', []).append(0.0)
                     
                     # Calculer les forces sur le bateau
                     # Tension du câble au niveau du bateau
@@ -854,8 +1344,12 @@ class SimulationThread(QThread):
                     
                     # Câble actuel
                     if x_cable_display is not None and y_cable_display is not None:
-                        data['x_cable_curr'] = x_cable_display.tolist() if hasattr(x_cable_display, 'tolist') else list(x_cable_display)
-                        data['y_cable_curr'] = y_cable_display.tolist() if hasattr(y_cable_display, 'tolist') else list(y_cable_display)
+                        x_cable_list = x_cable_display.tolist() if hasattr(x_cable_display, 'tolist') else list(x_cable_display)
+                        y_cable_list = y_cable_display.tolist() if hasattr(y_cable_display, 'tolist') else list(y_cable_display)
+                        data['x_cable_curr'] = x_cable_list
+                        data['y_cable_curr'] = y_cable_list
+                        # Indices globaux des points du câble (ordre bateau -> ROV)
+                        data['cable_point_indices'] = list(range(len(x_cable_list)))
                     
                     # Tensions du câble actuel
                     if T is not None and len(T) > 0:
@@ -863,151 +1357,29 @@ class SimulationThread(QThread):
                     else:
                         data['T_cable_curr'] = []
 
-                    # Trace CSV (si activée)
-                    if trace_writer is not None:
+                    # Sauvegarder la ligne dans le fichier Excel data (seulement toutes les N itérations)
+                    excel_write_interval = int(self.calc_params.get('excel_write_interval', 50))
+                    if data_excel_ws is not None and data_excel_headers is not None and step_count % excel_write_interval == 0:
                         try:
-                            l0 = float(self.init_params.get("L_init", 0.0))
-                            l_seg = 0.0
-                            if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
-                                for i in range(len(x_cable_display) - 1):
-                                    dx = x_cable_display[i + 1] - x_cable_display[i]
-                                    dy = y_cable_display[i + 1] - y_cable_display[i]
-                                    l_seg += float(np.hypot(dx, dy))
-
-                            ds_dl = 0.0
-                            if isinstance(self.simulation_state, dict):
-                                ds_dl = float(self.simulation_state.get("dl_dt", self.dl_dt))
-
-                            # Forces câble distribuées
-                            cable_fx = 0.0
-                            cable_fy = 0.0
-                            cable_weight_y = 0.0
-                            cable_drag_x = 0.0
-                            cable_drag_y = 0.0
-                            if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
-                                cable_params = {
-                                    "d": system.cable.d,
-                                    "rho_cable": system.cable.rho_cable,
-                                    "Cx_cable": system.cable.Cx_cable,
-                                }
-                                fx_seg, fy_seg = compute_cable_forces(
-                                    x_cable_display,
-                                    y_cable_display,
-                                    np.zeros(len(x_cable_display)),
-                                    np.zeros(len(x_cable_display)),
-                                    system.environment,
-                                    cable_params,
-                                    L,
-                                )
-                                cable_fx = float(np.sum(fx_seg))
-                                cable_fy = float(np.sum(fy_seg))
-                                n_seg = len(x_cable_display) - 1
-                                ds = float(L) / n_seg if n_seg > 0 else 0.0
-                                cable_weight_per_seg = compute_cable_apparent_weight(
-                                    system.cable.rho_cable,
-                                    system.environment.rho_eau,
-                                    system.cable.A_cable,
-                                    system.environment.g,
-                                    ds,
-                                )
-                                cable_weight_y = float(cable_weight_per_seg * n_seg)
-                                cable_drag_x = cable_fx
-                                cable_drag_y = cable_fy - cable_weight_y
-
-                            # Forces câble aux extrémités (action du bateau/ROV sur le câble)
-                            tr_bat_cable_x = -Fx_traction_boat
-                            tr_bat_cable_y = -Fy_traction_boat
-                            tr_rov_cable_x = -Fx_traction
-                            tr_rov_cable_y = -Fy_traction
-
-                            sigma_f_cable_x = tr_bat_cable_x + tr_rov_cable_x + cable_drag_x
-                            sigma_f_cable_y = tr_bat_cable_y + tr_rov_cable_y + cable_weight_y + cable_drag_y
-
-                            tbat_val = float(T_boat) if T is not None and len(T) > 0 else 0.0
-                            trov_val = float(T_rov) if T is not None and len(T) > 0 else 0.0
-                            tmax_val = float(T_max) if T is not None and len(T) > 0 else 0.0
-                            trace_writer.writerow(
-                                [
-                                    float(t_current),
-                                    float(x_boat),
-                                    float(l0),
-                                    float(L),
-                                    float(l_seg),
-                                    float(ds_dl),
-                                    dl_dt_auto_explain,
-                                    "caténaire" if cable_mode == "catenary" else "straight",
-                                    " | ".join(step_triggers) if step_triggers else "",
-                                    tbat_val,
-                                    trov_val,
-                                    tmax_val,
-                                    float(Ubateau_x),
-                                    float(Ubateau_y),
-                                    float(Urov_x),
-                                    float(Urov_y),
-                                    float(x_rov),
-                                    float(y_rov),
-                                    float(Fx_cmd),
-                                    float(Fy_cmd),
-                                    float(Fx_traction),
-                                    float(Fy_traction),
-                                    float(Fx_drag_rov),
-                                    float(Fy_drag_rov),
-                                    float(F_buoyancy_net),
-                                    float(Fx_total),
-                                    float(Fy_total),
-                                    float(tr_bat_cable_x),
-                                    float(tr_bat_cable_y),
-                                    float(tr_rov_cable_x),
-                                    float(tr_rov_cable_y),
-                                    float(cable_weight_y),
-                                    float(cable_drag_x),
-                                    float(cable_drag_y),
-                                    float(sigma_f_cable_x),
-                                    float(sigma_f_cable_y),
-                                ]
-                            )
+                            row_values = extract_data_row(data)
+                            for col_idx, header in enumerate(data_excel_headers, 1):
+                                value = row_values.get(header)
+                                data_excel_ws.cell(row=data_excel_row, column=col_idx, value=value)
+                            
+                            data_excel_row += 1
+                            
+                            # Sauvegarder périodiquement (toutes les 50 itérations)
+                            if step_count % 50 == 0 and data_excel_path:
+                                data_excel_wb.save(data_excel_path)
                         except Exception as e:
-                            trace_print(8, f"[TRACE CSV] Erreur d'écriture: {e}")
+                            trace_print(8, f"[DATA EXCEL] Erreur écriture ligne {data_excel_row}: {e}")
                     
                     step_count += 1
                     
-                    # Émettre les données toutes les N étapes
-                    if step_count % steps_per_update == 0:
-                        # Debug: longueurs de segments réellement émises à l'UI
-                        try:
-                            x_dbg = data.get('x_cable_curr')
-                            y_dbg = data.get('y_cable_curr')
-                            if x_dbg is not None and y_dbg is not None and len(x_dbg) > 1:
-                                ds_min = None
-                                ds_max = None
-                                for i in range(1, len(x_dbg)):
-                                    dx = x_dbg[i] - x_dbg[i-1]
-                                    dy = y_dbg[i] - y_dbg[i-1]
-                                    ds = float(np.sqrt(dx**2 + dy**2))
-                                    ds_min = ds if ds_min is None else min(ds_min, ds)
-                                    ds_max = ds if ds_max is None else max(ds_max, ds)
-                                if ds_min is not None and ds_max is not None:
-                                    trace_print(
-                                        1,
-                                        f"[DEBUG] Emit ds min/max (n={len(x_dbg)-1}): "
-                                        f"{ds_min:.6f} ; {ds_max:.6f} à t={t_current:.2f}s",
-                                        flush=True
-                                    )
-                        except Exception:
-                            pass
-
-                        update_data = {
-                            **data,
-                            'current_time': t_current,
-                            'L_step': float(L),
-                        }
-                        if fx_rov_cmd is not None:
-                            update_data['fx_rov_cmd'] = float(fx_rov_cmd)
-                            update_data['fx_rov_cmd_source'] = "scenario"
-                        self.simulation_updated.emit(update_data)
-                        
-                        # Petit délai pour ne pas surcharger l'interface
-                        time.sleep(0.01)
+                    # Limiter la taille des données accumulées (toutes les 1000 itérations)
+                    max_data_size = int(self.calc_params.get('max_data_size', 10000))
+                    if step_count % 1000 == 0:
+                        trim_data(data, max_data_size)
                     
                 except Exception as e:
                     self.error_occurred.emit(f"Erreur lors de l'intégration: {str(e)}")
@@ -1015,21 +1387,59 @@ class SimulationThread(QThread):
                     traceback.print_exc()
                     break
             
-            # Émettre les données finales
+            # Émettre les données finales (optimisées)
             if not self._stop_requested:
+                plot_points_limit = int(self.calc_params.get('plot_points_limit', 1000))
+                
                 update_data = {
-                    **data,
                     'current_time': t_current,
                     'L_step': float(L),
                 }
+                
+                # Ajouter les dernières valeurs pour les métriques
+                for key, value in data.items():
+                    if isinstance(value, list) and len(value) > 0:
+                        # Pour les graphiques, garder seulement les N derniers points
+                        if key in ['time', 'x_rov', 'y_rov', 'vx_rov', 'vy_rov', 'x_boat', 'vx_boat',
+                                  'L', 'L_seg', 'D_straight', 'T_rov', 'T_boat', 'T_max',
+                                  'Fx_drag_rov', 'Fy_drag_rov', 'Fx_rov_total', 'Fy_rov_total',
+                                  'Fx_traction_boat', 'Fy_traction_boat', 'Fx_traction_rov', 'Fy_traction_rov',
+                                  'F_prop_boat', 'Fx_total_boat', 'Fy_total_boat',
+                                  'Fx_drag_cable', 'Fy_drag_cable', 'Fy_cable_app_w',
+                                  'Fx_drag_cable_longitudinal', 'Fy_drag_cable_longitudinal',
+                                  'Fx_drag_cable_perpendicular', 'Fy_drag_cable_perpendicular',
+                                  'Fx_cmd_rov', 'Fy_cmd_rov', 'dl_dt_cmd', 'dl_dt_auto_explain',
+                                  'Fy_rov_app_w', 'F_buoyancy_net', 'angle_rov', 'angle_boat',
+                                  'cable_mode', 'scenario_triggers']:
+                            # Limiter à plot_points_limit points pour les graphiques
+                            if len(value) > plot_points_limit:
+                                update_data[key] = value[-plot_points_limit:]
+                            else:
+                                update_data[key] = value
+                        else:
+                            # Pour les autres listes, garder toutes les valeurs
+                            update_data[key] = value
+                    elif key in ['x_cable_curr', 'y_cable_curr', 'T_cable_curr']:
+                        # Les données du câble actuelles sont toujours incluses
+                        update_data[key] = value
+                    else:
+                        # Autres valeurs (scalaires, None, etc.)
+                        update_data[key] = value
+                
                 if fx_rov_cmd is not None:
                     update_data['fx_rov_cmd'] = float(fx_rov_cmd)
                     update_data['fx_rov_cmd_source'] = "scenario"
                 self.simulation_updated.emit(update_data)
                 self.simulation_finished.emit()
 
-            if trace_handle is not None:
-                trace_handle.close()
+            # Sauvegarder le fichier Excel data final
+            if data_excel_wb is not None and data_excel_path:
+                try:
+                    data_excel_wb.save(data_excel_path)
+                    trace_print(1, f"[DATA EXCEL] Fichier sauvegarde: {data_excel_path}")
+                except Exception as e:
+                    trace_print(8, f"[DATA EXCEL] Erreur sauvegarde finale: {e}")
+
             close_trace_file()
             
         except Exception as e:

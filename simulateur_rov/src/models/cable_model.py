@@ -16,7 +16,8 @@ class Cable:
             Paramètres du câble:
             - d : diamètre (m)
             - rho_cable : masse volumique (kg/m³)
-            - Cx_cable : coefficient de traînée
+            - Cx_cable : coefficient de traînée perpendiculaire
+            - Cf_cable : coefficient de frottement longitudinal
         N_segments : int
             Nombre de segments pour discrétisation
         environment : Environment
@@ -25,6 +26,7 @@ class Cable:
         self.d = params.get('d', 0.01)
         self.rho_cable = params.get('rho_cable', 1500.0)
         self.Cx_cable = params.get('Cx_cable', 1.2)
+        self.Cf_cable = params.get('Cf_cable', 0.04)
         self.A_cable = np.pi * (self.d / 2)**2
         self.N = N_segments
         
@@ -38,7 +40,8 @@ class Cable:
         params = {
             'd': self.d,
             'rho_cable': self.rho_cable,
-            'Cx_cable': self.Cx_cable
+            'Cx_cable': self.Cx_cable,
+            'Cf_cable': self.Cf_cable
         }
         self.solver = CableSolver(self.N, params, environment)
     

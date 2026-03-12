@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QGroupBox, QGridLayout,
                              QFileDialog, QMessageBox, QScrollArea, QComboBox,
                              QInputDialog)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPoint
+from PyQt6.QtGui import QCursor
 from pathlib import Path
 import sys
 import os
@@ -14,7 +15,27 @@ from datetime import datetime
 from src.utils.logger import trace_print
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
-from src.ui.mission_utils import get_missions_directory, list_missions, create_mission
+from src.ui.mission_utils import get_missions_directory, list_missions, create_mission, load_mission_description
+
+
+class MissionToolTip(QLabel):
+    """Tooltip personnalisé persistant pour les descriptions de missions"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        self.setStyleSheet("""
+            QLabel {
+                background-color: #f4e4bc;
+                color: #555;
+                border: 1px solid #d4c4a4;
+                padding: 8px;
+                border-radius: 3px;
+                font-size: 10pt;
+            }
+        """)
+        self.setWordWrap(True)
+        self.setMaximumWidth(400)
+        self.hide()
 
 
 class ParametersTab(QWidget):
@@ -23,6 +44,8 @@ class ParametersTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
+        self.mission_descriptions = {}  # Dictionnaire pour stocker les descriptions des missions
+        self.mission_tooltip = MissionToolTip(self)  # Tooltip persistant
         self.init_ui()
         self.load_parameters_display()
         
@@ -64,6 +87,8 @@ class ParametersTab(QWidget):
         # Maintenant qu'on a créé mission_status_label, on peut remplir la liste et connecter le signal
         self.update_mission_list()
         self.mission_combo.currentTextChanged.connect(self.on_mission_changed)
+        self.mission_combo.highlighted.connect(self.on_mission_highlighted)
+        self.mission_combo.activated.connect(self.on_mission_activated)  # Cache le tooltip quand on sélectionne
         
         # Boutons de chargement/sauvegarde
         button_layout = QHBoxLayout()
@@ -165,6 +190,10 @@ class ParametersTab(QWidget):
         self.cable_cx = QLineEdit()
         layout.addWidget(self.cable_cx, 2, 1)
         
+        layout.addWidget(QLabel("Coeff. frottement Cf:"), 3, 0)
+        self.cable_cf = QLineEdit()
+        layout.addWidget(self.cable_cf, 3, 1)
+        
         group.setLayout(layout)
         return group
     
@@ -224,6 +253,7 @@ class ParametersTab(QWidget):
         self.cable_d.setText(str(cable.get('d', '')))
         self.cable_rho.setText(str(cable.get('rho_cable', '')))
         self.cable_cx.setText(str(cable.get('Cx_cable', '')))
+        self.cable_cf.setText(str(cable.get('Cf_cable', '')))
         
         # Bateau
         boat = params.get('boat', {})
@@ -251,7 +281,8 @@ class ParametersTab(QWidget):
                 'cable': {
                     'd': float(self.cable_d.text() or 0.01),
                     'rho_cable': float(self.cable_rho.text() or 1500.0),
-                    'Cx_cable': float(self.cable_cx.text() or 1.2)
+                    'Cx_cable': float(self.cable_cx.text() or 1.2),
+                    'Cf_cable': float(self.cable_cf.text() or 0.04)
                 },
                 'boat': {
                     'm': float(self.boat_m.text() or 10000.0),
@@ -356,7 +387,14 @@ class ParametersTab(QWidget):
     def update_mission_list(self):
         """Met à jour la liste des missions disponibles"""
         self.mission_combo.clear()
+        self.mission_descriptions.clear()
         missions = list_missions()
+        
+        # Charger les descriptions pour chaque mission
+        for mission_name in missions:
+            description = load_mission_description(mission_name)
+            self.mission_descriptions[mission_name] = description
+        
         self.mission_combo.addItems(missions)
         
         # Sélectionner la mission actuelle si elle existe
@@ -372,6 +410,32 @@ class ParametersTab(QWidget):
         else:
             if hasattr(self, 'mission_status_label'):
                 self.update_mission_status(None)
+    
+    def on_mission_highlighted(self, index):
+        """Affiche un tooltip persistant avec la description de la mission survolée"""
+        if index >= 0 and index < self.mission_combo.count():
+            mission_name = self.mission_combo.itemText(index)
+            description = self.mission_descriptions.get(mission_name, "")
+            
+            if description:
+                # Mettre à jour le texte du tooltip
+                self.mission_tooltip.setText(description)
+                self.mission_tooltip.adjustSize()
+                
+                # Positionner le tooltip près du curseur
+                cursor_pos = QCursor.pos()
+                tooltip_pos = QPoint(cursor_pos.x() + 15, cursor_pos.y() + 15)
+                self.mission_tooltip.move(tooltip_pos)
+                self.mission_tooltip.show()
+            else:
+                # Cacher le tooltip si pas de description
+                self.mission_tooltip.hide()
+        else:
+            self.mission_tooltip.hide()
+    
+    def on_mission_activated(self, index):
+        """Cache le tooltip quand une mission est sélectionnée (la liste se ferme)"""
+        self.mission_tooltip.hide()
     
     def get_current_mission_directory(self):
         """Retourne le répertoire de la mission actuellement sélectionnée"""

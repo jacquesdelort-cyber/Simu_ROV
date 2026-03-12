@@ -10,7 +10,8 @@
     "cable": {
         "d": 0.01,
         "rho_cable": 1500.0,
-        "Cx_cable": 1.2
+        "Cx_cable": 1.2,
+        "Cf_cable": 0.04
     },
     "boat": {
         "m": 10000.0,

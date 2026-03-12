@@ -81,7 +81,8 @@ class Environment:
         y : float ou array
             Profondeur (m), positive vers le bas
         v_courant : str|float|None
-            Profil de courant sous forme de chaîne ou valeur constante
+            Profil de courant sous forme de chaîne ou valeur constante.
+            Si None, utilise self.v_courant_raw si disponible, sinon self.current_profile.
         
         Returns:
         --------
@@ -91,8 +92,12 @@ class Environment:
         y_array = np.asarray(y)
         depth = np.where(y_array < 0, -y_array, y_array)
         
+        # Si v_courant n'est pas fourni, utiliser v_courant_raw si disponible
         if v_courant is None:
-            return self.current_profile(depth)
+            if hasattr(self, 'v_courant_raw') and self.v_courant_raw is not None:
+                v_courant = self.v_courant_raw
+            else:
+                return self.current_profile(depth)
         
         parsed = self._parse_current_profile_string(v_courant)
         if parsed is None:

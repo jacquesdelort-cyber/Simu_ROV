@@ -66,22 +66,24 @@ def test_controle_auto_dL_dt_k3_n3():
         auto_L_1._history = []
 
     sc_calls = [
-        (0.0, -10.0, 100.0, 0.0, 0.0, 10.0),
-        (1.0, -10.0, 101.0, 0.0, 0.0, 11.0),
-        (2.0, -10.0, 102.0, 0.0, 0.0, 12.0),
-        (3.0, -10.0, 103.0, 0.0, 0.0, 13.0),
+        (0.0, -10.0, 100.0, 0.0, 0.0, 10.0, 0.0, 0.0),
+        (1.0, -10.0, 101.0, 0.0, 0.0, 11.0, 0.0, 0.0),
+        (2.0, -10.0, 102.0, 0.0, 0.0, 12.0, 0.0, 0.0),
+        (3.0, -10.0, 103.0, 0.0, 0.0, 13.0, 0.0, 0.0),
     ]
 
     result = None
     for args in sc_calls:
         result = auto_L_1(*args, Trupt=30.0, Tcible=15.0, K=3, N=3)
     assert result is not None
-    assert result == pytest.approx(-2.0 / 3.0, rel=1e-6)
+    ret, _ = result
+    assert ret == pytest.approx(-1.0, rel=1e-6)
 
     if hasattr(auto_L_1, "_history"):
         auto_L_1._history = []
 
     result = None
-    for _ in range(4):
-        result = auto_L_1(0.0, -10.0, 100.0, 0.0, 0.0, 20.0, Trupt=30.0, Tcible=15.0, K=3, N=3)
-    assert result == pytest.approx(1.0 / 3.0, rel=1e-6)
+    for i in range(4):
+        result = auto_L_1(float(i), -10.0, 100.0 + i, 0.0, 0.0, 20.0 + i, 0.0, 0.0, Trupt=30.0, Tcible=15.0, K=3, N=3)
+    ret, _ = result
+    assert ret == pytest.approx(1.0, rel=1e-6)

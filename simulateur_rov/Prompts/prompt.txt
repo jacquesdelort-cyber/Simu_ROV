@@ -1,0 +1,5 @@
+Comment calculer la force de trainée longitudinale s'exerçant sur un câble de diamètre d et de longueur L immergé dans de l'eau et soumis à un courant longitudinal de vitesse V ?
+
+
+Il y a un problème avec le calcule de la trainée du câble. Il ne faut pas utiliser directement le vecteur (Vx Vy) des segments du cable. 
+Pour chaque segmentil faut projeter la vitesse du segmentans le repère local orthonormé direct  vecteur tangen

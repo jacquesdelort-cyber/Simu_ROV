@@ -1,0 +1,60 @@
+{
+    "date_sauvegarde": "2026-02-18T10:25:22.114710",
+    "mission": "M103",
+    "description": "Position (30, -450) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV puis remontée.  Pas de courant",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.03,
+            "a": 0.4,
+            "b": 0.7,
+            "h": 0.4,
+            "Cx": 0.9,
+            "Cy": 0.9
+        },
+        "cable": {
+            "d": 0.001,
+            "rho_cable": 950.0,
+            "Cx_cable": 0.9,
+            "Cf_cable": 0.04,
+            "tension_rupture": 50.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5,
+            "dl_dt_min": -1.0,
+            "dl_dt_max": 2.0,
+            "gamma_moulinet_min": -0.5,
+            "gamma_moulinet_max": 1.0
+        },
+        "environment": {
+            "rho_eau": 1030.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 3600.0,
+        "steps_per_update": 20,
+        "N_segments": 200,
+        "straight_blend_alpha": 1.0,
+        "sc_fx_rov": "(t >40:5) (e1>5:0) (e1>10:-5) (e1>15:5) (e1> 20:-5) (e1 >20:5) (e1>25:10) (e1>30:0) (:e2)  (e3:5)  (e3>15:0)",
+        "sc_fy_rov": "(t>5:-2) (t>15:-25)  (y<-425:-50)  (y<-450:-75) (y<-495:-8.83) (:e1) (e2:-15) (y<-500:e3) (:0) (e3>15:50 ) (y>-10:15)  (:e4) (y>-1:10)(y > -0.01:ex) (ex> 10: x)",
+        "sc_v_bateau": "(e4:1 )  (l<5:0)",
+        "sc_v_moulinet": "",
+        "auto_L": 7,
+        "Tcible": 5.0
+    },
+    "init_params": {
+        "x_rov_init": 30.0,
+        "y_rov_init": -400.0,
+        "x_boat_init": 0.0,
+        "L_init": 403.0,
+        "v_courant": "0.0"
+    }
+}

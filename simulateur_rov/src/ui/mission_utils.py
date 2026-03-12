@@ -102,3 +102,22 @@ def load_init_params(mission_dir):
         except Exception as e:
             trace_print(8, f"Erreur lors du chargement des conditions initiales: {e}")
     return None
+
+
+def load_mission_description(mission_name):
+    """Charge la description d'une mission depuis son fichier Param_mission.json"""
+    missions_dir = get_missions_directory()
+    mission_dir = missions_dir / mission_name
+    param_file = mission_dir / "Param_mission.json"
+    
+    if param_file.exists():
+        try:
+            with open(param_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            description = data.get("description", "")
+            return description if description else ""
+        except Exception as e:
+            trace_print(8, f"Erreur lors du chargement de la description de la mission '{mission_name}': {e}")
+            return ""
+    return ""

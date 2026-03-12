@@ -1,0 +1,138 @@
+"""Tests de cas limites pour la normalisation du câble."""
+import numpy as np
+
+from src.models.environment import Environment
+from src.solvers.cable_solver import CableSolver
+
+
+def _make_solver(n_segments=6):
+    """Crée un solveur minimal pour tester la renormalisation."""
+    params = {
+        'd': 0.01,
+        'rho_cable': 1500.0,
+        'Cx_cable': 1.2,
+        'Cf_cable': 0.04,
+    }
+    env = Environment({'rho_eau': 1025.0, 'g': 9.81})
+    return CableSolver(n_segments, params, env)
+
+
+def _segment_lengths(x_vals, y_vals):
+    """Retourne les longueurs des segments d'une polyligne."""
+    x_vals = np.asarray(x_vals, dtype=float)
+    y_vals = np.asarray(y_vals, dtype=float)
+    dx = np.diff(x_vals)
+    dy = np.diff(y_vals)
+    return np.sqrt(dx**2 + dy**2)
+
+
+def test_normalize_cable_length_handles_repeated_points():
+    """La renormalisation doit gérer des points répétés sans NaN."""
+    solver = _make_solver(n_segments=6)
+    x_cable = np.array([0.0, 0.0, 0.0, 1.5, 2.0, 2.0, 3.0], dtype=float)
+    y_cable = np.array([0.0, 0.0, 0.0, -0.5, -0.8, -0.8, -1.2], dtype=float)
+    l_target = 3.6
+
+    x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
+    lengths = _segment_lengths(x_norm, y_norm)
+
+    assert np.all(np.isfinite(x_norm))
+    assert np.all(np.isfinite(y_norm))
+    assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
+    assert np.allclose(lengths, l_target / 6.0, atol=1e-6)
+
+
+def test_normalize_cable_length_handles_strong_surface_clipping():
+    """Le clipping agressif en surface doit laisser une géométrie exploitable."""
+    solver = _make_solver(n_segments=5)
+    x_cable = np.array([0.0, 0.2, 0.7, 1.4, 2.2, 3.0], dtype=float)
+    y_cable = np.array([0.8, 0.6, 0.3, -0.2, -0.7, -1.1], dtype=float)
+    l_target = 3.5
+
+    x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
+    lengths = _segment_lengths(x_norm, y_norm)
+
+    assert np.all(y_norm <= 1e-12)
+    assert np.all(np.isfinite(lengths))
+    assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
+    assert np.allclose(lengths, l_target / 5.0, atol=1e-6)
+
+
+def test_normalize_cable_length_compresses_geometry_to_shorter_target():
+    """Une géométrie longue doit pouvoir être compressée vers une longueur plus courte."""
+    solver = _make_solver(n_segments=4)
+    x_cable = np.array([0.0, 1.0, 2.5, 4.0, 5.0], dtype=float)
+    y_cable = np.array([0.0, -0.5, -1.2, -1.6, -2.0], dtype=float)
+    l_target = 2.0
+
+    x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
+    lengths = _segment_lengths(x_norm, y_norm)
+
+    assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
+    assert np.allclose(lengths, l_target / 4.0, atol=1e-6)
+    assert np.all(y_norm <= 1e-12)
+
+
+def test_normalize_cable_length_zero_length_geometry_should_expand_to_target():
+    """Cas limite documenté : une géométrie totalement dégénérée devrait atteindre L_target."""
+    solver = _make_solver(n_segments=4)
+    x_cable = np.array([1.0, 1.0, 1.0, 1.0, 1.0], dtype=float)
+    y_cable = np.array([-2.0, -2.0, -2.0, -2.0, -2.0], dtype=float)
+    l_target = 4.0
+
+    x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
+    lengths = _segment_lengths(x_norm, y_norm)
+
+    assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
+    assert np.allclose(lengths, l_target / 4.0, atol=1e-6)
+    assert np.all(y_norm <= 1e-12)
+
+
+def test_normalize_cable_length_with_long_last_segment():
+    """
+    Vérifie que la normalisation fonctionne correctement quand le dernier segment
+    est nettement plus long que les autres avant normalisation.
+    
+    Ce test vérifie spécifiquement que même si le dernier segment initial est
+    beaucoup plus long (par exemple 3-4x la longueur des autres segments),
+    après normalisation tous les segments ont exactement la même longueur.
+    """
+    solver = _make_solver(n_segments=6)
+    
+    # Créer une géométrie où les premiers segments sont courts (~0.5 m chacun)
+    # et le dernier segment est nettement plus long (~3.0 m)
+    # Longueur totale initiale : ~4.5 m
+    x_cable = np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 5.5], dtype=float)
+    y_cable = np.array([0.0, -0.3, -0.6, -0.9, -1.2, -1.5, -2.5], dtype=float)
+    
+    # Vérifier que le dernier segment est effectivement beaucoup plus long
+    initial_lengths = _segment_lengths(x_cable, y_cable)
+    assert len(initial_lengths) == 6
+    # Les 5 premiers segments devraient être ~0.5 m chacun
+    assert np.allclose(initial_lengths[:-1], 0.5, atol=0.1)
+    # Le dernier segment devrait être ~3.0 m (beaucoup plus long)
+    assert initial_lengths[-1] > 2.5  # Vérifie que c'est nettement plus long
+    
+    # Normaliser vers une longueur cible de 6.0 m
+    l_target = 6.0
+    x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
+    lengths = _segment_lengths(x_norm, y_norm)
+    
+    # Vérifications après normalisation
+    assert len(x_norm) == 7  # N+1 points
+    assert len(y_norm) == 7
+    assert len(lengths) == 6  # N segments
+    
+    # Tous les segments doivent avoir exactement la même longueur
+    ds_target = l_target / 6.0
+    assert np.isclose(np.sum(lengths), l_target, atol=1e-6), \
+        f"Longueur totale incorrecte: {np.sum(lengths):.6f} au lieu de {l_target:.6f}"
+    assert np.allclose(lengths, ds_target, atol=1e-6), \
+        f"Segments de longueur inégale: {lengths} (attendu: {ds_target:.6f})"
+    
+    # Vérifier que la forme générale est préservée (les points ne sont pas tous au même endroit)
+    assert np.max(x_norm) > np.min(x_norm) or np.max(y_norm) < np.min(y_norm), \
+        "La géométrie semble dégénérée après normalisation"
+    
+    # Vérifier la contrainte de surface
+    assert np.all(y_norm <= 1e-12), "Certains points sont au-dessus de la surface"

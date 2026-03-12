@@ -1,0 +1,4 @@
+[SCEN] t=0.10 scen=Fx crit=(t>0:1) T_bat=0.403729584757652 p=-100.00 L=110.00
+[SCEN] t=0.10 scen=Fy crit=(t>0:-50) T_bat=0.403729584757652 p=-100.00 L=110.00
+[SCEN] t=1113.70 scen=Fy crit=(p<-500:50) T_bat=0.0 p=-500.04 L=502.45
+[SCEN] t=2004.10 scen=Fy crit=(p>-1:0) T_bat=0.0 p=-0.95 L=377.25

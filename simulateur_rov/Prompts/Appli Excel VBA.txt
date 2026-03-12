@@ -1,4 +1,0 @@
-Je veux construire une application Excel d'analyse des fichiers traces.
-Cette application prend la forme d'un fichier Exec dont le premier onglet s'appelle "Analyse". Cet onglet contient un bouton "Charger trace". Ce bouton provoque l'ouverture d'une fenêtre de sélection de fichier qui permet de choisir un fichier trace au format csv. Par défaut la fenêtre s'ouvre sur le répertoire à partir duquel l'application Exvel est lancée.
-Les colonnes du fichier csv trace sont délimitées par des virgules ",".
-Une fois le fichier trace choisi, son contenu est importé dans l'onglet "xxx" où xxx est le nom du fichier trace importé.

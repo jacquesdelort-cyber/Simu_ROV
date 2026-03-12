@@ -1,0 +1,63 @@
+{
+    "date_sauvegarde": "2026-03-03T16:00:43.839176",
+    "mission": "M_unit_2",
+    "description": "Test de trainée longitudinale (skin effect). Position initiale (0, -500).  Densité eau = densité câble.  ROV avec une flottabilité légèrement positive.\nOn, descend jusqu'à 700 m et on remonte",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.03,
+            "a": 0.4,
+            "b": 0.7,
+            "h": 0.4,
+            "Cx": 0.9,
+            "Cy": 0.9
+        },
+        "cable": {
+            "d": 0.001,
+            "rho_cable": 1030.0,
+            "Cx_cable": 1.2,
+            "Cf_cable": 0.04,
+            "tension_rupture": 50.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5,
+            "dl_dt_min": -1.0,
+            "dl_dt_max": 2.0,
+            "gamma_moulinet_min": -0.5,
+            "gamma_moulinet_max": 1.0
+        },
+        "environment": {
+            "rho_eau": 1030.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 3600.0,
+        "steps_per_update": 5,
+        "N_segments": 50,
+        "straight_blend_alpha": 1.0,
+        "max_data_size": 10000,
+        "excel_write_interval": 1,
+        "plot_points_limit": 10000,
+        "sc_fx_rov": "",
+        "sc_fy_rov": "(:-10) (t>10:-25) (t>15:-50) (t>20:-75) (t>25:-100) (y<-700:-8.83) (:e1) (e1>10:10) (e2>15:25) (e1>15:50) (e1>20:75) (e1>25:100) (y>-500:-8.83) (:e2) (e2>10:x)",
+        "sc_v_bateau": "",
+        "sc_v_moulinet": "",
+        "auto_L": "auto_L_7",
+        "Tcible": 5.0
+    },
+    "init_params": {
+        "x_rov_init": 0.0,
+        "y_rov_init": -500.0,
+        "x_boat_init": 0.0,
+        "L_init": 500.0,
+        "v_courant": "0.0"
+    }
+}

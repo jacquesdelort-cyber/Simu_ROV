@@ -25,7 +25,8 @@ class CableSolver:
         self.environment = environment
         self.d = params['d']
         self.rho_cable = params['rho_cable']
-        self.Cx_cable = params['Cx_cable']
+        self.Cx_cable = params.get('Cx_cable', 1.2)
+        self.Cf_cable = params.get('Cf_cable', 0.04)
         self.A_cable = np.pi * (self.d / 2)**2
         self._T_prev = None
     
@@ -75,41 +76,56 @@ class CableSolver:
         # Longueur rectiligne
         L_straight = np.sqrt(dx**2 + dy**2)
 
-        # Si la longueur est quasi rectiligne, éviter la caténaire (instable)
-        # Avec hystérésis pour éviter les bascules rapides straight/caténaire.
+        # Calculer le ratio r = L / L_straight
         r = L / L_straight if L_straight > 1e-9 else 1.0
-        if not hasattr(self, "_straight_mode"):
-            self._straight_mode = None
-        enter_straight = 1.0005
-        exit_straight = 1.002
-        if self._straight_mode is None:
-            self._straight_mode = r <= enter_straight
-        elif self._straight_mode and r > exit_straight:
-            self._straight_mode = False
-        elif (not self._straight_mode) and r <= enter_straight:
-            self._straight_mode = True
-
-        force_straight = self._straight_mode
         
-        # Si L < L_straight, câble tendu (ou force_straight via hystérésis)
-        if L < L_straight or force_straight:
+        # SUPPRESSION DE L'HYSTÉRÉSIS BINAIRE : utiliser un blending continu basé uniquement sur r
+        # Cela élimine complètement les discontinuités lors du basculement
+        # r = 1.0 -> 100% ligne droite (câble tendu)
+        # r augmente -> transition progressive vers caténaire
+        # r > 1.01 -> 100% caténaire
+        
+        # Si L < L_straight, câble forcément tendu (impossible physiquement)
+        # CORRECTION : Ne pas modifier L, mais forcer une ligne droite avec la longueur L donnée
+        # Le ROV a déjà été recalculé dans system_model.py pour que L_straight = L
+        if L < L_straight:
             # Câble tendu (rectiligne)
             # Convention : index 0 = bateau, index -1 = ROV (s=0 au bateau, s=L au ROV)
             trace_print(1, "\n[DEBUG] Initialisation du câble : câble tendu (solve_equilibrium_static).")
-            if L < L_straight:
-                trace_print(
-                    8,
-                    f"[DEBUG] ⚠️  : L < L_straight (L={L:.6f}, L_straight={L_straight:.6f}). "
-                    "La géométrie rectiligne impose L = L_straight."
-                )
-                L = L_straight
-            self._straight_mode = True
+            trace_print(8, f"[DEBUG] ⚠️  : L < L_straight (L={L:.6f}, L_straight={L_straight:.6f}). "
+                "Géométrie rectiligne forcée. Le ROV devrait être recalculé pour que L_straight = L."
+            )
+            # Ne pas modifier L - créer une ligne droite entre bateau et ROV
+            # Après recalcul du ROV, L_straight devrait être proche de L
+            # Utiliser une interpolation linéaire simple
             x_cable = np.linspace(x_boat, x_rov, self.N + 1) 
             y_cable = np.linspace(0.0, y_rov, self.N + 1)
+            
+            # Vérifier et corriger la longueur si nécessaire
+            length_check = 0.0
+            for i in range(len(x_cable) - 1):
+                dx = x_cable[i + 1] - x_cable[i]
+                dy = y_cable[i + 1] - y_cable[i]
+                length_check += np.sqrt(dx**2 + dy**2)
+            
+            # Si la longueur ne correspond pas à L, normaliser
+            if abs(length_check - L) / max(L, 1e-9) > 1e-3:
+                try:
+                    x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+                except Exception:
+                    # Fallback : interpolation linéaire en abscisse curviligne
+                    s_points = np.linspace(0.0, L, self.N + 1)
+                    if L_straight > 1e-9:
+                        x_cable = x_boat + (x_rov - x_boat) * (s_points / L_straight)
+                        y_cable = 0.0 + (y_rov - 0.0) * (s_points / L_straight)
+                    else:
+                        x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+                        y_cable = np.linspace(0.0, y_rov, self.N + 1)
             
             # Calculer les tensions en utilisant l'équilibre des forces
             # T_rov * Urov + T_bateau * Ubateau + Fext_stat = 0
             # où Fext_stat inclut le courant et le poids du câble
+            min_floor = max(abs(weight_per_unit) * L / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
             if self.N > 0:
                 # Vecteurs unitaires aux extrémités
                 dx_bateau = x_cable[1] - x_cable[0]
@@ -133,13 +149,14 @@ class CableSolver:
                     params_cable = {
                         'd': self.d,
                         'rho_cable': self.rho_cable,
-                        'Cx_cable': self.Cx_cable
+                        'Cx_cable': self.Cx_cable,
+                        'Cf_cable': self.Cf_cable
                     }
                     
                     vx_cable = np.zeros(len(x_cable))
                     vy_cable = np.zeros(len(x_cable))
                     
-                    Fx_courant_segments, Fy_courant_segments = compute_cable_forces(
+                    Fx_courant_segments, Fy_courant_segments, _, _, _, _ = compute_cable_forces(
                         x_cable, y_cable, vx_cable, vy_cable, self.environment, params_cable, L
                     )
                     
@@ -178,9 +195,7 @@ class CableSolver:
                     try:
                         # Cas quasi-rectiligne ou système singulier : résoudre sur l'axe du câble
                         if abs(det_A) < 1e-8 or straight_ratio > 0.995:
-                            trace_print(
-                                8,
-                                "[DEBUG] ⚠️  : câble quasi-rectiligne ou A singulière. "
+                            trace_print(8, "[DEBUG] ⚠️  : câble quasi-rectiligne ou A singulière. "
                                 "Projection des forces sur l'axe du câble."
                             )
                             u_dir = np.array([0.5 * (Ubateau_x + Urov_x), 0.5 * (Ubateau_y + Urov_y)])
@@ -198,20 +213,14 @@ class CableSolver:
                             Fext_perp = Fext - Fext_parallel * u_dir
                             
                             if np.linalg.norm(Fext_perp) > 1e-3:
-                                trace_print(
-                                    8,
-                                    f"[DEBUG] ⚠️  : composante perpendiculaire ignorée (|F⊥|={np.linalg.norm(Fext_perp):.6f})."
-                                )
+                                trace_print(8, f"[DEBUG] ⚠️  : composante perpendiculaire ignorée (|F⊥|={np.linalg.norm(Fext_perp):.6f}).")
                             
                             delta_T = -Fext_parallel
-                            T_base_est = max(abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
+                            T_base_est = min_floor
                             T_base = max(T_base_est, abs(delta_T) / 2.0)
                             T_bateau = max(0.0, T_base - 0.5 * delta_T)
                             T_rov = max(0.0, T_base + 0.5 * delta_T)
-                            trace_print(
-                                1,
-                                f"[DEBUG] Tensions projetées: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}, ΔT={delta_T:.6f}"
-                            )
+                            trace_print(1, f"[DEBUG] Tensions projetées: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}, ΔT={delta_T:.6f}")
                         else:
                             T_solution = np.linalg.solve(A, b)
                             # T_solution[0] = T_bateau, T_solution[1] = T_rov
@@ -221,10 +230,8 @@ class CableSolver:
                         
                         # Vérification : les tensions doivent être positives
                         if T_bateau < 1e-6:
-                            T_bateau_est = max(abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
-                            trace_print(
-                                10,
-                                f"[DEBUG] ⚠️  : T_bateau est trop petite ({T_bateau:.6f}). "
+                            T_bateau_est = min_floor
+                            trace_print(8, f"[DEBUG] ⚠️  : T_bateau est trop petite ({T_bateau:.6f}). "
                                 f"Utilisation d'une estimation: {T_bateau_est:.6f} "
                                 f"(max(|w|*L/10,10) avec w={weight_per_unit:.6f}, L={L:.6f})."
                             )
@@ -234,10 +241,8 @@ class CableSolver:
                                 T_bateau = T_bateau_est
                         
                         if T_rov < 1e-6:
-                            T_rov_est = max(abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
-                            trace_print(
-                                10,
-                                f"[DEBUG] ⚠️  : T_rov est trop petite ({T_rov:.6f}). "
+                            T_rov_est = min_floor
+                            trace_print(8, f"[DEBUG] ⚠️  : T_rov est trop petite ({T_rov:.6f}). "
                                 f"Utilisation d'une estimation: {T_rov_est:.6f} "
                                 f"(max(|w|*L/10,10) avec w={weight_per_unit:.6f}, L={L:.6f})."
                             )
@@ -251,8 +256,8 @@ class CableSolver:
                             T_bateau = float(self._T_prev[0])
                             T_rov = float(self._T_prev[-1])
                         else:
-                            T_rov = abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0
-                            T_bateau = T_rov
+                            T_rov = min_floor
+                            T_bateau = min_floor
                     
                     # Debug: Afficher les équations numériques avec T_rov et T_bateau remplacés par leurs valeurs
                     trace_print(1, "[DEBUG] Équations numériques:")
@@ -272,11 +277,11 @@ class CableSolver:
                     trace_print(1, f"  Équation 2: -{T_bateau_Ubateau_y:.6f} + {T_rov_Urov_y:.6f} + {Fext_stat_y:.6f} = 0")
                 else:
                     # Estimation par défaut
-                    T_rov = abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0
-                    T_bateau = T_rov
+                    T_rov = min_floor
+                    T_bateau = min_floor
             else:
-                T_rov = abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0
-                T_bateau = T_rov
+                T_rov = min_floor
+                T_bateau = min_floor
             
             # Pour un câble tendu, les tensions varient linéairement entre T_bateau et T_rov
             # T(s) = T_bateau + (T_rov - T_bateau) * (s / L)
@@ -292,64 +297,140 @@ class CableSolver:
             self._T_prev = T.copy()
             return x_cable, y_cable, T
         
-        # Câble en caténaire (rho_cable > rho_eau)
-        # Résoudre l'équation de la caténaire : y = a * cosh((x - x0) / a) + y0
-        # avec les contraintes aux extrémités et la longueur L
+        # APPROCHE CONTINUE : toujours calculer caténaire et ligne droite, puis mélanger selon r
+        # Cela élimine complètement les discontinuités
         
-        trace_print(1, "\n[DEBUG] Initialisation du câble : câble caténaire (solve_equilibrium_static).")
-        x_cable, y_cable = self._solve_catenary(x_rov, y_rov, x_boat, L, weight_per_unit)
-
-        # Transition progressive vers une geometrie quasi-rectiligne
-        r0 = float(self.params.get("straight_blend_r0", 1.01))
-        r1 = float(self.params.get("straight_blend_r1", 1.001))
-        if r0 <= r1:
-            r0, r1 = r1, r0
-        if L_straight > 1e-9 and r0 > 1.0:
-            r = L / L_straight
-            alpha_target = (r0 - r) / (r0 - r1)
-            alpha_coeff = float(self.params.get("straight_blend_alpha", 1.0))
-            if alpha_coeff < 0.0:
-                alpha_coeff = 0.0
-            alpha_target *= alpha_coeff
-            if alpha_target < 0.0:
-                alpha_target = 0.0
-            elif alpha_target > 1.0:
-                alpha_target = 1.0
-            if alpha_target > 0.0:
-                x_line = np.linspace(x_boat, x_rov, self.N + 1)
-                y_line = np.linspace(0.0, y_rov, self.N + 1)
-
-                def _cable_length(x_vals, y_vals):
-                    dx = np.diff(x_vals)
-                    dy = np.diff(y_vals)
-                    return float(np.sum(np.hypot(dx, dy)))
-
-                # Ajuster alpha si le mélange rend le câble trop court
-                def _blend(a):
-                    return (1.0 - a) * x_cable + a * x_line, (1.0 - a) * y_cable + a * y_line
-
-                x_try, y_try = _blend(alpha_target)
-                L_try = _cable_length(x_try, y_try)
-                alpha = alpha_target
-                if L_try < L * (1.0 - 1e-6):
-                    lo = 0.0
-                    hi = alpha_target
-                    for _ in range(12):
-                        mid = 0.5 * (lo + hi)
-                        x_mid, y_mid = _blend(mid)
-                        if _cable_length(x_mid, y_mid) < L:
-                            hi = mid
+        # 1. Calculer la caténaire
+        trace_print(1, "\n[DEBUG] Initialisation du câble : calcul de la caténaire.")
+        x_cable_catenary, y_cable_catenary = self._solve_catenary(x_rov, y_rov, x_boat, L, weight_per_unit)
+        
+        # 2. Calculer la ligne droite
+        x_cable_straight = np.linspace(x_boat, x_rov, self.N + 1)
+        y_cable_straight = np.linspace(0.0, y_rov, self.N + 1)
+        
+        # 3. Calculer le facteur de blending continu basé sur r
+        # r = 1.0 -> alpha = 1.0 (100% straight)
+        # r = 1.01 -> alpha = 0.0 (100% caténaire)
+        # Transition linéaire entre les deux
+        blend_r_min = 1.0
+        blend_r_max = 1.01
+        if r <= blend_r_min:
+            alpha_blend = 1.0  # 100% straight
+        elif r >= blend_r_max:
+            alpha_blend = 0.0  # 100% caténaire
+        else:
+            # Transition linéaire : alpha diminue de 1.0 à 0.0 quand r augmente de blend_r_min à blend_r_max
+            alpha_blend = 1.0 - (r - blend_r_min) / (blend_r_max - blend_r_min)
+        
+        trace_print(1, f"[DEBUG] Blending continu: r={r:.6f}, alpha={alpha_blend:.4f} (1.0=straight, 0.0=caténaire)")
+        
+        # 4. Mélanger caténaire et ligne droite
+        x_cable = (1.0 - alpha_blend) * x_cable_catenary + alpha_blend * x_cable_straight
+        y_cable = (1.0 - alpha_blend) * y_cable_catenary + alpha_blend * y_cable_straight
+        
+        # 5. Normaliser la longueur pour respecter L exactement
+        def _cable_length(x_vals, y_vals):
+            dx = np.diff(x_vals)
+            dy = np.diff(y_vals)
+            return float(np.sum(np.hypot(dx, dy)))
+        
+        L_actual = _cable_length(x_cable, y_cable)
+        if L_actual > 1e-6 and abs(L_actual - L) > 1e-6:
+            # Ajuster par interpolation pour respecter la longueur
+            scale = L / L_actual
+            x_center = x_cable[0]
+            y_center = y_cable[0]
+            x_cable = x_center + (x_cable - x_center) * scale
+            y_cable = y_center + (y_cable - y_center) * scale
+            # Réimposer les extrémités exactement
+            x_cable[0] = x_boat
+            y_cable[0] = 0.0
+            x_cable[-1] = x_rov
+            y_cable[-1] = y_rov
+        
+        # 6. Calculer les tensions selon le mode dominant
+        # Si alpha_blend est proche de 1.0 (straight), utiliser la méthode straight
+        # Sinon, utiliser la méthode caténaire
+        if alpha_blend > 0.95:  # Presque straight
+            # Utiliser la méthode de calcul des tensions pour câble tendu
+            min_floor = max(abs(weight_per_unit) * L / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
+            if self.N > 0:
+                dx_bateau = x_cable[1] - x_cable[0]
+                dy_bateau = y_cable[1] - y_cable[0]
+                ds_bateau = np.sqrt(dx_bateau**2 + dy_bateau**2)
+                dx_rov = x_cable[-1] - x_cable[-2]
+                dy_rov = y_cable[-1] - y_cable[-2]
+                ds_rov = np.sqrt(dx_rov**2 + dy_rov**2)
+                
+                if ds_bateau > 1e-6 and ds_rov > 1e-6:
+                    Ubateau_x = dx_bateau / ds_bateau
+                    Ubateau_y = dy_bateau / ds_bateau
+                    Urov_x = dx_rov / ds_rov
+                    Urov_y = dy_rov / ds_rov
+                    
+                    from .forces import compute_cable_forces
+                    params_cable = {
+                        'd': self.d,
+                        'rho_cable': self.rho_cable,
+                        'Cx_cable': self.Cx_cable,
+                        'Cf_cable': self.Cf_cable
+                    }
+                    vx_cable = np.zeros(len(x_cable))
+                    vy_cable = np.zeros(len(x_cable))
+                    Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
+                        x_cable, y_cable, vx_cable, vy_cable, self.environment, params_cable, L
+                    )
+                    Fext_stat_x = np.sum(Fx_segments)
+                    Fext_stat_y = np.sum(Fy_segments)
+                    
+                    A = np.array([
+                        [-Ubateau_x, Urov_x],
+                        [-Ubateau_y, Urov_y]
+                    ])
+                    b = np.array([-Fext_stat_x, -Fext_stat_y])
+                    
+                    try:
+                        det_A = np.linalg.det(A)
+                        if abs(det_A) > 1e-8:
+                            T_solution = np.linalg.solve(A, b)
+                            T_bateau = max(0.0, T_solution[0])
+                            T_rov = max(0.0, T_solution[1])
                         else:
-                            lo = mid
-                    alpha = lo
-
-                if alpha > 0.0:
-                    x_cable, y_cable = _blend(alpha)
+                            # Système singulier, utiliser projection
+                            u_dir = np.array([0.5 * (Ubateau_x + Urov_x), 0.5 * (Ubateau_y + Urov_y)])
+                            norm_u = np.linalg.norm(u_dir)
+                            if norm_u < 1e-12:
+                                u_dir = np.array([Urov_x, Urov_y])
+                                norm_u = np.linalg.norm(u_dir)
+                            if norm_u < 1e-12:
+                                u_dir = np.array([0.0, -1.0])
+                                norm_u = 1.0
+                            u_dir = u_dir / norm_u
+                            Fext = np.array([Fext_stat_x, Fext_stat_y])
+                            Fext_parallel = float(np.dot(Fext, u_dir))
+                            delta_T = -Fext_parallel
+                            T_base = max(min_floor, abs(delta_T) / 2.0)
+                            T_bateau = max(0.0, T_base - 0.5 * delta_T)
+                            T_rov = max(0.0, T_base + 0.5 * delta_T)
+                        
+                        # Interpoler linéairement
+                        T = np.zeros(self.N + 1)
+                        T[0] = T_bateau
+                        for i in range(1, self.N + 1):
+                            s_frac = i / self.N
+                            T[i] = T_bateau + (T_rov - T_bateau) * s_frac
+                    except Exception:
+                        # Fallback : utiliser la méthode caténaire
+                        T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
+                else:
+                    T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
+            else:
+                T = np.full(self.N + 1, min_floor)
+        else:
+            # Utiliser la méthode caténaire standard
+            T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
         
-        # Calculer les tensions le long du câble
-        T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
-        
-        self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation")
+        self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (blending continu)")
         self._T_prev = T.copy()
         return x_cable, y_cable, T
 
@@ -384,16 +465,62 @@ class CableSolver:
         params_cable = {
             'd': self.d,
             'rho_cable': self.rho_cable,
-            'Cx_cable': self.Cx_cable
+            'Cx_cable': self.Cx_cable,
+            'Cf_cable': self.Cf_cable
         }
         
         ds = L / N if N > 0 else 0.1
+        
+        # Évaluer l'impact du courant avant de décider d'itérer
+        # Calculer les forces de courant sur la géométrie initiale
+        vx_cable_init = np.zeros(len(x_cable))
+        vy_cable_init = np.zeros(len(x_cable))
+        Fx_segments_init, Fy_segments_init, _, _, _, _ = compute_cable_forces(
+            x_cable, y_cable, vx_cable_init, vy_cable_init, self.environment, params_cable, L
+        )
+        Fx_total_init = float(np.sum(Fx_segments_init))
+        
+        # Estimer l'ordre de grandeur des forces de courant par rapport au poids apparent
+        Fy_weight_per_seg = compute_cable_apparent_weight(
+            self.rho_cable, self.environment.rho_eau, self.A_cable, self.environment.g, ds
+        )
+        Fy_weight_total = float(Fy_weight_per_seg * N)
+        
         try:
             v_current = np.array([self.environment.get_current_velocity(y) for y in y_cable])
-            trace_print(1, f"[DEBUG] Courant max le long du câble: {np.max(np.abs(v_current)):.6f} m/s")
+            max_v_current = np.max(np.abs(v_current))
+            trace_print(1, f"[DEBUG] Courant max le long du câble: {max_v_current:.6f} m/s")
+            trace_print(1, f"[DEBUG] Force traînée horizontale totale: {Fx_total_init:.6f} N")
+            trace_print(1, f"[DEBUG] Poids apparent total: {Fy_weight_total:.6f} N")
         except Exception:
             trace_print(1, f"[DEBUG] Courant max le long du câble: non obtenu")
+            max_v_current = 0.0
             pass
+        
+        # Si les forces de courant sont faibles par rapport au poids, ne pas itérer
+        # pour préserver la forme de caténaire
+        skip_iteration = False
+        if abs(Fy_weight_total) > 1e-6:
+            ratio_drag_weight = abs(Fx_total_init) / abs(Fy_weight_total)
+            # Seuil : si la traînée horizontale est < 10% du poids apparent, ne pas itérer
+            # Cela préserve la belle forme de caténaire pour les courants faibles
+            if ratio_drag_weight < 0.10:
+                skip_iteration = True
+                trace_print(1, f"[DEBUG] Courant faible (ratio traînée/poids={ratio_drag_weight:.4f} < 0.10). Conservation de la caténaire initiale sans itération.")
+        elif max_v_current < 0.1:  # Courant très faible (< 10 cm/s)
+            skip_iteration = True
+            trace_print(1, f"[DEBUG] Courant très faible ({max_v_current:.6f} m/s). Conservation de la caténaire initiale sans itération.")
+        
+        if skip_iteration:
+            # Recalculer les tensions pour équilibrer les forces, mais garder la géométrie de caténaire
+            # Les tensions seront recalculées plus bas pour équilibrer les forces
+            trace_print(1, f"[DEBUG] Courant faible. Conservation de la caténaire initiale sans itération.")
+        else:
+            if abs(Fy_weight_total) > 1e-6:
+                ratio_drag_weight = abs(Fx_total_init) / abs(Fy_weight_total)
+            else:
+                ratio_drag_weight = float('inf')
+            trace_print(1, f"[DEBUG] Courant significatif (ratio traînée/poids={ratio_drag_weight:.4f} ou v={max_v_current:.6f} m/s). Itération nécessaire.")
         
         def integrate_with_forces(T0x, T0y):
             x_out = np.zeros(N + 1)
@@ -425,7 +552,10 @@ class CableSolver:
             
             return x_out, y_out, T_out
         
-        if use_full_equilibrium:
+        # Si l'itération n'est pas nécessaire, passer directement au calcul des tensions
+        if skip_iteration:
+            trace_print(1, "[DEBUG] Itération sautée, passage direct au calcul des tensions.")
+        elif use_full_equilibrium:
             trace_print(1, "\n[DEBUG] solve_equilibrium_static_with_current: tentative solveur complet (charges distribuées).")
             try:
                 # Estimation initiale via caténaire classique déjà calculée
@@ -456,59 +586,162 @@ class CableSolver:
                     x_cable, y_cable, T = integrate_with_forces(sol[0], sol[1])
                     self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (solveur complet)")
                     return x_cable, y_cable, T
-                trace_print(5, f"[DEBUG] solve_equilibrium_static_with_current: fsolve non convergent -> {msg}")
+                trace_print(4, f"[DEBUG] solve_equilibrium_static_with_current: fsolve non convergent -> {msg}")
             except Exception as e:
-                trace_print(5, f"[DEBUG] solve_equilibrium_static_with_current: fsolve échoué -> {e}")
+                trace_print(4, f"[DEBUG] solve_equilibrium_static_with_current: fsolve échoué -> {e}")
         
-        trace_print(1, "[DEBUG] solve_equilibrium_static_with_current: repli vers algorithme itératif.")
+        if not skip_iteration:
+            trace_print(1, "[DEBUG] solve_equilibrium_static_with_current: repli vers algorithme itératif.")
+            
+            for iter_num in range(max_iter):
+                vx_cable = np.zeros(len(x_cable))
+                vy_cable = np.zeros(len(x_cable))
+                
+                Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
+                    x_cable, y_cable, vx_cable, vy_cable, self.environment, params_cable, L
+                )
+                
+                # Forces nodales (moyenne des segments voisins)
+                Fx_nodes = np.zeros(len(x_cable))
+                Fy_nodes = np.zeros(len(x_cable))
+                Fx_nodes[0] = Fx_segments[0]
+                Fx_nodes[-1] = Fx_segments[-1]
+                Fy_nodes[0] = Fy_segments[0]
+                Fy_nodes[-1] = Fy_segments[-1]
+                for i in range(1, len(x_cable) - 1):
+                    Fx_nodes[i] = 0.5 * (Fx_segments[i - 1] + Fx_segments[i])
+                    Fy_nodes[i] = 0.5 * (Fy_segments[i - 1] + Fy_segments[i])
+                
+                max_fx = np.max(np.abs(Fx_nodes)) if np.any(Fx_nodes) else 0.0
+                max_fy = np.max(np.abs(Fy_nodes)) if np.any(Fy_nodes) else 0.0
+                if max_fx < 1e-9 and max_fy < 1e-9:
+                    trace_print(1, "[DEBUG] Forces négligeables: géométrie inchangée.")
+                    break
+                
+                # Mise à jour selon les forces (horizontal et vertical)
+                # Utiliser un scaling adaptatif pour éviter les déformations excessives
+                scale_x = max(max_fx, 1e-6)
+                scale_y = max(max_fy, 1e-6)
+                
+                # Mise à jour proportionnelle aux forces, mais limitée pour éviter les instabilités
+                dx_update = relax * (Fx_nodes / scale_x) * ds
+                dy_update = relax * (Fy_nodes / scale_y) * ds
+                
+                # Limiter les déplacements pour éviter les instabilités
+                max_dx_update = np.max(np.abs(dx_update))
+                max_dy_update = np.max(np.abs(dy_update))
+                if max_dx_update > 0.1 * ds:  # Limiter à 10% de la longueur de segment
+                    dx_update = dx_update * (0.1 * ds / max_dx_update)
+                if max_dy_update > 0.1 * ds:
+                    dy_update = dy_update * (0.1 * ds / max_dy_update)
+                
+                x_new = x_cable + dx_update
+                y_new = y_cable + dy_update
+                
+                # Conserver les extrémités
+                x_new[0] = x_boat
+                y_new[0] = 0.0
+                x_new[-1] = x_rov
+                y_new[-1] = y_rov
+                
+                # Normaliser la longueur totale
+                x_new, y_new = self._normalize_cable_length(x_new, y_new, L)
+                
+                # Convergence
+                max_delta = max(np.max(np.abs(x_new - x_cable)), np.max(np.abs(y_new - y_cable)))
+                x_cable, y_cable = x_new, y_new
+                
+                if iter_num % 10 == 0:
+                    trace_print(1, f"[DEBUG] Itération {iter_num}: max_delta={max_delta:.6e}, max_fx={max_fx:.6e}, max_fy={max_fy:.6e}")
+                
+                if max_delta < tol:
+                    trace_print(1, f"[DEBUG] Convergence atteinte après {iter_num+1} itérations.")
+                    break
         
-        for _ in range(max_iter):
-            vx_cable = np.zeros(len(x_cable))
-            vy_cable = np.zeros(len(x_cable))
-            
-            Fx_segments, _ = compute_cable_forces(
-                x_cable, y_cable, vx_cable, vy_cable, self.environment, params_cable, L
-            )
-            
-            # Forces nodales (moyenne des segments voisins)
-            Fx_nodes = np.zeros(len(x_cable))
-            Fx_nodes[0] = Fx_segments[0]
-            Fx_nodes[-1] = Fx_segments[-1]
-            for i in range(1, len(x_cable) - 1):
-                Fx_nodes[i] = 0.5 * (Fx_segments[i - 1] + Fx_segments[i])
-            
-            max_fx = np.max(np.abs(Fx_nodes)) if np.any(Fx_nodes) else 0.0
-            if max_fx < 1e-9:
-                trace_print(1, "[DEBUG] Courant négligeable: forces horizontales ~ 0, géométrie inchangée.")
-                break
-            
-            scale = np.max(np.abs(Fx_nodes)) if np.any(Fx_nodes) else 1.0
-            dx_update = relax * (Fx_nodes / scale) * ds
-            
-            x_new = x_cable + dx_update
-            y_new = y_cable.copy()
-            
-            # Conserver les extrémités
-            x_new[0] = x_boat
-            y_new[0] = 0.0
-            x_new[-1] = x_rov
-            y_new[-1] = y_rov
-            
-            # Normaliser la longueur totale
-            x_new, y_new = self._normalize_cable_length(x_new, y_new, L)
-            
-            # Convergence
-            max_delta = np.max(np.abs(x_new - x_cable))
-            x_cable, y_cable = x_new, y_new
-            
-            if max_delta < tol:
-                break
-        
-        # Calculer les tensions sur la géométrie finale en intégrant les forces
-        Fx_segments, Fy_segments = compute_cable_forces(
+        # Calculer les tensions sur la géométrie finale (après itération ou directement si skip_iteration)
+        # IMPORTANT : toujours recalculer les tensions en résolvant le système d'équilibre
+        # pour garantir que les tensions équilibrent les forces, même après itération
+        Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
             x_cable, y_cable, np.zeros(len(x_cable)), np.zeros(len(x_cable)),
             self.environment, params_cable, L
         )
+        
+        # Calculer les forces externes totales
+        Fext_stat_x = float(np.sum(Fx_segments))
+        Fext_stat_y = float(np.sum(Fy_segments))
+        
+        # Calculer les vecteurs unitaires aux extrémités
+        dx_bateau = x_cable[1] - x_cable[0]
+        dy_bateau = y_cable[1] - y_cable[0]
+        ds_bateau = np.sqrt(dx_bateau**2 + dy_bateau**2)
+        dx_rov = x_cable[-1] - x_cable[-2]
+        dy_rov = y_cable[-1] - y_cable[-2]
+        ds_rov = np.sqrt(dx_rov**2 + dy_rov**2)
+        
+        if ds_bateau > 1e-6 and ds_rov > 1e-6:
+            Ubateau_x = dx_bateau / ds_bateau
+            Ubateau_y = dy_bateau / ds_bateau
+            Urov_x = dx_rov / ds_rov
+            Urov_y = dy_rov / ds_rov
+            
+            # Résoudre le système d'équilibre aux extrémités
+            # -Ubx*T_bateau + Urx*T_rov + Fex = 0  (horizontale)
+            # -Uby*T_bateau + Ury*T_rov + Fey = 0  (verticale)
+            A = np.array([
+                [-Ubateau_x, Urov_x],
+                [-Ubateau_y, Urov_y]
+            ])
+            b = np.array([-Fext_stat_x, -Fext_stat_y])
+            
+            det_A = np.linalg.det(A)
+            trace_print(1, f"[DEBUG] Recalcul tensions après itération: det_A={det_A:.6e}, Fext=({Fext_stat_x:.3f}, {Fext_stat_y:.3f})")
+            
+            if abs(det_A) > 1e-8:
+                try:
+                    T_solution = np.linalg.solve(A, b)
+                    T_bateau = max(0.0, T_solution[0])
+                    T_rov = max(0.0, T_solution[1])
+                    
+                    # Vérifier l'équilibre
+                    eq1_residual = -Ubateau_x * T_bateau + Urov_x * T_rov + Fext_stat_x
+                    eq2_residual = -Ubateau_y * T_bateau + Urov_y * T_rov + Fext_stat_y
+                    trace_print(1, f"[DEBUG] Résidus équilibre: ({eq1_residual:.6e}, {eq2_residual:.6e})")
+                    
+                    # Calculer les tensions le long du câble en intégrant depuis le bateau
+                    # avec les tensions d'extrémité calculées par équilibre
+                    T = np.zeros(N + 1)
+                    T[0] = T_bateau
+                    
+                    # Intégrer les forces depuis le bateau vers le ROV
+                    for i in range(N):
+                        dx_seg = x_cable[i+1] - x_cable[i]
+                        dy_seg = y_cable[i+1] - y_cable[i]
+                        ds_seg = np.sqrt(dx_seg**2 + dy_seg**2)
+                        if ds_seg > 1e-6:
+                            t_hat_x = dx_seg / ds_seg
+                            t_hat_y = dy_seg / ds_seg
+                            # Variation de tension le long du segment
+                            dT_along = -(Fx_segments[i] * t_hat_x + Fy_segments[i] * t_hat_y)
+                            T[i+1] = max(T[i] + dT_along, 0.0)
+                        else:
+                            T[i+1] = T[i]
+                    
+                    # Ajuster pour respecter T_rov calculé par équilibre
+                    if T[-1] > 1e-6:
+                        scale_T = T_rov / T[-1]
+                        T = T * scale_T
+                    else:
+                        T[-1] = T_rov
+                    
+                    trace_print(1, f"[DEBUG] Tensions recalculées par équilibre: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}")
+                    self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (itératif)")
+                    return x_cable, y_cable, T
+                except np.linalg.LinAlgError as e:
+                    trace_print(4, f"[DEBUG] Échec résolution système pour tensions: {e}. Utilisation de compute_tensions.")
+            else:
+                trace_print(4, f"[DEBUG] Système singulier (det_A={det_A:.6e}). Utilisation de compute_tensions.")
+        
+        # Fallback : calcul standard par intégration depuis le ROV
         T_rov_initial = T_guess[-1] if len(T_guess) > 0 else 0.0
         T = self.compute_tensions(x_cable, y_cable, L, Fx_segments, Fy_segments, T_rov_initial=T_rov_initial)
         
@@ -715,15 +948,15 @@ class CableSolver:
                     continue
             
             if best_error > 1e-2:
-                trace_print(7, f"⚠️  Avertissement: La caténaire a une erreur élevée ({best_error:.6f}). "
+                trace_print(5, f"⚠️  Avertissement: La caténaire a une erreur élevée ({best_error:.6f}). "
                       f"Utilisation des meilleures valeurs trouvées.")
         except Exception as e:
-            trace_print(7, f"⚠️  Erreur lors de la résolution de la caténaire: {e}. Utilisation des valeurs initiales.")
+            trace_print(5, f"⚠️  Erreur lors de la résolution de la caténaire: {e}. Utilisation des valeurs initiales.")
         
         # Trouver x0 pour le a optimal
         x0_opt = find_x0_for_a(a_opt)
         if x0_opt is None:
-            trace_print(7, f"⚠️  Erreur: Impossible de trouver x0 pour a={a_opt:.3f}. Utilisation d'une interpolation linéaire.")
+            trace_print(5, f"⚠️  Erreur: Impossible de trouver x0 pour a={a_opt:.3f}. Utilisation d'une interpolation linéaire.")
             x_cable = np.linspace(x_rov, x_boat, self.N + 1)
             y_cable = np.linspace(y_rov, 0.0, self.N + 1)
             return x_cable, y_cable
@@ -732,7 +965,7 @@ class CableSolver:
         try:
             y0_opt = -a_opt * np.cosh((x_boat - x0_opt) / a_opt)
         except:
-            trace_print(7, f"⚠️  Erreur: Impossible de calculer y0. Utilisation d'une interpolation linéaire.")
+            trace_print(5, f"⚠️  Erreur: Impossible de calculer y0. Utilisation d'une interpolation linéaire.")
             x_cable = np.linspace(x_rov, x_boat, self.N + 1)
             y_cable = np.linspace(y_rov, 0.0, self.N + 1)
             return x_cable, y_cable
@@ -743,10 +976,10 @@ class CableSolver:
         
         # y_rov devrait être négatif (profondeur : y < 0 = sous la surface)
         if abs(y_rov_calc - y_rov) > 0.1:
-            trace_print(7, f"⚠️  Avertissement: y_rov calculé ({y_rov_calc:.3f}) diffère de y_rov attendu ({y_rov:.3f}, profondeur négative)")
+            trace_print(5, f"⚠️  Avertissement: y_rov calculé ({y_rov_calc:.3f}) diffère de y_rov attendu ({y_rov:.3f}, profondeur négative)")
         
         if abs(y_boat_calc) > 0.1:
-            trace_print(7, f"⚠️  Avertissement: y_boat calculé ({y_boat_calc:.3f}) diffère de y_boat attendu (0.000, surface)")
+            trace_print(5, f"⚠️  Avertissement: y_boat calculé ({y_boat_calc:.3f}) diffère de y_boat attendu (0.000, surface)")
         
         # Générer les points du câble par longueur curviligne
         # Convention : s = 0 au bateau, s = L au ROV (plus simple et cohérent avec le système)
@@ -870,13 +1103,13 @@ class CableSolver:
             
             # Si tous les angles sont très petits, c'est probablement une ligne droite
             if len(angles) > 0 and np.mean(angles) < 0.01:
-                trace_print(7, f"⚠️  Avertissement: Le câble semble être une ligne droite plutôt qu'une caténaire. "
+                trace_print(5, f"⚠️  Avertissement: Le câble semble être une ligne droite plutôt qu'une caténaire. "
                       f"Vérifiez les paramètres (L={L:.2f} m, L_straight={L_straight:.2f} m, "
                       f"rho_cable={self.rho_cable:.1f} kg/m³, rho_eau={self.environment.rho_eau:.1f} kg/m³)")
         
         # Avertissement si la longueur n'est toujours pas correcte
         if abs(L_final - L) / L > 0.02:
-            trace_print(7, f"⚠️  Avertissement: Longueur du câble incorrecte après calcul de caténaire. "
+            trace_print(5, f"⚠️  Avertissement: Longueur du câble incorrecte après calcul de caténaire. "
                   f"Attendu: {L:.3f} m, Obtenu: {L_final:.3f} m, Erreur: {abs(L_final - L)/L*100:.1f}%")
         
         # Retourner le câble : index 0 = bateau, index -1 = ROV (convention cohérente avec le système)
@@ -949,7 +1182,8 @@ class CableSolver:
         params_cable = {
             'd': self.d,
             'rho_cable': self.rho_cable,
-            'Cx_cable': self.Cx_cable
+            'Cx_cable': self.Cx_cable,
+            'Cf_cable': self.Cf_cable
         }
         
         # Calculer la longueur totale du câble
@@ -964,7 +1198,7 @@ class CableSolver:
         vy_cable = np.zeros(len(x_cable))
         
         # Calculer les forces externes sur chaque segment (courant + poids du câble)
-        Fx_courant_segments, Fy_courant_segments = compute_cable_forces(
+        Fx_courant_segments, Fy_courant_segments, _, _, _, _ = compute_cable_forces(
             x_cable, y_cable, vx_cable, vy_cable, self.environment, params_cable, L_total
         )
         
@@ -1014,17 +1248,20 @@ class CableSolver:
             
             # Vérification : les tensions doivent être positives
             if T_bateau < 1e-6:
-                trace_print(7, f"[DEBUG] ⚠️  ERREUR CRITIQUE: T_bateau est trop petite ({T_bateau:.6f}). Utilisation d'une estimation.")
-                T_bateau = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
+                trace_print(5, f"[DEBUG] ⚠️  ERREUR CRITIQUE: T_bateau est trop petite ({T_bateau:.6f}). Utilisation d'une estimation.")
+                min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
+                T_bateau = min_floor
             
             if T_rov < 1e-6:
-                trace_print(7, f"[DEBUG] ⚠️  ERREUR CRITIQUE: T_rov est trop petite ({T_rov:.6f}). Utilisation d'une estimation.")
-                T_rov = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
+                trace_print(5, f"[DEBUG] ⚠️  ERREUR CRITIQUE: T_rov est trop petite ({T_rov:.6f}). Utilisation d'une estimation.")
+                min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
+                T_rov = min_floor
         except np.linalg.LinAlgError:
             # Si le système est singulier (câble vertical ou autre cas dégénéré)
             # Utiliser une estimation basée sur le poids du câble
-            T_rov = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
-            T_bateau = T_rov
+            min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
+            T_rov = min_floor
+            T_bateau = min_floor
 
         # Stabilisation: éviter des tensions extrêmes ou non physiques
         min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
@@ -1159,9 +1396,9 @@ class CableSolver:
         
         ds = L / self.N
         
-        # Optimisation : utiliser une interpolation pondérée entre la solution statique et la configuration précédente
-        # pour éviter de recalculer complètement à chaque pas
-        x_cable_static, y_cable_static, T_static = self.solve_equilibrium_static(
+        # Utiliser la solution statique avec courant pour avoir une géométrie initiale cohérente
+        # qui tient compte du courant
+        x_cable_static, y_cable_static, T_static = self.solve_equilibrium_static_with_current(
             x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
         )
         
@@ -1212,10 +1449,23 @@ class CableSolver:
             x_cable_old = x_cable.copy()
             y_cable_old = y_cable.copy()
             
-            # Calculer les forces
+            # Calculer les forces (forces par segment)
             from .forces import compute_cable_forces
-            Fx, Fy = compute_cable_forces(x_cable, y_cable, vx_cable, vy_cable,
-                                         self.environment, self.params, L)
+            Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
+                x_cable, y_cable, vx_cable, vy_cable,
+                self.environment, self.params, L
+            )
+            
+            # Convertir les forces par segment en forces nodales (moyenne des segments voisins)
+            Fx_nodes = np.zeros(len(x_cable))
+            Fy_nodes = np.zeros(len(x_cable))
+            Fx_nodes[0] = Fx_segments[0]
+            Fx_nodes[-1] = Fx_segments[-1]
+            Fy_nodes[0] = Fy_segments[0]
+            Fy_nodes[-1] = Fy_segments[-1]
+            for i in range(1, len(x_cable) - 1):
+                Fx_nodes[i] = 0.5 * (Fx_segments[i - 1] + Fx_segments[i])
+                Fy_nodes[i] = 0.5 * (Fy_segments[i - 1] + Fy_segments[i])
             
             # Résoudre l'équilibre des forces par segment
             for i in range(1, self.N):
@@ -1231,10 +1481,12 @@ class CableSolver:
                         dx_seg /= length_seg
                         dy_seg /= length_seg
                         
-                        # Ajuster selon les forces
+                        # Ajuster selon les forces nodales
                         alpha = 0.1  # Coefficient de relaxation
-                        x_cable[i] += alpha * Fx[i-1] * dx_seg / (T[i] + 1e-6)
-                        y_cable[i] += alpha * Fy[i-1] * dy_seg / (T[i] + 1e-6)
+                        # Utiliser les forces nodales et les tensions moyennes
+                        T_avg = 0.5 * (T[i-1] + T[i]) if i < len(T) else T[i-1]
+                        x_cable[i] += alpha * Fx_nodes[i] * dx_seg / (T_avg + 1e-6)
+                        y_cable[i] += alpha * Fy_nodes[i] * dy_seg / (T_avg + 1e-6)
                 
                 # Assurer la longueur du segment
                 if i > 0:
@@ -1329,20 +1581,97 @@ class CableSolver:
         # NOTE: la contrainte de forme au-dessus de la droite bateau-ROV est supprimée
         # pour permettre des câbles à flottabilité positive.
         
-        # Recalculer les tensions en utilisant la tension initiale de T_static
-        # pour préserver la tension correcte au ROV basée sur l'équilibre
-        # CORRECTION: Après correction de _compute_catenary_tensions :
-        # T_static[0] = tension au bateau, T_static[-1] = tension au ROV
+        # Recalculer les tensions pour équilibrer les forces sur la géométrie finale
+        # (comme dans solve_equilibrium_static_with_current)
+        from .forces import compute_cable_forces
+        params_cable = {
+            'd': self.d,
+            'rho_cable': self.rho_cable,
+            'Cx_cable': self.Cx_cable,
+            'Cf_cable': self.Cf_cable
+        }
+        
+        # Calculer les forces sur la géométrie finale avec les vitesses du câble
+        vx_cable_final = np.linspace(vx_rov, vx_boat, len(x_cable))
+        vy_cable_final = np.linspace(vy_rov, 0.0, len(x_cable))
+        Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
+            x_cable, y_cable, vx_cable_final, vy_cable_final,
+            self.environment, params_cable, L
+        )
+        
+        # Calculer les forces externes totales
+        Fext_stat_x = float(np.sum(Fx_segments))
+        Fext_stat_y = float(np.sum(Fy_segments))
+        
+        # Calculer les vecteurs unitaires aux extrémités
+        dx_bateau = x_cable[1] - x_cable[0]
+        dy_bateau = y_cable[1] - y_cable[0]
+        ds_bateau = np.sqrt(dx_bateau**2 + dy_bateau**2)
+        dx_rov = x_cable[-1] - x_cable[-2]
+        dy_rov = y_cable[-1] - y_cable[-2]
+        ds_rov = np.sqrt(dx_rov**2 + dy_rov**2)
+        
+        if ds_bateau > 1e-6 and ds_rov > 1e-6:
+            Ubateau_x = dx_bateau / ds_bateau
+            Ubateau_y = dy_bateau / ds_bateau
+            Urov_x = dx_rov / ds_rov
+            Urov_y = dy_rov / ds_rov
+            
+            # Résoudre le système d'équilibre aux extrémités
+            A = np.array([
+                [-Ubateau_x, Urov_x],
+                [-Ubateau_y, Urov_y]
+            ])
+            b = np.array([-Fext_stat_x, -Fext_stat_y])
+            
+            det_A = np.linalg.det(A)
+            if abs(det_A) > 1e-8:
+                try:
+                    T_solution = np.linalg.solve(A, b)
+                    T_bateau = max(0.0, T_solution[0])
+                    T_rov = max(0.0, T_solution[1])
+                    
+                    # Calculer les tensions le long du câble en intégrant depuis le bateau
+                    N = len(x_cable) - 1
+                    T = np.zeros(N + 1)
+                    T[0] = T_bateau
+                    
+                    # Intégrer les forces depuis le bateau vers le ROV
+                    for i in range(N):
+                        dx_seg = x_cable[i+1] - x_cable[i]
+                        dy_seg = y_cable[i+1] - y_cable[i]
+                        ds_seg = np.sqrt(dx_seg**2 + dy_seg**2)
+                        if ds_seg > 1e-6:
+                            t_hat_x = dx_seg / ds_seg
+                            t_hat_y = dy_seg / ds_seg
+                            # Variation de tension le long du segment
+                            dT_along = -(Fx_segments[i] * t_hat_x + Fy_segments[i] * t_hat_y)
+                            T[i+1] = max(T[i] + dT_along, 0.0)
+                        else:
+                            T[i+1] = T[i]
+                    
+                    # Ajuster pour respecter T_rov calculé par équilibre
+                    if T[-1] > 1e-6:
+                        scale_T = T_rov / T[-1]
+                        T = T * scale_T
+                    else:
+                        T[-1] = T_rov
+                    
+                    trace_print(1, f"[DEBUG] solve_equilibrium_dynamic: Tensions recalculées par équilibre: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}")
+                    return x_cable, y_cable, T
+                except np.linalg.LinAlgError:
+                    trace_print(4, "[DEBUG] solve_equilibrium_dynamic: Échec résolution système pour tensions. Utilisation de compute_tensions.")
+        
+        # Fallback : calcul standard par intégration depuis le ROV
         T_rov_initial = T_static[-1] if len(T_static) > 0 else 0.0
         if T_rov_initial <= 0.0:
             weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
-            trace_print(
-                10,
-                f"[DEBUG] ⚠️  : T_rov_initial trop faible ({T_rov_initial:.6f}). "
+            trace_print(8, f"[DEBUG] ⚠️  : T_rov_initial trop faible ({T_rov_initial:.6f}). "
                 "Utilisation d'une estimation minimale."
             )
-            T_rov_initial = max(abs(weight_per_unit) * L / 10.0 if weight_per_unit != 0 else 100.0, 10.0)
-        T = self.compute_tensions(x_cable, y_cable, L, Fx, Fy, T_rov_initial=T_rov_initial)
+            min_floor = max(abs(weight_per_unit) * L / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
+            T_rov_initial = min_floor
+        T = self.compute_tensions(x_cable, y_cable, L, Fx_segments, Fy_segments, T_rov_initial=T_rov_initial)
         
         return x_cable, y_cable, T
     
@@ -1390,7 +1719,7 @@ class CableSolver:
             if t_local is not None:
                 T_rov_initial = max(min_floor, t_local)
             else:
-                T_rov_initial = 100.0
+                T_rov_initial = min_floor
         elif t_local is not None and t_local > 0.0:
             # Laisser T_rov évoluer avec les forces locales (plus "physique")
             T_rov_initial = max(min_floor, 0.7 * float(T_rov_initial) + 0.3 * t_local)
@@ -1418,10 +1747,10 @@ class CableSolver:
     def _trace_cable_equilibrium_forces(self, x_cable, y_cable, T, L, label="initialisation"):
         from .forces import compute_cable_forces, compute_cable_apparent_weight
         if x_cable is None or y_cable is None or len(x_cable) < 2:
-            trace_print(7, f"[DEBUG] Trace forces câble ({label}): câble insuffisant.")
+            trace_print(5, f"[DEBUG] Trace forces câble ({label}): câble insuffisant.")
             return
         if T is None or len(T) < 2:
-            trace_print(7, f"[DEBUG] Trace forces câble ({label}): tensions indisponibles.")
+            trace_print(5, f"[DEBUG] Trace forces câble ({label}): tensions indisponibles.")
             return
 
         dx_bat = x_cable[1] - x_cable[0]
@@ -1449,7 +1778,7 @@ class CableSolver:
         F_rov = T_rov * U_rov
 
         # Forces distribuées sur le câble
-        Fx_seg, Fy_seg = compute_cable_forces(
+        Fx_seg, Fy_seg, _, _, _, _ = compute_cable_forces(
             x_cable, y_cable, np.zeros(len(x_cable)), np.zeros(len(x_cable)),
             self.environment, self.params, L
         )
@@ -1483,13 +1812,13 @@ class CableSolver:
 
         # Diagnostics simples de signe/direction
         if self.rho_cable > self.environment.rho_eau and F_poids[1] > 0.0:
-            trace_print(7, "[DEBUG] ⚠️  Incohérence: poids apparent positif alors que câble plus dense.")
+            trace_print(5, "[DEBUG] ⚠️  Incohérence: poids apparent positif alors que câble plus dense.")
         if self.rho_cable < self.environment.rho_eau and F_poids[1] < 0.0:
-            trace_print(7, "[DEBUG] ⚠️  Incohérence: poids apparent négatif alors que câble plus léger.")
+            trace_print(5, "[DEBUG] ⚠️  Incohérence: poids apparent négatif alors que câble plus léger.")
         if np.dot(F_bateau, U_bat) > 0.0:
-            trace_print(7, "[DEBUG] ⚠️  Incohérence: traction bateau dans le même sens que U_bateau.")
+            trace_print(5, "[DEBUG] ⚠️  Incohérence: traction bateau dans le même sens que U_bateau.")
         if np.dot(F_rov, U_rov) < 0.0:
-            trace_print(7, "[DEBUG] ⚠️  Incohérence: traction ROV opposée à U_rov.")
+            trace_print(5, "[DEBUG] ⚠️  Incohérence: traction ROV opposée à U_rov.")
 
         # Longueur du câble : paramètre L0 et longueur réelle par somme des segments
         L0 = float(L)
@@ -1512,7 +1841,18 @@ class CableSolver:
     def _normalize_cable_length(self, x_cable, y_cable, L_target):
         """
         Normalise la longueur du câble pour qu'elle soit exactement égale à L_target
-        en conservant la forme générale du câble
+        en conservant la forme générale du câble.
+        
+        Cette fonction garantit que :
+        - La longueur totale est exactement L_target
+        - Tous les segments ont la même longueur ds_target = L_target / N
+        - L'abscisse curviligne s va de 0 (premier point) à L_target (dernier point)
+        
+        Note : Cette fonction ne force pas explicitement les extrémités aux positions
+        du bateau et du ROV. Si les extrémités doivent être forcées, cela doit être fait
+        avant ou après l'appel à cette fonction, puis une nouvelle normalisation peut
+        être nécessaire pour garantir que tous les segments conservent la même longueur
+        après le forçage des extrémités.
         
         Parameters:
         -----------
@@ -1524,7 +1864,7 @@ class CableSolver:
         Returns:
         --------
         tuple (x_cable_new, y_cable_new)
-            Positions normalisées du câble
+            Positions normalisées du câble avec segments de longueur égale
         """
         # Calculer la longueur actuelle et les distances cumulatives
         N = len(x_cable) - 1
@@ -1546,32 +1886,35 @@ class CableSolver:
         if L_actual > 1e-6:
             s_cumulative = s_cumulative * (L_target / L_actual)
         else:
-            # Si le câble a une longueur nulle, créer un câble rectiligne
-            x_cable_new = np.linspace(x_cable[0], x_cable[-1], N + 1)
-            y_cable_new = np.linspace(y_cable[0], y_cable[-1], N + 1)
+            # Si la géométrie est dégénérée, reconstruire un câble rectiligne non nul.
+            # Les extrémités physiques seront éventuellement refixées plus tard par system_model.
+            x_start = float(x_cable[0]) if len(x_cable) > 0 else 0.0
+            y_start = float(y_cable[0]) if len(y_cable) > 0 else 0.0
+            y_start = min(y_start, 0.0)
+            x_cable_new = x_start + np.linspace(0.0, L_target, N + 1)
+            y_cable_new = np.full(N + 1, y_start, dtype=float)
             return x_cable_new, y_cable_new
         
-        # Rééchantillonner le câble à intervalles réguliers selon la longueur cible
-        x_cable_new = np.zeros(N + 1)
-        y_cable_new = np.zeros(N + 1)
+        # CONTRAINTE CRITIQUE : Garantir que tous les segments aient exactement la même longueur
+        # Chaque segment doit avoir une longueur ds = L_target / N
+        # et le dernier point doit avoir s = L_target (correspond au ROV)
+        ds_target = L_target / max(N, 1)
         
-        # Conserver les extrémités
-        x_cable_new[0] = x_cable[0]
-        y_cable_new[0] = y_cable[0]
-        x_cable_new[-1] = x_cable[-1]
-        y_cable_new[-1] = y_cable[-1]
+        # Rééchantillonner pour garantir des segments de longueur égale
+        # Créer des points à intervalles réguliers en abscisse curviligne : s = 0, ds, 2*ds, ..., L_target
+        s_points = np.linspace(0.0, L_target, N + 1)
         
-        # CONTRAINTE PHYSIQUE : Les extrémités doivent respecter y <= 0
-        y_cable_new[0] = min(y_cable_new[0], 0.0)
-        y_cable_new[-1] = min(y_cable_new[-1], 0.0)
+        # Recalculer les positions en interpolant selon l'abscisse curviligne
+        # Utiliser la forme du câble actuel mais avec des segments de longueur égale
+        x_cable_final = np.zeros(N + 1)
+        y_cable_final = np.zeros(N + 1)
         
-        # Interpoler les points intermédiaires
-        s_target = np.linspace(0, L_target, N + 1)
-        
-        for i in range(1, N):
-            s_i = s_target[i]
+        # Interpoler TOUS les points (0 à N) pour garantir que tous les segments aient ds_target
+        # Les extrémités seront forcées par system_model.py après normalisation
+        for i in range(N + 1):
+            s_i = s_points[i]  # s_i = i * ds_target
             
-            # Trouver le segment qui contient ce point
+            # Trouver le segment qui contient ce point dans le câble original
             idx = np.searchsorted(s_cumulative, s_i)
             if idx == 0:
                 idx = 1
@@ -1584,20 +1927,135 @@ class CableSolver:
             
             if abs(s_next - s_prev) > 1e-6:
                 alpha = (s_i - s_prev) / (s_next - s_prev)
-                x_cable_new[i] = x_cable[idx - 1] + alpha * (x_cable[idx] - x_cable[idx - 1])
-                y_cable_new[i] = y_cable[idx - 1] + alpha * (y_cable[idx] - y_cable[idx - 1])
+                x_cable_final[i] = x_cable[idx - 1] + alpha * (x_cable[idx] - x_cable[idx - 1])
+                y_cable_final[i] = y_cable[idx - 1] + alpha * (y_cable[idx] - y_cable[idx - 1])
             else:
-                x_cable_new[i] = x_cable[idx - 1]
-                y_cable_new[i] = y_cable[idx - 1]
+                x_cable_final[i] = x_cable[idx - 1]
+                y_cable_final[i] = y_cable[idx - 1]
         
         # CONTRAINTE PHYSIQUE : Forcer tous les points à y <= 0 après interpolation
-        y_cable_new = np.clip(y_cable_new, None, 0.0)
-        # Réappliquer les extrémités
-        y_cable_new[0] = min(y_cable[0], 0.0)
-        y_cable_new[-1] = min(y_cable[-1], 0.0)
+        y_cable_final = np.clip(y_cable_final, None, 0.0)
         
-        # CONTRAINTE PHYSIQUE : le câble ne peut pas passer au-dessus de la surface
-        y_cable_new = np.minimum(y_cable_new, 0.0)
+        # CORRECTION CRITIQUE : Forcer chaque segment à avoir exactement ds_target
+        # En partant du point 0, on positionne chaque point suivant à une distance ds_target
+        # du point précédent, dans la direction du segment interpolé
+        # Cela garantit que tous les segments ont exactement ds_target et que la longueur totale est L_target
+        x_cable_corrected = np.zeros(N + 1)
+        y_cable_corrected = np.zeros(N + 1)
+        
+        # Le premier point reste à sa position interpolée
+        x_cable_corrected[0] = x_cable_final[0]
+        y_cable_corrected[0] = y_cable_final[0]
+        
+        # Pour chaque segment suivant, forcer la longueur à ds_target
+        for i in range(N):
+            # Direction du segment interpolé
+            dx = x_cable_final[i+1] - x_cable_final[i]
+            dy = y_cable_final[i+1] - y_cable_final[i]
+            ds_current = np.sqrt(dx**2 + dy**2)
+            
+            if ds_current > 1e-9:
+                # Normaliser et multiplier par ds_target
+                x_cable_corrected[i+1] = x_cable_corrected[i] + (dx / ds_current) * ds_target
+                y_cable_corrected[i+1] = y_cable_corrected[i] + (dy / ds_current) * ds_target
+            else:
+                # Si le segment est trop court, utiliser la direction du segment précédent
+                if i > 0:
+                    dx_prev = x_cable_corrected[i] - x_cable_corrected[i-1]
+                    dy_prev = y_cable_corrected[i] - y_cable_corrected[i-1]
+                    ds_prev = np.sqrt(dx_prev**2 + dy_prev**2)
+                    if ds_prev > 1e-9:
+                        x_cable_corrected[i+1] = x_cable_corrected[i] + (dx_prev / ds_prev) * ds_target
+                        y_cable_corrected[i+1] = y_cable_corrected[i] + (dy_prev / ds_prev) * ds_target
+                    else:
+                        # Direction par défaut (horizontal)
+                        x_cable_corrected[i+1] = x_cable_corrected[i] + ds_target
+                        y_cable_corrected[i+1] = y_cable_corrected[i]
+                else:
+                    # Direction par défaut (horizontal)
+                    x_cable_corrected[i+1] = x_cable_corrected[i] + ds_target
+                    y_cable_corrected[i+1] = y_cable_corrected[i]
+        
+        # CONTRAINTE PHYSIQUE : Forcer tous les points à y <= 0
+        y_cable_corrected = np.clip(y_cable_corrected, None, 0.0)
+        
+        # Vérifier que la longueur totale est exactement L_target
+        L_corrected = 0.0
+        segment_lengths = []
+        for i in range(N):
+            dx = x_cable_corrected[i+1] - x_cable_corrected[i]
+            dy = y_cable_corrected[i+1] - y_cable_corrected[i]
+            ds = np.sqrt(dx**2 + dy**2)
+            segment_lengths.append(ds)
+            L_corrected += ds
+        
+        # DEBUG: Traçage si problème détecté
+        segments_ok = True
+        problematic_segments = []
+        for i in range(N):
+            ds = segment_lengths[i]
+            if abs(ds - ds_target) / max(ds_target, 1e-9) > 1e-4:  # Tolérance de 0.01%
+                segments_ok = False
+                problematic_segments.append(i)
+        
+        if not segments_ok or abs(L_corrected - L_target) / max(L_target, 1e-9) > 1e-6:
+            from ..utils.logger import trace_print
+            trace_print(8, f"[DEBUG _normalize_cable_length] L_target={L_target:.6f} m, L_final={L_corrected:.6f} m, "
+                f"ÉCART={abs(L_corrected - L_target):.6f} m, ds_target={ds_target:.6f} m, "
+                f"Segments problématiques: {problematic_segments[:5]}, "
+                f"ds_last={segment_lengths[-1] if segment_lengths else 0:.6f} m"
+            )
+        
+        # Si la longueur totale n'est toujours pas correcte (erreur d'arrondi), ajuster proportionnellement
+        if abs(L_corrected - L_target) / max(L_target, 1e-9) > 1e-6 and L_corrected > 1e-9:
+            # Ajuster proportionnellement tous les points sauf le premier
+            scale = L_target / L_corrected
+            x_base = x_cable_corrected[0]
+            y_base = y_cable_corrected[0]
+            for i in range(1, N + 1):
+                dx = x_cable_corrected[i] - x_base
+                dy = y_cable_corrected[i] - y_base
+                x_cable_corrected[i] = x_base + dx * scale
+                y_cable_corrected[i] = y_base + dy * scale
+            
+            # Réappliquer la contrainte y <= 0 après ajustement
+            y_cable_corrected = np.clip(y_cable_corrected, None, 0.0)
+            
+            # Rééchantillonner pour garantir que tous les segments ont exactement ds_target
+            # après l'ajustement proportionnel
+            x_cable_final = np.zeros(N + 1)
+            y_cable_final = np.zeros(N + 1)
+            x_cable_final[0] = x_cable_corrected[0]
+            y_cable_final[0] = y_cable_corrected[0]
+            
+            for i in range(N):
+                dx = x_cable_corrected[i+1] - x_cable_corrected[i]
+                dy = y_cable_corrected[i+1] - y_cable_corrected[i]
+                ds_current = np.sqrt(dx**2 + dy**2)
+                
+                if ds_current > 1e-9:
+                    x_cable_final[i+1] = x_cable_final[i] + (dx / ds_current) * ds_target
+                    y_cable_final[i+1] = y_cable_final[i] + (dy / ds_current) * ds_target
+                else:
+                    if i > 0:
+                        dx_prev = x_cable_final[i] - x_cable_final[i-1]
+                        dy_prev = y_cable_final[i] - y_cable_final[i-1]
+                        ds_prev = np.sqrt(dx_prev**2 + dy_prev**2)
+                        if ds_prev > 1e-9:
+                            x_cable_final[i+1] = x_cable_final[i] + (dx_prev / ds_prev) * ds_target
+                            y_cable_final[i+1] = y_cable_final[i] + (dy_prev / ds_prev) * ds_target
+                        else:
+                            x_cable_final[i+1] = x_cable_final[i] + ds_target
+                            y_cable_final[i+1] = y_cable_final[i]
+                    else:
+                        x_cable_final[i+1] = x_cable_final[i] + ds_target
+                        y_cable_final[i+1] = y_cable_final[i]
+            
+            # Réappliquer la contrainte y <= 0
+            y_cable_final = np.clip(y_cable_final, None, 0.0)
+        else:
+            x_cable_final = x_cable_corrected
+            y_cable_final = y_cable_corrected
 
-        return x_cable_new, y_cable_new
+        return x_cable_final, y_cable_final
 

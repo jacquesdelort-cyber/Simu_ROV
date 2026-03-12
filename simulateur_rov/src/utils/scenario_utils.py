@@ -8,9 +8,157 @@ import numpy as np
 from src.utils.logger import trace_print
 
 
+def contrôle_câble(
+    x_cable: list[float] | np.ndarray,
+    y_cable: list[float] | np.ndarray,
+    x_boat: float,
+    y_boat: float,
+    x_rov: float,
+    y_rov: float,
+    L: float,
+    tol_segment: float = 1e-2,
+) -> tuple[bool, bool, bool, bool, bool, list[int]]:
+    """
+    Vérifie que la géométrie du câble respecte les contraintes suivantes :
+    
+    1. Le point 0 correspond au bateau (x_boat, y_boat)
+    2. Le point N correspond au ROV (x_rov, y_rov)
+    3. La somme des longueurs des N segments = L(t)
+    4. Slack(t) = L(t) - L_straight(t) >= 0
+    5. Chaque segment a une longueur = L(t)/N à tol_segment près
+    
+    Parameters:
+    -----------
+    x_cable : list[float] | np.ndarray
+        Coordonnées x des points du câble (N+1 points)
+    y_cable : list[float] | np.ndarray
+        Coordonnées y des points du câble (N+1 points)
+    x_boat : float
+        Coordonnée x du bateau
+    y_boat : float
+        Coordonnée y du bateau (généralement 0.0)
+    x_rov : float
+        Coordonnée x du ROV
+    y_rov : float
+        Coordonnée y du ROV
+    L : float
+        Longueur totale du câble L(t)
+    tol_segment : float
+        Tolérance pour la longueur des segments (défaut: 1e-3 m)
+    
+    Returns:
+    --------
+    tuple[bool, bool, bool, bool, bool, list[int]]
+        (r1, r2, r3, r4, r5, ls) où :
+        - r1 : True si le point 0 correspond au bateau
+        - r2 : True si le point N correspond au ROV
+        - r3 : True si la somme des segments = L(t)
+        - r4 : True si Slack(t) >= 0
+        - r5 : True si tous les segments ont la longueur L(t)/N à tol_segment près
+        - ls : Liste des indices de segments ne respectant pas la contrainte 5
+    """
+    # Convertir en arrays numpy si nécessaire
+    x_cable = np.asarray(x_cable, dtype=float)
+    y_cable = np.asarray(y_cable, dtype=float)
+    
+    N = len(x_cable) - 1  # Nombre de segments
+    if N <= 0:
+        return (False, False, False, False, False, [])
+    
+    # Contrainte 1 : Le point 0 correspond au bateau
+    tol_position = 1e-2  # Tolérance pour la position
+    r1 = (abs(x_cable[0] - x_boat) < tol_position and 
+          abs(y_cable[0] - y_boat) < tol_position)
+    
+    # Contrainte 2 : Le point N correspond au ROV
+    r2 = (abs(x_cable[-1] - x_rov) < tol_position and 
+          abs(y_cable[-1] - y_rov) < tol_position)
+    
+    # Contrainte 3 : La somme des longueurs des N segments = L(t)
+    L_total = 0.0
+    segment_lengths = []
+    for i in range(N):
+        dx = x_cable[i+1] - x_cable[i]
+        dy = y_cable[i+1] - y_cable[i]
+        ds = np.sqrt(dx**2 + dy**2)
+        segment_lengths.append(ds)
+        L_total += ds
+    
+    tol_length = 1e-2  # Tolérance pour la longueur totale
+    r3 = abs(L_total - L) < tol_length
+    
+    # Contrainte 4 : Slack(t) = L(t) - L_straight(t) >= 0
+    dx_straight = x_rov - x_boat
+    dy_straight = y_rov - y_boat
+    L_straight = np.sqrt(dx_straight**2 + dy_straight**2)
+    slack = L - L_straight
+    r4 = slack >= -1e-2  # Tolérance de 1e-6 m pour le slack
+    
+    # Contrainte 5 : Chaque segment a une longueur = L(t)/N à tol_segment près
+    ds_target = L / N if N > 0 else 0.0
+    r5 = True
+    ls = []  # Liste des segments ne respectant pas la contrainte 5
+    for i in range(N):
+        ds = segment_lengths[i]
+        if abs(ds - ds_target) > tol_segment:
+            r5 = False
+            ls.append(i)
+    
+    return (r1, r2, r3, r4, r5, ls)
+
+# Pattern pour les noms de fonctions auto_L : auto_L_ suivi d'un identifiant (alphanumérique + _)
+# Permet auto_L_1, auto_L_7, auto_L_basic, etc. (nom complet doit être un identifiant Python valide)
+_AUTO_L_PATTERN = re.compile(r"^auto_L_([a-zA-Z0-9_]+)$")
+
+
+def list_auto_L_functions() -> list[str]:
+    """
+    Retourne la liste des noms de fonctions auto_L_xxx présentes dans ce module.
+    Chaque nom est de la forme 'auto_L_xxx' où xxx est un identifiant Python valide.
+    Triée par ordre alphabétique.
+    """
+    names = []
+    mod_globals = globals()
+    for name in mod_globals:
+        if name.startswith("auto_L_") and name != "auto_L_":
+            m = _AUTO_L_PATTERN.match(name)
+            if m and callable(mod_globals.get(name)):
+                names.append(name)
+    return sorted(names)
+
+
+def get_auto_L_function(selector: int | str):
+    """
+    Retourne la fonction auto_L correspondant au sélecteur.
+    
+    Parameters
+    ----------
+    selector : int ou str
+        - int : indice numérique (ex: 7 -> auto_L_7)
+        - str : suffixe (ex: "7") ou nom complet (ex: "auto_L_7")
+    
+    Returns
+    -------
+    callable ou None
+        La fonction auto_L si trouvée, None sinon.
+    """
+    if isinstance(selector, int):
+        name = f"auto_L_{selector}"
+    elif isinstance(selector, str):
+        s = selector.strip()
+        if s.startswith("auto_L_"):
+            name = s
+        else:
+            name = f"auto_L_{s}"
+    else:
+        return None
+    return globals().get(name) if callable(globals().get(name)) else None
+
+
 _ALLOWED_PREFIXES = {"t", "l", "y", "x"}
 _NUMBER_REGEX = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
-_EVT_NAME_REGEX = r"e[A-Za-z0-9_]*"
+_EVT_NAME_REGEX = r"(?:e[A-Za-z0-9_]*|x)"
+_MISSION_END_EVENTS = {"x"}
 _CRIT_PREFIX_REGEX = r"[tTlLyYxX]"
 _COUPLE_NUMERIC_REGEX = re.compile(
     rf"\(\s*(?P<prefix>{_CRIT_PREFIX_REGEX})\s*(?P<op>[<>])\s*(?P<y>{_NUMBER_REGEX})\s*:"
@@ -26,6 +174,10 @@ _COUPLE_EVENT_REGEX = re.compile(
 _COUPLE_EVENT_DELAY_REGEX = re.compile(
     rf"\(\s*(?P<evt>{_EVT_NAME_REGEX})\s*>\s*(?P<y>{_NUMBER_REGEX})\s*:"
     rf"\s*(?P<z>{_NUMBER_REGEX})\s*\)"
+)
+_COUPLE_EVENT_DELAY_EMIT_REGEX = re.compile(
+    rf"\(\s*(?P<evt>{_EVT_NAME_REGEX})\s*>\s*(?P<y>{_NUMBER_REGEX})\s*:"
+    rf"\s*(?P<evt_out>{_EVT_NAME_REGEX})\s*\)"
 )
 _COUPLE_ALWAYS_REGEX = re.compile(
     rf"\(\s*:\s*(?P<z>{_NUMBER_REGEX})\s*\)"
@@ -73,9 +225,11 @@ def verifier_syntaxe_scenario(scen: str) -> bool:
     - (x>y:z) ou (x<y:z) avec x ∈ {"t", "l", "y", "x"} et y/z numériques
     - (x>y:evt) ou (x<y:evt) où evt est un nom d'événement valide
     - (evt>x:z) où evt est un nom d'événement valide et x/z numériques
+    - (evt>x:evt2) où evt/evt2 sont des noms d'événements valides
     - (evt:z) où evt est un nom d'événement valide et z numérique (raccourci de evt>0)
     - (:z) où le critère est vide (toujours vrai) et z numérique
     - (:evt) où le critère est vide (toujours vrai) et evt valide
+    - evt = x déclenche la fin de mission quand il est émis
     - une chaîne vide est valide
     """
     if scen is None:
@@ -116,6 +270,11 @@ def verifier_syntaxe_scenario(scen: str) -> bool:
             pos = match.end()
             continue
 
+        match = _COUPLE_EVENT_DELAY_EMIT_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
         match = _COUPLE_EVENT_DELAY_REGEX.match(text, pos)
         if match:
             try:
@@ -152,6 +311,66 @@ def verifier_syntaxe_scenario(scen: str) -> bool:
         return False
 
     return True
+
+
+def find_first_invalid_couple(scen: str) -> str | None:
+    """
+    Retourne le premier couple syntaxiquement invalide dans un scénario, si présent.
+    """
+    if scen is None:
+        return None
+
+    text = str(scen).strip()
+    if text == "":
+        return None
+
+    pos = 0
+    length = len(text)
+    while True:
+        while pos < length and text[pos].isspace():
+            pos += 1
+        if pos >= length:
+            return None
+
+        match = _COUPLE_EMIT_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        match = _COUPLE_NUMERIC_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        match = _COUPLE_EVENT_DELAY_EMIT_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        match = _COUPLE_EVENT_DELAY_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        match = _COUPLE_EVENT_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        match = _COUPLE_ALWAYS_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        match = _COUPLE_ALWAYS_EMIT_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+            continue
+
+        end = text.find(")", pos)
+        if end == -1:
+            return text[pos:].strip() or None
+        return text[pos:end + 1].strip() or None
 
 
 def _parse_scenario_criteria(scen: str) -> list[tuple]:
@@ -195,6 +414,16 @@ def _parse_scenario_criteria(scen: str) -> list[tuple]:
             except ValueError:
                 return []
             criteria.append(("numeric", prefix, match.group("op"), y_val, z_val))
+            pos = match.end()
+            continue
+
+        match = _COUPLE_EVENT_DELAY_EMIT_REGEX.match(text, pos)
+        if match:
+            try:
+                y_val = float(match.group("y"))
+            except ValueError:
+                return []
+            criteria.append(("event_delay_emit", match.group("evt"), y_val, match.group("evt_out")))
             pos = match.end()
             continue
 
@@ -255,6 +484,11 @@ def _format_criterion(criterion: tuple) -> str:
         if float(delay) == 0.0:
             return f"({evt_name}:{_format_num(z_val)})"
         return f"({evt_name}>{_format_num(delay)}:{_format_num(z_val)})"
+    if kind == "event_delay_emit":
+        _, evt_name, delay, evt_out = criterion
+        if float(delay) == 0.0:
+            return f"({evt_name}:{evt_out})"
+        return f"({evt_name}>{_format_num(delay)}:{evt_out})"
     if kind == "always":
         _, z_val = criterion
         return f"(:{_format_num(z_val)})"
@@ -303,6 +537,8 @@ def commande_scenario(
         commande_scenario.cpt_Vx_bateau = 1
         commande_scenario._events = {}
         commande_scenario._triggered = {}
+        commande_scenario._mission_end = False
+        commande_scenario._mission_end_time = None
     commande_scenario._last_t = t
 
     counters = {
@@ -336,9 +572,7 @@ def commande_scenario(
             if kind == "numeric":
                 if trigger_key not in triggered:
                     triggered[trigger_key] = float(t)
-                    trace_print(
-                        10,
-                        f"[SCEN] t={t:.2f} scen={scenario_name} "
+                    trace_print(8, f"[SCEN] t={t:.2f} scen={scenario_name} "
                         f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                         f"y={y:.2f} x={x:.2f} L={L:.2f}"
                     )
@@ -347,9 +581,7 @@ def commande_scenario(
                 return float(payload)
             if trigger_key not in triggered:
                 triggered[trigger_key] = float(t)
-                trace_print(
-                    10,
-                    f"[SCEN] t={t:.2f} scen={scenario_name} "
+                trace_print(8, f"[SCEN] t={t:.2f} scen={scenario_name} "
                     f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                     f"y={y:.2f} x={x:.2f} L={L:.2f}"
                 )
@@ -357,6 +589,9 @@ def commande_scenario(
                     trigger_sink.append(trigger_text)
             if payload not in commande_scenario._events:
                 commande_scenario._events[payload] = float(t)
+                if payload in _MISSION_END_EVENTS:
+                    commande_scenario._mission_end = True
+                    commande_scenario._mission_end_time = float(t)
         return None
 
     if kind == "event_delay":
@@ -366,9 +601,7 @@ def commande_scenario(
             setattr(commande_scenario, counter_name, k + 1)
             if trigger_key not in triggered:
                 triggered[trigger_key] = float(t)
-                trace_print(
-                    10,
-                    f"[SCEN] t={t:.2f} scen={scenario_name} "
+                trace_print(8, f"[SCEN] t={t:.2f} scen={scenario_name} "
                     f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                     f"y={y:.2f} x={x:.2f} L={L:.2f}"
                 )
@@ -376,14 +609,32 @@ def commande_scenario(
                     trigger_sink.append(trigger_text)
             return z_val
 
+    if kind == "event_delay_emit":
+        _, evt_name, delay, evt_out = criterion
+        evt_time = commande_scenario._events.get(evt_name)
+        if evt_time is not None and (t - evt_time) > delay:
+            setattr(commande_scenario, counter_name, k + 1)
+            if trigger_key not in triggered:
+                triggered[trigger_key] = float(t)
+                trace_print(8, f"[SCEN] t={t:.2f} scen={scenario_name} "
+                    f"crit={_format_criterion(criterion)} T_bat={T_bat} "
+                    f"y={y:.2f} x={x:.2f} L={L:.2f}"
+                )
+                if trigger_sink is not None:
+                    trigger_sink.append(trigger_text)
+            if evt_out not in commande_scenario._events:
+                commande_scenario._events[evt_out] = float(t)
+                if evt_out in _MISSION_END_EVENTS:
+                    commande_scenario._mission_end = True
+                    commande_scenario._mission_end_time = float(t)
+        return None
+
     if kind == "always":
         _, z_val = criterion
         setattr(commande_scenario, counter_name, k + 1)
         if trigger_key not in triggered:
             triggered[trigger_key] = float(t)
-            trace_print(
-                10,
-                f"[SCEN] t={t:.2f} scen={scenario_name} "
+            trace_print(8, f"[SCEN] t={t:.2f} scen={scenario_name} "
                 f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                 f"y={y:.2f} x={x:.2f} L={L:.2f}"
             )
@@ -396,9 +647,7 @@ def commande_scenario(
         setattr(commande_scenario, counter_name, k + 1)
         if trigger_key not in triggered:
             triggered[trigger_key] = float(t)
-            trace_print(
-                10,
-                f"[SCEN] t={t:.2f} scen={scenario_name} "
+            trace_print(8, f"[SCEN] t={t:.2f} scen={scenario_name} "
                 f"crit={_format_criterion(criterion)} T_bat={T_bat} "
                 f"y={y:.2f} x={x:.2f} L={L:.2f}"
             )
@@ -406,6 +655,9 @@ def commande_scenario(
                 trigger_sink.append(trigger_text)
         if evt_name not in commande_scenario._events:
             commande_scenario._events[evt_name] = float(t)
+            if evt_name in _MISSION_END_EVENTS:
+                commande_scenario._mission_end = True
+                commande_scenario._mission_end_time = float(t)
         return None
 
     return None
@@ -413,11 +665,13 @@ def commande_scenario(
 
 def auto_L_1(
     t: float,
-    p: float,
+    y_rov: float,
     L: float,
     Fx_rov: float,
     Fy_rov: float,
-    T: float | None,
+    T_boat: float | None,
+    x_rov: float,
+    x_boat: float,
     Trupt: float | None = None,
     Tcible: float | None = None,
     Gamma_moulinet_min: float | None = None,
@@ -436,6 +690,8 @@ def auto_L_1(
     3) rester en mode caténaire si possible,
     4) éviter les à-coups (lissage + limite d'accélération).
     Retourne (ret, explication).
+    Paramètres utilisés: t, L, Fx_rov, Fy_rov, T_boat, Trupt, Tcible,
+    Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, K, N.
     """
     if not hasattr(auto_L_1, "_history"):
         auto_L_1._history = []
@@ -490,18 +746,15 @@ def auto_L_1(
         0,
         {
             "t": float(t),
-            "p": float(p),
+            "y_rov": float(y_rov),
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T is None else float(T),
+            "T": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
             "dT": None,
             "dL_dt": None,
-            "y_rov": None,
-            "dy_rov": None,
-            "vy_rov": None,
             "dl_dt_cmd_prev": None,
         },
     )
@@ -548,7 +801,7 @@ def auto_L_1(
             curr["dl_dt_cmd_prev"] = ret
             return _finalize(ret, exp)
 
-    if abs(T - Tcible) < 1:
+    if abs(T_boat - Tcible) < 1:
         ret, exp = 0.0, "T_CLOSE"
         ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
         if limited:
@@ -563,7 +816,7 @@ def auto_L_1(
         curr["dl_dt_cmd_prev"] = ret
         return _finalize(ret, exp)
 
-    z = (T-Tcible)/abs(prev["T"]-Tcible)
+    z = (T_boat-Tcible)/abs(prev["T"]-Tcible)
     if z < -2:
         ret = -2 * curr["dL_dt"] - 0.1
         exp = "Z_LT_-2"
@@ -595,21 +848,21 @@ def auto_L_1(
     if limited:
         exp = f"{exp}_ACC"
     curr["dl_dt_cmd_prev"] = ret
-    trace_print(
-        3,
-        f"t: {t:.2f}, dt: {curr['dt']:.2f}, dL_dt: {curr['dL_dt']:.2f}, "
-        f"T: {T:.2f}, Tcible: {Tcible:.2f}, z: {z:.2f}, ret: {ret:.2f}"
+    trace_print(2, f"t: {t:.2f}, dt: {curr['dt']:.2f}, dL_dt: {curr['dL_dt']:.2f}, "
+        f"T: {T_boat:.2f}, Tcible: {Tcible:.2f}, z: {z:.2f}, ret: {ret:.2f}"
     )
     return _finalize(ret, exp)
 
 
 def auto_L_2(
     t: float,
-    p: float,
+    y_rov: float,
     L: float,
     Fx_rov: float,
     Fy_rov: float,
-    T: float | None,
+    T_boat: float | None,
+    x_rov: float,
+    x_boat: float,
     Trupt: float | None = None,
     Tcible: float | None = None,
     Gamma_moulinet_min: float | None = None,
@@ -628,6 +881,8 @@ def auto_L_2(
     3) rester en mode caténaire si possible,
     4) éviter les à-coups (lissage + limite d'accélération).
     Retourne (ret, explication).
+    Paramètres utilisés: t, L, Fx_rov, Fy_rov, T_boat, Trupt, Tcible,
+    Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, K.
     """
     if not hasattr(auto_L_2, "_history"):
         auto_L_2._history = []
@@ -682,11 +937,11 @@ def auto_L_2(
         0,
         {
             "t": float(t),
-            "p": float(p),
+            "y_rov": float(y_rov),
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T is None else float(T),
+            "T": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
             "dT": None,
@@ -741,15 +996,11 @@ def auto_L_2(
     if abs(delta_L) < 1e-2:
         if curr["dL_dt"] > 0:
             ret, exp = curr["dL_dt"] - 0.1, "DELTA_L_0+"
-            trace_print(
-                10,
-                f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {ret:.2f}"
+            trace_print(8, f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {ret:.2f}"
             )
         else:
             ret, exp = curr["dL_dt"] + 0.11, "DELTA_L_0-"
-            trace_print(
-                10,
-                f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {ret:.2f}"
+            trace_print(8, f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {ret:.2f}"
             )
         ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
         if limited:
@@ -759,26 +1010,26 @@ def auto_L_2(
         
     est_dT_dL = delta_T / delta_L
     
-    ret = abs((T - Tcible) / Tcible) * ((T - Tcible) / (2 * est_dT_dL))
+    ret = abs((T_boat - Tcible) / Tcible) * ((T_boat - Tcible) / (2 * est_dT_dL))
     ret_corrige = max(min(ret, 2.02), -2.02)
     ret, limited = _apply_moulinet_accel_limit(ret_corrige, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
     exp = "MAIN_ACC" if limited else "MAIN"
     curr["dl_dt_cmd_prev"] = ret
-    trace_print(
-        10,
-        f"t: {t:.2f}, L: {L:.2f}, est_dT_dL: {est_dT_dL:.2f}, "
-        f"T: {T:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrige: {ret_corrige:.2f}"
+    trace_print(8, f"t: {t:.2f}, L: {L:.2f}, est_dT_dL: {est_dT_dL:.2f}, "
+        f"T: {T_boat:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrige: {ret_corrige:.2f}"
     )
     return _finalize(ret, exp)
 
 
 def auto_L_3(
     t: float,
-    p: float,
+    y_rov: float,
     L: float,
     Fx_rov: float,
     Fy_rov: float,
-    T: float | None,
+    T_boat: float | None,
+    x_rov: float,
+    x_boat: float,
     Trupt: float | None = None,
     Tcible: float | None = None,
     Gamma_moulinet_min: float | None = None,
@@ -797,6 +1048,8 @@ def auto_L_3(
     3) rester en mode caténaire si possible,
     4) éviter les à-coups (lissage + limite d'accélération).
     Retourne (ret, explication).
+    Paramètres utilisés: t, L, Fx_rov, Fy_rov, T_boat, Trupt, Tcible,
+    Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, K.
     """
     if not hasattr(auto_L_3, "_history"):
         auto_L_3._history = []
@@ -851,11 +1104,11 @@ def auto_L_3(
         0,
         {
             "t": float(t),
-            "p": float(p),
+            "y_rov": float(y_rov),
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T is None else float(T),
+            "T": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
             "dT": None,
@@ -910,15 +1163,11 @@ def auto_L_3(
     if abs(delta_L) < 1e-4:
         if curr["dL_dt"] > 0:
             ret, exp = curr["dL_dt"] - 0.1, "DELTA_L_0+"
-            trace_print(
-                10,
-                f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {ret:.2f}"
+            trace_print(8, f"t: {t:.2f}, delta_L proche de 0+: {delta_L:.2f}, -> retourne {ret:.2f}"
             )
         else:
             ret, exp = curr["dL_dt"] + 0.11, "DELTA_L_0-"
-            trace_print(
-                10,
-                f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {ret:.2f}"
+            trace_print(8, f"t: {t:.2f}, delta_L proche de 0-: {delta_L:.2f}, -> retourne {ret:.2f}"
             )
         ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
         if limited:
@@ -928,26 +1177,26 @@ def auto_L_3(
 
     est_dT_dL = delta_T / delta_L
 
-    ret = abs((T - Tcible) / Tcible) * ((T - Tcible) / (2 * est_dT_dL))
+    ret = abs((T_boat - Tcible) / Tcible) * ((T_boat - Tcible) / (2 * est_dT_dL))
     ret_corrige = max(min(ret, 2.02), -2.02)
     ret, limited = _apply_moulinet_accel_limit(ret_corrige, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
     exp = "MAIN_ACC" if limited else "MAIN"
     curr["dl_dt_cmd_prev"] = ret
-    trace_print(
-        10,
-        f"t: {t:.2f}, L: {L:.2f}, est_dT_dL: {est_dT_dL:.2f}, "
-        f"T: {T:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrige: {ret_corrige:.2f}"
+    trace_print(8, f"t: {t:.2f}, L: {L:.2f}, est_dT_dL: {est_dT_dL:.2f}, "
+        f"T: {T_boat:.2f}, Tcible: {Tcible:.2f}, ret: {ret:.2f}, ret_corrige: {ret_corrige:.2f}"
     )
     return _finalize(ret, exp)
 
 
 def auto_L_4(
     t: float,
-    p: float,
+    y_rov: float,
     L: float,
     Fx_rov: float,
     Fy_rov: float,
-    T: float | None,
+    T_boat: float | None,
+    x_rov: float,
+    x_boat: float,
     Trupt: float | None = None,
     Tcible: float | None = None,
     Gamma_moulinet_min: float | None = None,
@@ -966,6 +1215,8 @@ def auto_L_4(
     3) rester en mode caténaire si possible,
     4) éviter les à-coups (lissage + limite d'accélération).
     Retourne (ret, explication).
+    Paramètres utilisés: t, y_rov, L, Fx_rov, Fy_rov, T_boat, Trupt, Tcible,
+    Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, K, N.
     """
     if not hasattr(auto_L_4, "_history"):
         auto_L_4._history = []
@@ -1020,24 +1271,21 @@ def auto_L_4(
         0,
         {
             "t": float(t),
-            "p": float(p),
+            "y_rov": float(y_rov),
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T is None else float(T),
+            "T": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
             "dT": None,
             "dL_dt": None,
-            "y_rov": None,
-            "dy_rov": None,
-            "vy_rov": None,
             "dl_dt_cmd_prev": None,
         },
     )
 
     if len(history) < 2:
-        trace_print(10, f"t: {t:.2f}, HISTORY < 2  -> retourne {0.0:.2f}")
+        trace_print(8, f"t: {t:.2f}, HISTORY < 2  -> retourne {0.0:.2f}")
         return _finalize(0.0, "HISTORY_LT2")
 
     curr = history[0]
@@ -1046,8 +1294,8 @@ def auto_L_4(
     curr["dT"] = curr["T"] - prev["T"] if curr["T"] is not None and prev["T"] is not None else 0.0
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0
-    curr["y_rov"] = float(p)
-    prev["y_rov"] = float(prev.get("p", prev.get("y_rov", p)))
+    curr["y_rov"] = float(y_rov)
+    prev["y_rov"] = float(prev.get("y_rov", y_rov))
     curr["dy_rov"] = curr["y_rov"] - prev["y_rov"]
     curr["vy_rov"] = curr["dy_rov"] / curr["dt"] if curr["dt"] != 0 else 0
 
@@ -1093,16 +1341,10 @@ def auto_L_4(
     if abs(delta_L) < 1e-4:
         if curr["dL_dt"] > 0:
             ret, exp = -Vy_lim - 0.05, "DELTA_L_0+"
-            trace_print(
-                10,
-                f"0+: t: {t:.2f}, delta_L: {delta_L:.2f}, -> retourne {ret:.2f}"
-            )
+            trace_print(8, f"0+: t: {t:.2f}, delta_L: {delta_L:.2f}, -> retourne {ret:.2f}")
         else:
             ret, exp = -Vy_lim + 0.05, "DELTA_L_0-"
-            trace_print(
-                10,
-                f"0-: t: {t:.2f}, delta_L: {delta_L:.2f}, -> retourne {ret:.2f}"
-            )
+            trace_print(8,f"0-: t: {t:.2f}, delta_L: {delta_L:.2f}, -> retourne {ret:.2f}")
         ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
         if limited:
             exp = f"{exp}_ACC"
@@ -1111,13 +1353,13 @@ def auto_L_4(
         return _finalize(ret, exp)
 
     # Cas principal
-    if T is None or Tcible in (None, 0):
+    if T_boat is None or Tcible in (None, 0):
         ret, exp = 0.0, "NO_T"
         ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
         if limited:
             exp = f"{exp}_ACC"
         curr["dl_dt_cmd_prev"] = ret
-        trace_print(10, f"MAIN: t={t:.2f}, T/Tcible invalide -> retourne {ret:.2f}")
+        trace_print(8, f"MAIN: t={t:.2f}, T/Tcible invalide -> retourne {ret:.2f}")
         return _finalize(ret, exp)
 
     est_dT_dL = delta_T / delta_L
@@ -1127,31 +1369,31 @@ def auto_L_4(
         if limited:
             exp = f"{exp}_ACC"
         curr["dl_dt_cmd_prev"] = ret
-        trace_print(10, f"MAIN: t={t:.2f}, est_dT_dL=0 -> retourne {ret:.2f}")
+        trace_print(8, f"MAIN: t={t:.2f}, est_dT_dL=0 -> retourne {ret:.2f}")
         return _finalize(ret, exp)
 
-    ret1 = - 1.1*Vy_lim +  min(1, abs((T - Tcible) / Tcible)) * ((T - Tcible) / (2 * est_dT_dL)) 
+    ret1 = - 1.1*Vy_lim +  min(1, abs((T_boat - Tcible) / Tcible)) * ((T_boat - Tcible) / (2 * est_dT_dL)) 
     ret2 = curr["dL_dt"] + (ret1 - curr["dL_dt"]) / 5
     ret = ret2
 
     ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
     exp = "MAIN_ACC" if limited else "MAIN"
     curr["dl_dt_cmd_prev"] = ret
-    trace_print(
-        10,
-        f"MAIN: t={t:.2f}, L={L: 6.2f}, est_dT_dL={est_dT_dL: 7.2f}, y_rov={p: 6.2f}, vy_rov={curr['vy_rov']: 6.2f}, Vy_lim={Vy_lim: 6.2f}, "
-        f"T={T: 5.2f}, Tcible={Tcible: 5.2f}, ret1={ret1: 8.2f}, ret2={ret2: 6.2f}, ret={ret: 6.2f}"
+    trace_print(8, f"MAIN: t={t:.2f}, L={L: 6.2f}, est_dT_dL={est_dT_dL: 7.2f}, y_rov={y_rov: 6.2f}, vy_rov={curr['vy_rov']: 6.2f}, Vy_lim={Vy_lim: 6.2f}, "
+        f"T={T_boat: 5.2f}, Tcible={Tcible: 5.2f}, ret1={ret1: 8.2f}, ret2={ret2: 6.2f}, ret={ret: 6.2f}"
     )
     return _finalize(ret, exp)
 
 
 def auto_L_6(
     t: float,
-    p: float,
+    y_rov: float,
     L: float,
     Fx_rov: float,
     Fy_rov: float,
-    T: float | None,
+    T_boat: float | None,
+    x_rov: float,
+    x_boat: float,
     Trupt: float | None = None,
     Tcible: float | None = None,
     Gamma_moulinet_min: float | None = None,
@@ -1169,6 +1411,8 @@ def auto_L_6(
     3) rester en mode caténaire si possible,
     4) éviter les à-coups (lissage + limite d'accélération).
     Retourne (ret, explication).
+    Paramètres utilisés: t, y_rov, L, Fx_rov, Fy_rov, T_boat, Trupt, Tcible,
+    Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, data, K, N.
     """
     if not hasattr(auto_L_6, "_history"):
         auto_L_6._history = []
@@ -1207,11 +1451,11 @@ def auto_L_6(
         0,
         {
             "t": float(t),
-            "p": float(p),
+            "y_rov": float(y_rov),
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T is None else float(T),
+            "T": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
             "dT": None,
@@ -1233,12 +1477,8 @@ def auto_L_6(
         curr["T_rov"] = data["T_rov"][-1]
     else:
         curr["T_rov"] = None
-    if data and isinstance(data.get("T_rov"), list) and data["T_rov"]:
-        curr["T_rov"] = data["T_rov"][-1]
-    else:
-        curr["T_rov"] = None
-    curr["y_rov"] = float(p)
-    prev["y_rov"] = float(prev.get("y_rov", p))
+    curr["y_rov"] = float(y_rov)
+    prev["y_rov"] = float(prev.get("y_rov", y_rov))
     curr["dy_rov"] = curr["y_rov"] - prev["y_rov"]
     curr["vy_rov"] = curr["dy_rov"] / curr["dt"] if curr["dt"] != 0 else 0.0
     prev["vy_rov"] = prev.get("vy_rov", 0.0)
@@ -1359,9 +1599,7 @@ def auto_L_6(
             return f"({val[0]: 3.2f}, {val[1]: 3.2f})"
         return "None"
 
-    trace_print(
-        10,
-        "IC_L_6: "
+    trace_print(8, "IC_L_6: "
         f"t={_fmt(_last_val('time') if _last_val('time') is not None else t)}, "
         f"y_rov={_fmt(_last_val('y_rov'))}, "
         f"vy_rov={_fmt(_last_val('vy_rov'))}, "
@@ -1377,10 +1615,8 @@ def auto_L_6(
         f"desired={desired: 6.2f}, "
         f"ret={ret: 5.2f}, exp={exp}"
     )
-    trace_print(
-        1,
-        f"AUTO_L_6: t={t:.2f}, L={L: 6.2f}, est_dT_dL={0.0 if est_dT_dL is None else est_dT_dL: 7.2f}, "
-        f"y_rov={p: 6.2f}, vy_rov={curr['vy_rov']: 6.2f}, "
+    trace_print(1, f"AUTO_L_6: t={t:.2f}, L={L: 6.2f}, est_dT_dL={0.0 if est_dT_dL is None else est_dT_dL: 7.2f}, "
+        f"y_rov={y_rov: 6.2f}, vy_rov={curr['vy_rov']: 6.2f}, "
         f"T={curr['T']:.2f}, "
         f"prev_cmd={prev_cmd: 6.2f}, ret1={ret1: 6.2f}, ret={ret: 6.2f}, "
         f"dL_dt={curr['dL_dt']: 6.2f}, dt={curr['dt']: 6.2f},  "
@@ -1391,11 +1627,11 @@ def auto_L_6(
 
 def auto_L_7(
     t: float,
-    p: float,
+    y_rov: float,
     L: float,
     Fx_rov: float,
     Fy_rov: float,
-    T: float | None,
+    T_boat: float | None,
     x_rov: float,
     x_boat: float,
     Trupt: float | None = None,
@@ -1418,6 +1654,8 @@ def auto_L_7(
     3) rester en mode caténaire si possible,
     4) éviter les à-coups (lissage + limite d'accélération).
     Retourne (ret, explication).
+    Paramètres utilisés: t, y_rov, L, Fx_rov, Fy_rov, T_boat, x_rov, x_boat,
+    Trupt, Tcible, Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, data, K, N.
     """
     if not hasattr(auto_L_7, "_history"):
         auto_L_7._history = []
@@ -1436,18 +1674,76 @@ def auto_L_7(
         Gamma_moulinet_min = -0.5
     if Gamma_moulinet_max is None:
         Gamma_moulinet_max = 0.5
+    
+    # Contrôle de la géométrie du câble
+    if data is not None:
+        x_cable_curr = data.get('x_cable_curr')
+        y_cable_curr = data.get('y_cable_curr')
+        x_boat_curr = data.get('x_boat')
+        y_boat_curr = 0.0  # Le bateau est toujours à y=0
+        
+        if (x_cable_curr is not None and y_cable_curr is not None and 
+            x_boat_curr is not None and len(x_boat_curr) > 0):
+            # Utiliser les dernières valeurs
+            x_boat_val = float(x_boat_curr[-1]) if isinstance(x_boat_curr, list) else float(x_boat_curr)
+            x_cable_val = x_cable_curr if isinstance(x_cable_curr, list) else list(x_cable_curr)
+            y_cable_val = y_cable_curr if isinstance(y_cable_curr, list) else list(y_cable_curr)
+            
+            # Vérifier les contraintes
+            r1, r2, r3, r4, r5, ls = contrôle_câble(
+                x_cable_val, y_cable_val,
+                x_boat_val, y_boat_curr,
+                x_rov, y_rov,
+                L,
+                tol_segment=1e-2
+            )
+            
+            # Produire un message d'erreur si une contrainte n'est pas respectée
+            errors = []
+            if not r1:
+                errors.append(f"Contrainte 1 violée : Le point 0 du câble ({x_cable_val[0]:.6f}, {y_cable_val[0]:.6f}) "
+                            f"ne correspond pas au bateau ({x_boat_val:.6f}, {y_boat_curr:.6f})")
+            if not r2:
+                errors.append(f"Contrainte 2 violée : Le point N du câble ({x_cable_val[-1]:.6f}, {y_cable_val[-1]:.6f}) "
+                            f"ne correspond pas au ROV ({x_rov:.6f}, {y_rov:.6f})")
+            if not r3:
+                L_total = sum(np.sqrt((x_cable_val[i+1] - x_cable_val[i])**2 + 
+                                      (y_cable_val[i+1] - y_cable_val[i])**2) 
+                             for i in range(len(x_cable_val) - 1))
+                errors.append(f"Contrainte 3 violée : La somme des longueurs des segments ({L_total:.6f} m) "
+                            f"n'est pas égale à L(t) ({L:.6f} m)")
+            if not r4:
+                dx_straight = x_rov - x_boat_val
+                dy_straight = y_rov - y_boat_curr
+                L_straight = np.sqrt(dx_straight**2 + dy_straight**2)
+                slack = L - L_straight
+                errors.append(f"Contrainte 4 violée : Slack(t) = {slack:.6f} m < 0 "
+                            f"(L={L:.6f} m, L_straight={L_straight:.6f} m)")
+            if not r5:
+                N_seg = len(x_cable_val) - 1
+                ds_target = L / N_seg if N_seg > 0 else 0.0
+                errors.append(f"Contrainte 5 violée : {len(ls)} segment(s) ne respectent pas la longueur cible "
+                            f"(ds_target={ds_target:.6f} m, tol=1e-3 m). Segments: {ls}")
+            
+            if errors:
+                error_msg = f"[ERREUR contrôle_câble à t={t:.3f} s]\n" + "\n".join(errors)
+                trace_print(8, error_msg)
+                # Ne pas lever d'exception pour ne pas interrompre la simulation,
+                # mais afficher l'erreur dans les logs
+    
+    # Calculer les valeurs de dl_dt_min et dl_dt_max une seule fois au début
+    if dl_dt_min is None:
+        dl_dt_min_val = -1.0
+    else:
+        dl_dt_min_val = float(dl_dt_min)
+    if dl_dt_max is None:
+        dl_dt_max_val = 1.0
+    else:
+        dl_dt_max_val = float(dl_dt_max)
+    if dl_dt_min_val > dl_dt_max_val:
+        dl_dt_min_val, dl_dt_max_val = dl_dt_max_val, dl_dt_min_val
 
     def _finalize(ret, exp):
-        if dl_dt_min is None:
-            dl_dt_min_val = -1.0
-        else:
-            dl_dt_min_val = float(dl_dt_min)
-        if dl_dt_max is None:
-            dl_dt_max_val = 1.0
-        else:
-            dl_dt_max_val = float(dl_dt_max)
-        if dl_dt_min_val > dl_dt_max_val:
-            dl_dt_min_val, dl_dt_max_val = dl_dt_max_val, dl_dt_min_val
         ret = max(min(ret, dl_dt_max_val), dl_dt_min_val)
         return ret, exp
 
@@ -1456,11 +1752,11 @@ def auto_L_7(
         0,
         {
             "t": float(t),
-            "p": float(p),
+            "y_rov": float(y_rov),
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T is None else float(T),
+            "T": None if T_boat is None else float(T_boat),
             "x_rov": float(x_rov),
             "x_boat": float(x_boat),
             "dt": None,
@@ -1496,8 +1792,8 @@ def auto_L_7(
         est_dT_dL = delta_T / delta_L
 
     # Distance droite bateau-ROV et marge de flèche minimale
-    L_straight = math.hypot(curr["x_rov"] - curr["x_boat"], curr["p"] - 0.0)
-    prev_L_straight = math.hypot(prev["x_rov"] - prev["x_boat"], prev["p"] - 0.0)
+    L_straight = math.hypot(curr["x_rov"] - curr["x_boat"], curr["y_rov"] - 0.0)
+    prev_L_straight = math.hypot(prev["x_rov"] - prev["x_boat"], prev["y_rov"] - 0.0)
     curr["dL_straight"] = L_straight - prev_L_straight
     curr["dL_straight_dt"] = curr["dL_straight"] / curr["dt"] if curr["dt"] else 0.0
     slack = curr["L"] - L_straight
@@ -1513,6 +1809,11 @@ def auto_L_7(
         auto_L_7._slack_mode = "ADD"
     elif slack > slack_min * 1.3:
         auto_L_7._slack_mode = None
+
+    # Atténuation douce proche du plafond de slack pour éviter le pompage
+    slack_cap_ratio = None
+    if slack_max > 1e-6:
+        slack_cap_ratio = slack / slack_max
 
     def _last_val(key):
         if not data:
@@ -1532,11 +1833,9 @@ def auto_L_7(
     t_soft = 0.80 * Trupt
     t_hard = 0.90 * Trupt
     if curr["T"] is None or Tcible in (None, 0):
-        trace_print(
-            10,
-            "IC_L_7: "
-            f"t={_fmt(_last_val('time') if _last_val('time') is not None else t)}, "
-            f"L={_fmt(_last_val('L'))}, "
+        trace_print(8, "IC_L_7: "
+            f"t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
+            f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
             f"L_straight={L_straight: 6.2f}, "
             f"slack={slack: 6.2f}, "
             f"T_bat={_fmt(_last_val('T_boat'))}, "
@@ -1572,7 +1871,7 @@ def auto_L_7(
         if auto_L_7._tension_mode == "HARD":
             auto_L_7._tension_mode_age += 1
             if auto_L_7._tension_mode_age < 3 or t_f >= t_hard_off:
-                desired = 1.0
+                desired = dl_dt_max_val
                 exp = "T_HARD"
             else:
                 auto_L_7._tension_mode = None
@@ -1581,7 +1880,7 @@ def auto_L_7(
             auto_L_7._tension_mode_age += 1
             if auto_L_7._tension_mode_age < 3 or t_f >= t_soft_off:
                 ramp = (t_f - t_soft) / max(t_hard - t_soft, 1e-6)
-                desired = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0)
+                desired = 0.5 * dl_dt_max_val + 0.5 * dl_dt_max_val * max(min(ramp, 1.0), 0.0)
                 exp = "T_SOFT"
             else:
                 auto_L_7._tension_mode = None
@@ -1591,13 +1890,13 @@ def auto_L_7(
         if t_f >= t_hard:
             auto_L_7._tension_mode = "HARD"
             auto_L_7._tension_mode_age = 0
-            desired = 1.0
+            desired = dl_dt_max_val
             exp = "T_HARD"
         elif t_f >= t_soft:
             auto_L_7._tension_mode = "SOFT"
             auto_L_7._tension_mode_age = 0
             ramp = (t_f - t_soft) / max(t_hard - t_soft, 1e-6)
-            desired = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0)
+            desired = 0.5 * dl_dt_max_val + 0.5 * dl_dt_max_val * max(min(ramp, 1.0), 0.0)
             exp = "T_SOFT"
         else:
             auto_L_7._tension_mode = None
@@ -1615,13 +1914,13 @@ def auto_L_7(
                 slack_err = max(slack_err, 1e-6)
             if slack_err > 0:
                 err_ratio = slack_err / max(slack_min, 1e-6)
-                desired = min(1.0, 0.2 + 1.2 * err_ratio)
+                desired = min(dl_dt_max_val, 0.2 + 1.2 * err_ratio)
                 exp = "PILOT_DESC_ADD_SLACK"
             else:
                 desired = 0.1
                 exp = "PILOT_DESC"
             # Assurer un débit minimal quand la distance droite augmente (descente/éloignement)
-            if slack < slack_max and curr["dt"]:
+            if slack < slack_max and curr["dt"] and (slack_cap_ratio is None or slack_cap_ratio < 0.9):
                 # Forcer un débit mini plus fort quand la distance droite augmente
                 # (descente rapide / éloignement), pour éviter une tension "bloquée".
                 dL_straight_dt = max(0.0, curr.get("dL_straight_dt", 0.0))
@@ -1651,13 +1950,18 @@ def auto_L_7(
                 if auto_L_7._minpay_active and desired < min_payout:
                     desired = min_payout
                     exp = f"{exp}_MINPAY"
+            else:
+                # Slack proche/au-dessus du plafond -> éviter les bascules MINPAY
+                if not hasattr(auto_L_7, "_minpay_active"):
+                    auto_L_7._minpay_active = False
+                auto_L_7._minpay_active = False
         else:
             # Priorité 3: remontée (Fy >= 0) -> réduire le slack sans passer en straight
             if Fy_rov >= 0:
                 slack_err = slack - slack_min
                 if slack_err > 0:
                     err_ratio = slack_err / max(slack_min, 1e-6)
-                    desired = -min(1.0, 0.1 + 1.0 * err_ratio)
+                    desired = -min(dl_dt_max_val, 0.1 + 1.0 * err_ratio)
                     exp = "PILOT_ASC_REMOVE_SLACK"
                 else:
                     desired = 0.0
@@ -1667,10 +1971,10 @@ def auto_L_7(
                 if slack < slack_min:
                     slack_err = slack_min - slack
                     err_ratio = slack_err / max(slack_min, 1e-6)
-                    desired = min(1.0, 0.1 + 1.0 * err_ratio)
+                    desired = min(dl_dt_max_val, 0.1 + 1.0 * err_ratio)
                     exp = "CATENARY_ADD_SLACK"
                 elif slack > slack_max:
-                    desired = -min((slack - slack_max) / max(slack_max, 1e-6), 1.0)
+                    desired = -min((slack - slack_max) / max(slack_max, 1e-6), dl_dt_max_val)
                     exp = "CATENARY_REMOVE_SLACK"
                 else:
                     # Régulation douce de tension autour de Tcible
@@ -1681,6 +1985,12 @@ def auto_L_7(
                         desired = -(curr["T"] - Tcible) / (2.0 * est_dT_dL)
                         exp = "CATENARY_REG"
 
+    # Anti-bagottement doux quand le slack est proche du plafond
+    if slack_cap_ratio is not None and slack_cap_ratio >= 0.8:
+        k = min(max((slack_cap_ratio - 0.8) / 0.2, 0.0), 1.0)
+        desired = (1.0 - k) * desired + k * (-0.1)
+        exp = f"{exp}_SLACK_CAP"
+
     # Lissage de la commande
     prev_cmd = prev.get("dl_dt_cmd_prev")
     if prev_cmd is None:
@@ -1688,7 +1998,16 @@ def auto_L_7(
     prev_desired = prev.get("desired_cmd_prev")
     if prev_desired is None:
         prev_desired = desired
-    desired = prev_desired + 0.3 * (desired - prev_desired)
+    # Limiter la vitesse de variation de desired (slew-rate)
+    max_rate = 2.0
+    if slack_cap_ratio is not None and slack_cap_ratio >= 0.8:
+        max_rate = 0.6
+    if curr.get("dt"):
+        max_step = max_rate * curr["dt"]
+        delta = max(min(desired - prev_desired, max_step), -max_step)
+        desired = prev_desired + delta
+    else:
+        desired = prev_desired + 0.3 * (desired - prev_desired)
     curr["desired_cmd_prev"] = desired
     ret1 = prev_cmd + (desired - prev_cmd) / max(N, 1)
 
@@ -1706,11 +2025,18 @@ def auto_L_7(
     ret = ret1
     curr["dl_dt_cmd_prev"] = ret
 
-    trace_print(
-        10,
-        "IC_L_7: "
-        f"t={_fmt(_last_val('time') if _last_val('time') is not None else t)}, "
-        f"L={_fmt(_last_val('L'))}, "
+    # DEBUG: Vérifier cohérence entre L passé en paramètre et curr['L']
+    L_param = L  # L passé en paramètre à auto_L_7
+    L_curr = curr.get('L')
+    if L_curr is not None and abs(L_param - L_curr) > 1e-2:
+        trace_print(8, f"[DEBUG L] auto_L_7 INCOHÉRENCE: "
+            f"L_param={L_param:.6f} m, curr['L']={L_curr:.6f} m, "
+            f"ÉCART={abs(L_param - L_curr):.6f} m"
+        )
+    
+    trace_print(8, "IC_L_7: "
+        f"t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
+        f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
         f"L_straight={L_straight: 6.2f}, "
         f"slack={slack: 6.2f}, "
         f"T_bat={_fmt(_last_val('T_boat'))}, "
@@ -1718,6 +2044,11 @@ def auto_L_7(
         f"F_drag_cable={_fmt_vec(_last_val('cable_drag'))}, "
         f"Fy_cmd={Fy_rov: 6.2f}, "
         f"desired={desired: 6.2f}, ret={ret: 6.2f}, exp={exp}"
+    )
+    # DEBUG: Traçage supplémentaire pour diagnostic
+    trace_print(8, f"[DEBUG L] IC_L_7: t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
+        f"L_param={L_param:.6f} m, curr['L']={_fmt(L_curr)}, "
+        f"L_last_data={_fmt(_last_val('L'))} m"
     )
 
     return _finalize(ret, exp)

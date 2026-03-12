@@ -5,8 +5,9 @@ Organisé en 3 colonnes
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QGroupBox, QGridLayout,
                              QFileDialog, QMessageBox, QScrollArea, QComboBox,
-                             QInputDialog, QTextEdit, QSpinBox)
-from PyQt6.QtCore import Qt, QTimer
+                             QInputDialog, QTextEdit)
+from PyQt6.QtCore import Qt, QTimer, QPoint
+from PyQt6.QtGui import QCursor
 from pathlib import Path
 import sys
 import os
@@ -14,11 +15,52 @@ import json
 from datetime import datetime
 import math
 from src.utils.logger import trace_print
-from src.utils.scenario_utils import verifier_syntaxe_scenario
+from src.utils.scenario_utils import verifier_syntaxe_scenario, find_first_invalid_couple, list_auto_L_functions, get_auto_L_function
+import inspect
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
-from src.ui.mission_utils import get_missions_directory, list_missions, create_mission
+from src.ui.mission_utils import get_missions_directory, list_missions, create_mission, load_mission_description
 from src.ui.pyqt_widgets.simulation_tab import HelpButton
+
+
+class MissionToolTip(QLabel):
+    """Tooltip personnalisé persistant pour les descriptions de missions"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        self.setStyleSheet("""
+            QLabel {
+                background-color: #f4e4bc;
+                color: #555;
+                border: 1px solid #d4c4a4;
+                padding: 8px;
+                border-radius: 3px;
+                font-size: 10pt;
+            }
+        """)
+        self.setWordWrap(True)
+        self.setMaximumWidth(400)
+        self.hide()
+
+
+class AutoLToolTip(QLabel):
+    """Tooltip personnalisé persistant pour les docstrings des fonctions auto_L"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        self.setStyleSheet("""
+            QLabel {
+                background-color: #e8f4f8;
+                color: #333;
+                border: 1px solid #b8d4e0;
+                padding: 8px;
+                border-radius: 3px;
+                font-size: 10pt;
+            }
+        """)
+        self.setWordWrap(True)
+        self.setMaximumWidth(500)
+        self.hide()
 
 
 class AllParametersTab(QWidget):
@@ -27,8 +69,29 @@ class AllParametersTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
+        self.mission_descriptions = {}  # Dictionnaire pour stocker les descriptions des missions
+        self.mission_tooltip = MissionToolTip(self)  # Tooltip persistant
+        self.auto_L_docstrings = {}  # Dictionnaire pour stocker les docstrings des fonctions auto_L
+        self.auto_L_tooltip = AutoLToolTip(self)  # Tooltip persistant pour auto_L
+        self._suppress_auto_L_tooltip = False
         self.init_ui()
         self.load_all_parameters_display()
+
+    def eventFilter(self, obj, event):
+        """Intercepte certains événements pour gérer les tooltips persistants."""
+        try:
+            from PyQt6.QtCore import QEvent
+        except Exception:
+            return super().eventFilter(obj, event)
+
+        # Cacher le tooltip auto_L quand la souris quitte la liste déroulante
+        if hasattr(self, "auto_L_combo") and self.auto_L_combo is not None:
+            view = self.auto_L_combo.view()
+            if view is not None and obj is view.viewport():
+                if event.type() in (QEvent.Type.Leave, QEvent.Type.FocusOut, QEvent.Type.Hide):
+                    self.auto_L_tooltip.hide()
+
+        return super().eventFilter(obj, event)
     
     def init_ui(self):
         """Initialise l'interface avec 3 colonnes"""
@@ -77,6 +140,8 @@ class AllParametersTab(QWidget):
         # Remplir la liste et connecter le signal
         self.update_mission_list()
         self.mission_combo.currentTextChanged.connect(self.on_mission_changed)
+        self.mission_combo.highlighted.connect(self.on_mission_highlighted)
+        self.mission_combo.activated.connect(self.on_mission_activated)  # Cache le tooltip quand on sélectionne
         
         # Boutons de chargement/sauvegarde (en haut, sur toute la largeur)
         button_layout = QHBoxLayout()
@@ -117,6 +182,26 @@ class AllParametersTab(QWidget):
         
         main_layout.addLayout(columns_layout, 1)
         self._connect_free_fall_inputs()
+    
+    def _update_auto_L_combo(self):
+        """Remplit le combo Auto_L avec la liste des fonctions auto_L_xxx du code source."""
+        self.auto_L_combo.clear()
+        self.auto_L_docstrings.clear()
+        names = list_auto_L_functions()
+        if names:
+            self.auto_L_combo.addItems(names)
+            # Charger les docstrings pour chaque fonction
+            for name in names:
+                func = get_auto_L_function(name)
+                if func:
+                    docstring = inspect.getdoc(func) or "Aucune documentation disponible."
+                    self.auto_L_docstrings[name] = docstring
+        else:
+            self.auto_L_combo.addItem("auto_L_1")
+            func = get_auto_L_function("auto_L_1")
+            if func:
+                docstring = inspect.getdoc(func) or "Aucune documentation disponible."
+                self.auto_L_docstrings["auto_L_1"] = docstring
     
     def create_environment_column(self):
         """Crée la colonne des paramètres d'environnement"""
@@ -271,6 +356,50 @@ class AllParametersTab(QWidget):
             1,
             2,
         )
+
+        # Paramètres de performance / taille des données
+        sim_layout.addWidget(QLabel("Taille max données (points):"), 2, 0)
+        self.max_data_size = QLineEdit()
+        sim_layout.addWidget(self.max_data_size, 2, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Nombre maximum de points conservés dans les séries temporelles "
+                "(`data`). Les plus anciens points sont supprimés au‑delà de cette "
+                "limite pour éviter une explosion mémoire (défaut: 10000).",
+                self,
+            ),
+            2,
+            2,
+        )
+
+        sim_layout.addWidget(QLabel("Intervalle écriture Excel (itérations):"), 3, 0)
+        self.excel_write_interval = QLineEdit()
+        sim_layout.addWidget(self.excel_write_interval, 3, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Nombre de pas de simulation entre deux écritures dans le fichier "
+                "Excel `trace_dic.xlsx`. Augmenter cette valeur réduit le coût "
+                "d’entrées/sorties disque (défaut: 50).",
+                self,
+            ),
+            3,
+            2,
+        )
+
+        sim_layout.addWidget(QLabel("Points max graphiques (plot_points_limit):"), 4, 0)
+        self.plot_points_limit = QLineEdit()
+        sim_layout.addWidget(self.plot_points_limit, 4, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Nombre maximum de points envoyés à l’interface pour chaque "
+                "courbe. Les graphiques n’affichent que les N derniers points "
+                "pour limiter le volume de données (défaut: 1000).",
+                self,
+            ),
+            4,
+            2,
+        )
+
         sim_group.setLayout(sim_layout)
         layout.addWidget(sim_group)
         
@@ -398,13 +527,20 @@ class AllParametersTab(QWidget):
         self.rov_h = QLineEdit()
         layout.addWidget(self.rov_h, 4, 1)
         
-        layout.addWidget(QLabel("Coeff. traînée Cx:"), 5, 0)
+        layout.addWidget(QLabel("Coeff. traînée Cx, Cy:"), 5, 0)
         self.rov_cx = QLineEdit()
-        layout.addWidget(self.rov_cx, 5, 1)
-        
-        layout.addWidget(QLabel("Coeff. traînée Cy:"), 6, 0)
         self.rov_cy = QLineEdit()
-        layout.addWidget(self.rov_cy, 6, 1)
+        drag_layout = QHBoxLayout()
+        drag_layout.setContentsMargins(0, 0, 0, 0)
+        drag_layout.addWidget(self.rov_cx)
+        drag_layout.addWidget(self.rov_cy)
+        layout.addLayout(drag_layout, 5, 1)
+
+        layout.addWidget(QLabel("Poids apparent:"), 6, 0)
+        self.rov_apparent_weight = QLineEdit()
+        self.rov_apparent_weight.setReadOnly(True)
+        self.rov_apparent_weight.setPlaceholderText("calculé automatiquement")
+        layout.addWidget(self.rov_apparent_weight, 6, 1)
 
         layout.addWidget(QLabel("dy/dt libre limite:"), 7, 0)
         self.rov_free_fall_speed = QLineEdit()
@@ -441,9 +577,13 @@ class AllParametersTab(QWidget):
         self.cable_cx = QLineEdit()
         layout.addWidget(self.cable_cx, 2, 1)
 
-        layout.addWidget(QLabel("Tension de rupture (N):"), 3, 0)
+        layout.addWidget(QLabel("Coeff. frottement Cf:"), 3, 0)
+        self.cable_cf = QLineEdit()
+        layout.addWidget(self.cable_cf, 3, 1)
+
+        layout.addWidget(QLabel("Tension de rupture (N):"), 4, 0)
         self.cable_break_tension = QLineEdit()
-        layout.addWidget(self.cable_break_tension, 3, 1)
+        layout.addWidget(self.cable_break_tension, 4, 1)
         
         group.setLayout(layout)
         return group
@@ -540,12 +680,21 @@ class AllParametersTab(QWidget):
         )
 
         layout.addWidget(QLabel("Auto_L"), 4, 0)
-        self.auto_L_spin = QSpinBox()
-        self.auto_L_spin.setMinimum(1)
-        self.auto_L_spin.setMaximum(999)
-        layout.addWidget(self.auto_L_spin, 4, 1)
+        self.auto_L_combo = QComboBox()
+        self.auto_L_combo.setEditable(False)
+        self._update_auto_L_combo()
+        # Tooltips persistants pour les fonctions auto_L
+        self.auto_L_combo.highlighted.connect(self.on_auto_L_highlighted)
+        self.auto_L_combo.activated.connect(self.on_auto_L_activated)  # Cache le tooltip quand on sélectionne
+        # Cacher le tooltip quand la souris quitte la liste déroulante
+        if self.auto_L_combo.view() is not None:
+            self.auto_L_combo.view().viewport().installEventFilter(self)
+        layout.addWidget(self.auto_L_combo, 4, 1)
         layout.addWidget(
-            HelpButton("Indice n de la fonction auto_L_n utilisée en mode Auto.", self),
+            HelpButton(
+                "Fonction auto_L_xxx utilisée en mode Auto (xxx = identifiant alphanumérique).",
+                self,
+            ),
             4, 2
         )
 
@@ -583,6 +732,7 @@ class AllParametersTab(QWidget):
             self.cable_d.setText(str(cable.get('d', '')))
             self.cable_rho.setText(str(cable.get('rho_cable', '')))
             self.cable_cx.setText(str(cable.get('Cx_cable', '')))
+            self.cable_cf.setText(str(cable.get('Cf_cable', '')))
             self.cable_break_tension.setText(str(cable.get('tension_rupture', '')))
             
             boat = params.get('boat', {})
@@ -613,12 +763,33 @@ class AllParametersTab(QWidget):
         self.steps_per_update.setText(str(calc_params.get('steps_per_update', 5)))
         self.n_segments.setText(str(calc_params.get('N_segments', 50)))
         self.transition_alpha.setText(str(calc_params.get('straight_blend_alpha', 1.0)))
+        # Nouveaux paramètres de performance / taille des données
+        if hasattr(self, "max_data_size"):
+            self.max_data_size.setText(str(calc_params.get('max_data_size', 10000)))
+        if hasattr(self, "excel_write_interval"):
+            self.excel_write_interval.setText(str(calc_params.get('excel_write_interval', 50)))
+        if hasattr(self, "plot_points_limit"):
+            self.plot_points_limit.setText(str(calc_params.get('plot_points_limit', 1000)))
         self.sc_fx_rov.setPlainText(str(calc_params.get('sc_fx_rov', '')))
         self.sc_fy_rov.setPlainText(str(calc_params.get('sc_fy_rov', '')))
         self.sc_v_bateau.setText(str(calc_params.get('sc_v_bateau', '')))
         self.sc_v_moulinet.setText(str(calc_params.get('sc_v_moulinet', '')))
-        if hasattr(self, "auto_L_spin"):
-            self.auto_L_spin.setValue(int(calc_params.get('auto_L', 1)))
+        if hasattr(self, "auto_L_combo"):
+            auto_L_val = calc_params.get('auto_L', 'auto_L_1')
+            if isinstance(auto_L_val, int):
+                auto_L_val = f"auto_L_{auto_L_val}"
+            self._suppress_auto_L_tooltip = True
+            self.auto_L_tooltip.hide()
+            self.auto_L_combo.blockSignals(True)
+            try:
+                idx = self.auto_L_combo.findText(auto_L_val)
+                if idx >= 0:
+                    self.auto_L_combo.setCurrentIndex(idx)
+                else:
+                    self.auto_L_combo.setCurrentIndex(0)
+            finally:
+                self.auto_L_combo.blockSignals(False)
+                self._suppress_auto_L_tooltip = False
         if hasattr(self, "tcible"):
             self.tcible.setText(str(calc_params.get('Tcible', "")))
 
@@ -649,13 +820,17 @@ class AllParametersTab(QWidget):
             widget.textChanged.connect(self.update_free_fall_speed)
 
     def update_free_fall_speed(self):
-        value = self._compute_free_fall_speed()
-        if value is None:
+        metrics = self._compute_free_fall_metrics()
+        if metrics is None:
+            self.rov_apparent_weight.setText("")
             self.rov_free_fall_speed.setText("")
             return
-        self.rov_free_fall_speed.setText(f"{value:.3f} m/s")
+        effective_weight, speed = metrics
+        apparent_weight_display = -effective_weight
+        self.rov_apparent_weight.setText(f"{apparent_weight_display:.1f} N")
+        self.rov_free_fall_speed.setText(f"{speed:.3f} m/s")
 
-    def _compute_free_fall_speed(self):
+    def _compute_free_fall_metrics(self):
         def read_float(widget):
             try:
                 return float((widget.text() or "").strip())
@@ -688,10 +863,11 @@ class AllParametersTab(QWidget):
 
         effective_weight = (mass - rho * volume) * g
         if effective_weight == 0:
-            return 0.0
+            return 0.0, 0.0
 
         speed = math.sqrt((2.0 * abs(effective_weight)) / (rho * cy * area))
-        return speed if effective_weight < 0 else -speed
+        speed = speed if effective_weight < 0 else -speed
+        return effective_weight, speed
     
     def save_all_parameters_from_display(self):
         """Sauvegarde tous les paramètres depuis l'affichage"""
@@ -735,6 +911,7 @@ class AllParametersTab(QWidget):
                     'd': parse_float(self.cable_d.text(), 0.01, "Diamètre câble d (m)"),
                     'rho_cable': parse_float(self.cable_rho.text(), 1500.0, "Masse volumique câble (kg/m³)"),
                     'Cx_cable': parse_float(self.cable_cx.text(), 1.2, "Coeff. traînée câble Cx"),
+                    'Cf_cable': parse_float(self.cable_cf.text(), 0.04, "Coeff. frottement câble Cf"),
                     'tension_rupture': parse_float(
                         self.cable_break_tension.text(),
                         50.0,
@@ -777,11 +954,21 @@ class AllParametersTab(QWidget):
                 'straight_blend_alpha': parse_float(
                     self.transition_alpha.text(), 1.0, "Lissage transition mode"
                 ),
+                # Nouveaux paramètres de performance / taille des données
+                'max_data_size': parse_int(
+                    self.max_data_size.text(), 10000, "Taille max données (max_data_size)"
+                ),
+                'excel_write_interval': parse_int(
+                    self.excel_write_interval.text(), 50, "Intervalle écriture Excel (excel_write_interval)"
+                ),
+                'plot_points_limit': parse_int(
+                    self.plot_points_limit.text(), 1000, "Points max graphiques (plot_points_limit)"
+                ),
                 'sc_fx_rov': (self.sc_fx_rov.toPlainText() or "").strip(),
                 'sc_fy_rov': (self.sc_fy_rov.toPlainText() or "").strip(),
                 'sc_v_bateau': (self.sc_v_bateau.text() or "").strip(),
                 'sc_v_moulinet': (self.sc_v_moulinet.text() or "").strip(),
-                'auto_L': int(self.auto_L_spin.value()) if hasattr(self, "auto_L_spin") else 1,
+                'auto_L': self.auto_L_combo.currentText() if hasattr(self, "auto_L_combo") else "auto_L_1",
                 'Tcible': parse_float(self.tcible.text(), None, "Tension cible") if hasattr(self, "tcible") else None,
             }
 
@@ -813,7 +1000,14 @@ class AllParametersTab(QWidget):
     def update_mission_list(self):
         """Met à jour la liste des missions disponibles"""
         self.mission_combo.clear()
+        self.mission_descriptions.clear()
         missions = list_missions()
+        
+        # Charger les descriptions pour chaque mission
+        for mission_name in missions:
+            description = load_mission_description(mission_name)
+            self.mission_descriptions[mission_name] = description
+        
         self.mission_combo.addItems(missions)
         
         current_mission = self.main_window.mission_data.get('current') if self.main_window.mission_data else None
@@ -821,42 +1015,134 @@ class AllParametersTab(QWidget):
             self.mission_combo.blockSignals(True)
             self.mission_combo.setCurrentText(current_mission)
             self.mission_combo.blockSignals(False)
+    
+    def on_mission_highlighted(self, index):
+        """Affiche un tooltip persistant avec la description de la mission survolée"""
+        if index >= 0 and index < self.mission_combo.count():
+            mission_name = self.mission_combo.itemText(index)
+            description = self.mission_descriptions.get(mission_name, "")
+            
+            if description:
+                # Mettre à jour le texte du tooltip
+                self.mission_tooltip.setText(description)
+                self.mission_tooltip.adjustSize()
+                
+                # Positionner le tooltip près du curseur
+                cursor_pos = QCursor.pos()
+                tooltip_pos = QPoint(cursor_pos.x() + 15, cursor_pos.y() + 15)
+                self.mission_tooltip.move(tooltip_pos)
+                self.mission_tooltip.show()
+            else:
+                # Cacher le tooltip si pas de description
+                self.mission_tooltip.hide()
+        else:
+            self.mission_tooltip.hide()
+    
+    def on_mission_activated(self, index):
+        """Cache le tooltip quand une mission est sélectionnée (la liste se ferme)"""
+        self.mission_tooltip.hide()
+    
+    def on_auto_L_highlighted(self, index):
+        """Affiche un tooltip persistant avec la docstring de la fonction auto_L survolée"""
+        if self._suppress_auto_L_tooltip:
+            self.auto_L_tooltip.hide()
+            return
 
-    def _validate_scenarios(self, calc_params: dict, strict: bool = True) -> bool:
+        view = self.auto_L_combo.view() if hasattr(self, "auto_L_combo") else None
+        if view is None or not view.isVisible():
+            self.auto_L_tooltip.hide()
+            return
+
+        if index >= 0 and index < self.auto_L_combo.count():
+            func_name = self.auto_L_combo.itemText(index)
+            docstring = self.auto_L_docstrings.get(func_name, "")
+            
+            if docstring:
+                # Convertir les retours à la ligne en <br/> pour l'affichage HTML
+                docstring_html = docstring.replace('\n', '<br/>')
+                # Mettre à jour le texte du tooltip avec formatage HTML
+                self.auto_L_tooltip.setText(f"<b>{func_name}</b><br/><br/>{docstring_html}")
+                self.auto_L_tooltip.adjustSize()
+                
+                # Positionner le tooltip près du curseur
+                cursor_pos = QCursor.pos()
+                tooltip_pos = QPoint(cursor_pos.x() + 15, cursor_pos.y() + 15)
+                self.auto_L_tooltip.move(tooltip_pos)
+                self.auto_L_tooltip.show()
+            else:
+                # Cacher le tooltip si pas de docstring
+                self.auto_L_tooltip.hide()
+        else:
+            self.auto_L_tooltip.hide()
+    
+    def on_auto_L_activated(self, index):
+        """Cache le tooltip quand une fonction auto_L est sélectionnée (la liste se ferme)"""
+        self.auto_L_tooltip.hide()
+
+    def _validate_scenarios(self, calc_params: dict, strict: bool = True, use_fields: bool = True) -> bool:
         """Valide la syntaxe des scénarios et affiche un message si invalide."""
-        scenarios = {
-            "ROV Fx": (calc_params.get('sc_fx_rov') or "").strip(),
-            "ROV Fy": (calc_params.get('sc_fy_rov') or "").strip(),
-            "Bateau": (calc_params.get('sc_v_bateau') or "").strip(),
-            "Moulinet": (calc_params.get('sc_v_moulinet') or "").strip(),
-        }
-        invalid = [label for label, scen in scenarios.items()
-                   if scen and not verifier_syntaxe_scenario(scen)]
         field_map = {
             "ROV Fx": self.sc_fx_rov,
             "ROV Fy": self.sc_fy_rov,
             "Bateau": self.sc_v_bateau,
             "Moulinet": self.sc_v_moulinet,
         }
-        for label, field in field_map.items():
-            if label in invalid:
-                field.setStyleSheet("border: 1px solid #d9534f;")
-            else:
-                field.setStyleSheet("")
+        scenarios = {}
+        if use_fields:
+            for label, field in field_map.items():
+                if hasattr(field, "toPlainText"):
+                    raw = (field.toPlainText() or "").strip()
+                else:
+                    raw = (field.text() or "").strip()
+                normalized = raw.replace(";", ":")
+                if normalized != raw:
+                    if hasattr(field, "setPlainText"):
+                        field.setPlainText(normalized)
+                    else:
+                        field.setText(normalized)
+                scenarios[label] = normalized
+        else:
+            scenarios = {
+                "ROV Fx": (calc_params.get('sc_fx_rov') or "").strip(),
+                "ROV Fy": (calc_params.get('sc_fy_rov') or "").strip(),
+                "Bateau": (calc_params.get('sc_v_bateau') or "").strip(),
+                "Moulinet": (calc_params.get('sc_v_moulinet') or "").strip(),
+            }
+            for label, scen in scenarios.items():
+                scenarios[label] = scen.replace(";", ":")
+        calc_params['sc_fx_rov'] = scenarios.get("ROV Fx", "")
+        calc_params['sc_fy_rov'] = scenarios.get("ROV Fy", "")
+        calc_params['sc_v_bateau'] = scenarios.get("Bateau", "")
+        calc_params['sc_v_moulinet'] = scenarios.get("Moulinet", "")
+        invalid = [label for label, scen in scenarios.items()
+                   if scen and not verifier_syntaxe_scenario(scen)]
+        if use_fields:
+            for label, field in field_map.items():
+                if label in invalid:
+                    field.setStyleSheet("border: 1px solid #d9534f;")
+                else:
+                    field.setStyleSheet("")
         if invalid:
-            labels = ", ".join(invalid)
+            details = []
+            for label in invalid:
+                scen = scenarios.get(label, "")
+                first_err = find_first_invalid_couple(scen) or "(couple invalide)"
+                details.append(f"- {label}: {first_err}")
+            detail_text = "\n".join(details)
             if strict:
                 QMessageBox.warning(
                     self,
                     "Scénario invalide",
-                    f"Syntaxe invalide pour: {labels}.\n"
+                    "Syntaxe invalide pour:\n"
+                    f"{detail_text}\n"
                     "Corrigez les scénarios avant de charger/sauvegarder."
                 )
                 return False
             QMessageBox.warning(
                 self,
                 "Scénario invalide",
-                f"Syntaxe invalide pour: {labels}.\n"
+                "Syntaxe invalide pour:\n"
+                f"{detail_text}\n"
                 "La mission est chargée pour correction."
             )
         return True
@@ -999,7 +1285,7 @@ class AllParametersTab(QWidget):
                     pass
                 calc_params.pop("Gamma_moulinet_max", None)
 
-            self._validate_scenarios(calc_params, strict=False)
+            self._validate_scenarios(calc_params, strict=False, use_fields=False)
 
             description = str(data.get("description", ""))
             self.main_window.parameters = parameters
@@ -1155,7 +1441,7 @@ class AllParametersTab(QWidget):
             'dt_max': 0.1,
             'N_segments': 50,
             'straight_blend_alpha': 1.0,
-            'auto_L': 1,
+            'auto_L': 'auto_L_1',
             'Tcible': None,
         }
         self.main_window.init_params = {

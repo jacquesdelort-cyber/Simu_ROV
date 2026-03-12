@@ -1,3 +1,0 @@
-On veut pouvoir suivre le déroulement des scénarios.
-Pour cela on va mémoriser le déclenchement d'un critère, c'est à dire la première évaluation à "vrai" du critère, avec le nom du scénario auquel il est attaché et la date à laquelle a lieu ce déclenchement.
-De plus lors du premier déclenchement d'un critère, on affiche un message de trace de niveau 10 comprenant le temps, le nom du scénario et le critère déclenché "(crit:val") ainsi que la valeur de t, T_bat, p (la profondeur du ROV) et L.

@@ -148,29 +148,23 @@ class ROVSystem:
             if vy_rov > 0.0:
                 vy_rov = 0.0
 
-        # Si L est inférieur à la distance droite, recaler le ROV sur la longueur L
+        # Calculer la distance droite et le slack
         dx_straight = x_rov - x_boat
         dy_straight = y_rov - 0.0
         L_straight = np.hypot(dx_straight, dy_straight)
+        slack = L - L_straight
+        
+        # IMPORTANT : Le slack doit toujours être >= 0
+        # Si slack < 0, la tension au ROV doit être ajustée pour tirer le ROV vers le bateau
+        # et réduire L_straight jusqu'à ce que slack >= 0
+        # On ne recalcule PAS la position du ROV, mais on ajuste la tension pour contraindre le mouvement
         cable_length_constrained = False
         cable_taut = False
-        if L_straight > 1e-9 and L < L_straight:
-            scale = L / L_straight
-            x_rov = x_boat + dx_straight * scale
-            y_rov = 0.0 + dy_straight * scale
-            # Si le câble est tendu, la vitesse du ROV est imposée par dL/dt
-            # le long de la direction du câble (v_rel = dL_dt * r_hat).
-            r_hat_x = dx_straight / L_straight
-            r_hat_y = dy_straight / L_straight
-            dL_dt = float(u.get('dL_dt', 0.0))
-            vx_rov = vx_boat + dL_dt * r_hat_x
-            vy_rov = dL_dt * r_hat_y
+        if slack < 0.0:
             cable_taut = True
             cable_length_constrained = True
-            # Quand la longueur du câble contraint la position, la vitesse verticale
-            # issue de l'intégration n'est plus cohérente avec la position recalée.
-            # On force vy_rov à 0 pour éviter une traînée incohérente.
-            vy_rov = 0.0
+            # Le slack est négatif, le câble est tendu
+            # La tension au ROV sera ajustée plus tard pour forcer slack >= 0
 
         # Résoudre la configuration du câble
         # IMPORTANT: La longueur L est transmise au solveur à chaque itération
@@ -201,6 +195,181 @@ class ROVSystem:
             if (not np.isfinite(x_cable_new[0]) or not np.isfinite(y_cable_new[0]) or not np.isfinite(T_new[0]) or
                 not np.isfinite(x_cable_new[-1]) or not np.isfinite(y_cable_new[-1]) or not np.isfinite(T_new[-1])):
                 raise ValueError(f"Résultats invalides du solveur de câble à t={t:.2f} s")
+
+        # CONTRAINTE CRITIQUE : Forcer les extrémités du câble à correspondre exactement au bateau et au ROV
+        # La longueur L est déterminée par la somme des dL/dt, et doit être strictement respectée
+        if len(x_cable_new) > 0 and len(y_cable_new) > 0:
+            x_cable_new[0] = x_boat
+            y_cable_new[0] = 0.0
+            x_cable_new[-1] = x_rov
+            y_cable_new[-1] = y_rov
+        
+        # CONTRAINTE CRITIQUE : Normaliser la longueur du câble pour qu'elle soit exactement égale à L
+        # et garantir que tous les segments aient la même longueur
+        # Cette normalisation doit préserver les extrémités (bateau et ROV)
+        # et garantir que le dernier point a s = L (correspond au ROV)
+        if len(x_cable_new) > 1 and len(y_cable_new) > 1:
+            # Calculer la longueur actuelle
+            L_actual = 0.0
+            for i in range(len(x_cable_new) - 1):
+                dx = x_cable_new[i+1] - x_cable_new[i]
+                dy = y_cable_new[i+1] - y_cable_new[i]
+                L_actual += np.sqrt(dx**2 + dy**2)
+            
+            # CONTRAINTE CRITIQUE : Normaliser avec les extrémités fixées pour garantir toutes les contraintes
+            # L'ordre des opérations est crucial :
+            # 1. Forcer les extrémités
+            # 2. Normaliser avec extrémités fixées (rééchantillonnage avec interpolation)
+            # 3. Vérifier et corriger si nécessaire
+            
+            N_seg = len(x_cable_new) - 1
+            ds_target = L / max(N_seg, 1)
+            
+            # Étape 1 : Forcer les extrémités
+            x_cable_new[0] = x_boat
+            y_cable_new[0] = 0.0
+            x_cable_new[-1] = x_rov
+            y_cable_new[-1] = y_rov
+            
+            # Étape 2 : Rééchantillonner avec interpolation linéaire en abscisse curviligne
+            # pour garantir des segments de longueur égale = L/N avec extrémités fixées
+            s_points = np.linspace(0.0, L, N_seg + 1)  # Points à s = 0, ds, 2*ds, ..., L
+            
+            # Calculer l'abscisse curviligne cumulative du câble actuel
+            s_cum = np.zeros(N_seg + 1)
+            for i in range(N_seg):
+                dx = x_cable_new[i+1] - x_cable_new[i]
+                dy = y_cable_new[i+1] - y_cable_new[i]
+                s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
+            
+            # Rééchantillonner avec interpolation, en préservant les extrémités
+            x_cable_normalized = np.zeros(N_seg + 1)
+            y_cable_normalized = np.zeros(N_seg + 1)
+            x_cable_normalized[0] = x_boat
+            y_cable_normalized[0] = 0.0
+            x_cable_normalized[-1] = x_rov
+            y_cable_normalized[-1] = y_rov
+            
+            # Interpoler les points intermédiaires à intervalles réguliers
+            for i in range(1, N_seg):
+                s_i = s_points[i]  # s_i = i * ds_target
+                idx = np.searchsorted(s_cum, s_i)
+                if idx == 0:
+                    idx = 1
+                elif idx >= len(s_cum):
+                    idx = len(s_cum) - 1
+                
+                s_prev = s_cum[idx - 1]
+                s_next = s_cum[idx]
+                
+                if abs(s_next - s_prev) > 1e-6:
+                    alpha = (s_i - s_prev) / (s_next - s_prev)
+                    x_cable_normalized[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
+                    y_cable_normalized[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
+                else:
+                    x_cable_normalized[i] = x_cable_new[idx - 1]
+                    y_cable_normalized[i] = y_cable_new[idx - 1]
+            
+            # CRITIQUE : Ajuster le point N_seg-1 pour que le dernier segment (N_seg-1 -> ROV) ait exactement ds_target
+            # Le dernier point DOIT être au ROV (x_rov, y_rov), donc on ajuste le point N_seg-1
+            if N_seg > 0:
+                # Calculer la direction du dernier segment depuis le point N_seg-1 vers le ROV
+                dx_to_rov = x_rov - x_cable_normalized[N_seg-1]
+                dy_to_rov = y_rov - y_cable_normalized[N_seg-1]
+                dist_to_rov = np.sqrt(dx_to_rov**2 + dy_to_rov**2)
+                
+                if dist_to_rov > 1e-9:
+                    # Ajuster le point N_seg-1 pour que le segment de N_seg-1 à ROV ait exactement ds_target
+                    # Le point N_seg-1 doit être à une distance ds_target du ROV dans la direction opposée
+                    scale = ds_target / dist_to_rov
+                    x_cable_normalized[N_seg-1] = x_rov - dx_to_rov * scale
+                    y_cable_normalized[N_seg-1] = y_rov - dy_to_rov * scale
+                else:
+                    # Le point N_seg-1 est déjà au ROV, le déplacer légèrement
+                    if N_seg > 1:
+                        # Utiliser la direction du segment précédent
+                        dx_prev = x_cable_normalized[N_seg-1] - x_cable_normalized[N_seg-2]
+                        dy_prev = y_cable_normalized[N_seg-1] - y_cable_normalized[N_seg-2]
+                        dist_prev = np.sqrt(dx_prev**2 + dy_prev**2)
+                        if dist_prev > 1e-9:
+                            x_cable_normalized[N_seg-1] = x_rov - (dx_prev / dist_prev) * ds_target
+                            y_cable_normalized[N_seg-1] = y_rov - (dy_prev / dist_prev) * ds_target
+                        else:
+                            x_cable_normalized[N_seg-1] = x_rov - ds_target
+                            y_cable_normalized[N_seg-1] = y_rov
+                    else:
+                        x_cable_normalized[N_seg-1] = x_rov - ds_target
+                        y_cable_normalized[N_seg-1] = y_rov
+                
+                # Forcer le dernier point au ROV
+                x_cable_normalized[N_seg] = x_rov
+                y_cable_normalized[N_seg] = y_rov
+            
+            x_cable_new = x_cable_normalized
+            y_cable_new = y_cable_normalized
+            
+            # Vérification finale : s'assurer que les contraintes sont respectées
+            # Vérifier la longueur totale et les longueurs des segments
+            L_final_check = 0.0
+            segments_ok = True
+            for i in range(N_seg):
+                dx = x_cable_new[i+1] - x_cable_new[i]
+                dy = y_cable_new[i+1] - y_cable_new[i]
+                ds = np.sqrt(dx**2 + dy**2)
+                L_final_check += ds
+                # Vérifier que chaque segment a la longueur cible (tolérance 1e-2 m comme dans contrôle_câble)
+                if abs(ds - ds_target) > 1e-2:
+                    segments_ok = False
+            
+            # Si la longueur totale n'est pas correcte, ajuster proportionnellement les points intermédiaires
+            if abs(L_final_check - L) / max(L, 1e-9) > 1e-2:
+                # Ajuster proportionnellement depuis le bateau vers le ROV
+                if L_final_check > 1e-9:
+                    scale = L / L_final_check
+                    for i in range(1, N_seg):
+                        dx = x_cable_new[i] - x_cable_new[0]
+                        dy = y_cable_new[i] - y_cable_new[0]
+                        x_cable_new[i] = x_cable_new[0] + dx * scale
+                        y_cable_new[i] = y_cable_new[0] + dy * scale
+                
+                # Réappliquer les extrémités après ajustement
+                x_cable_new[0] = x_boat
+                y_cable_new[0] = 0.0
+                x_cable_new[-1] = x_rov
+                y_cable_new[-1] = y_rov
+                
+                # Si les segments ne sont toujours pas égaux après ajustement, rééchantillonner à nouveau
+                if not segments_ok:
+                    # Recalculer s_cum après ajustement
+                    s_cum = np.zeros(N_seg + 1)
+                    for i in range(N_seg):
+                        dx = x_cable_new[i+1] - x_cable_new[i]
+                        dy = y_cable_new[i+1] - y_cable_new[i]
+                        s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
+                    
+                    # Rééchantillonner à nouveau avec interpolation
+                    for i in range(1, N_seg):
+                        s_i = s_points[i]
+                        idx = np.searchsorted(s_cum, s_i)
+                        if idx == 0:
+                            idx = 1
+                        elif idx >= len(s_cum):
+                            idx = len(s_cum) - 1
+                        s_prev = s_cum[idx - 1]
+                        s_next = s_cum[idx]
+                        if abs(s_next - s_prev) > 1e-6:
+                            alpha = (s_i - s_prev) / (s_next - s_prev)
+                            x_cable_new[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
+                            y_cable_new[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
+                        else:
+                            x_cable_new[i] = x_cable_new[idx - 1]
+                            y_cable_new[i] = y_cable_new[idx - 1]
+                    
+                    # Réappliquer les extrémités
+                    x_cable_new[0] = x_boat
+                    y_cable_new[0] = 0.0
+                    x_cable_new[-1] = x_rov
+                    y_cable_new[-1] = y_rov
 
         # Forcer les conditions aux limites du câble : bateau à y=0 (surface), ROV à y_rov (<=0, profondeur)
         # Convention : y < 0 = profondeur (sous la surface), y = 0 = surface
@@ -236,30 +405,193 @@ class ROVSystem:
             y_cable_new[-1] = y_rov  # ROV à sa position
             
             # Vérifier et renormaliser la longueur après le clipping (le clipping peut changer la longueur)
+            # IMPORTANT : Renormaliser avec les extrémités déjà forcées pour garantir des segments égaux
             L_after_clip = 0.0
             for i in range(len(x_cable_new) - 1):
                 dx = x_cable_new[i+1] - x_cable_new[i]
                 dy = y_cable_new[i+1] - y_cable_new[i]
                 L_after_clip += np.sqrt(dx**2 + dy**2)
             
-            if abs(L_after_clip - L) / L > 1e-6:
-                x_cable_new, y_cable_new = self.cable.solver._normalize_cable_length(x_cable_new, y_cable_new, L)
-                # Réappliquer la contrainte y <= 0 après renormalisation
-                y_cable_new = np.clip(y_cable_new, None, 0.0)
-                # Réappliquer la contrainte stricte sur les points intermédiaires
-                for i in range(1, len(y_cable_new) - 1):
-                    if y_cable_new[i] >= -0.01:
-                        y_prev = y_cable_new[i-1]
-                        y_next = y_cable_new[i+1]
-                        if y_prev < -0.01 and y_next < -0.01:
-                            y_cable_new[i] = min(-0.01, 0.5 * (y_prev + y_next))
-                        elif y_prev < -0.01:
-                            y_cable_new[i] = min(-0.01, y_prev - 0.01)
-                        elif y_next < -0.01:
-                            y_cable_new[i] = min(-0.01, y_next - 0.01)
-                        else:
-                            y_cable_new[i] = -0.01
+            # Renormaliser avec extrémités fixées pour garantir toutes les contraintes
+            # Utiliser directement le rééchantillonnage avec interpolation plutôt que _normalize_cable_length
+            # pour garantir que les extrémités restent fixées
+            N_seg = len(x_cable_new) - 1
+            ds_target = L / max(N_seg, 1)
+            s_points = np.linspace(0.0, L, N_seg + 1)  # Points à s = 0, ds, 2*ds, ..., L
+            
+            # Calculer l'abscisse curviligne cumulative
+            s_cum = np.zeros(N_seg + 1)
+            for i in range(N_seg):
+                dx = x_cable_new[i+1] - x_cable_new[i]
+                dy = y_cable_new[i+1] - y_cable_new[i]
+                s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
+            
+            # Rééchantillonner avec interpolation, en préservant les extrémités
+            x_cable_renorm = np.zeros(N_seg + 1)
+            y_cable_renorm = np.zeros(N_seg + 1)
+            x_cable_renorm[0] = x_boat
+            y_cable_renorm[0] = 0.0
+            x_cable_renorm[-1] = x_rov
+            y_cable_renorm[-1] = y_rov
+            
+            # Interpoler les points intermédiaires à intervalles réguliers
+            for i in range(1, N_seg):
+                s_i = s_points[i]  # s_i = i * ds_target
+                idx = np.searchsorted(s_cum, s_i)
+                if idx == 0:
+                    idx = 1
+                elif idx >= len(s_cum):
+                    idx = len(s_cum) - 1
+                
+                s_prev = s_cum[idx - 1]
+                s_next = s_cum[idx]
+                
+                if abs(s_next - s_prev) > 1e-6:
+                    alpha = (s_i - s_prev) / (s_next - s_prev)
+                    x_cable_renorm[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
+                    y_cable_renorm[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
+                else:
+                    x_cable_renorm[i] = x_cable_new[idx - 1]
+                    y_cable_renorm[i] = y_cable_new[idx - 1]
+            
+            x_cable_new = x_cable_renorm
+            y_cable_new = y_cable_renorm
+            
+            # Vérification finale : s'assurer que les contraintes sont respectées
+            L_final_check = 0.0
+            segments_ok = True
+            for i in range(N_seg):
+                dx = x_cable_new[i+1] - x_cable_new[i]
+                dy = y_cable_new[i+1] - y_cable_new[i]
+                ds = np.sqrt(dx**2 + dy**2)
+                L_final_check += ds
+                # Vérifier que chaque segment a la longueur cible (tolérance 1e-2 m comme dans contrôle_câble)
+                if abs(ds - ds_target) > 1e-2:
+                    segments_ok = False
+            
+            # Si la longueur totale n'est pas correcte, ajuster proportionnellement
+            if abs(L_final_check - L) / max(L, 1e-9) > 1e-2:
+                # Ajuster proportionnellement depuis le bateau vers le ROV
+                if L_final_check > 1e-9:
+                    scale = L / L_final_check
+                    for i in range(1, N_seg):
+                        dx = x_cable_new[i] - x_cable_new[0]
+                        dy = y_cable_new[i] - y_cable_new[0]
+                        x_cable_new[i] = x_cable_new[0] + dx * scale
+                        y_cable_new[i] = y_cable_new[0] + dy * scale
+                
+                # Réappliquer les extrémités
+                x_cable_new[0] = x_boat
                 y_cable_new[0] = 0.0
+                x_cable_new[-1] = x_rov
+                y_cable_new[-1] = y_rov
+                
+                # Si les segments ne sont toujours pas égaux, rééchantillonner à nouveau
+                if not segments_ok:
+                    # Recalculer s_cum après ajustement
+                    s_cum = np.zeros(N_seg + 1)
+                    for i in range(N_seg):
+                        dx = x_cable_new[i+1] - x_cable_new[i]
+                        dy = y_cable_new[i+1] - y_cable_new[i]
+                        s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
+                    
+                    # Rééchantillonner à nouveau avec interpolation
+                    for i in range(1, N_seg):
+                        s_i = s_points[i]
+                        idx = np.searchsorted(s_cum, s_i)
+                        if idx == 0:
+                            idx = 1
+                        elif idx >= len(s_cum):
+                            idx = len(s_cum) - 1
+                        s_prev = s_cum[idx - 1]
+                        s_next = s_cum[idx]
+                        if abs(s_next - s_prev) > 1e-6:
+                            alpha = (s_i - s_prev) / (s_next - s_prev)
+                            x_cable_new[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
+                            y_cable_new[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
+                        else:
+                            x_cable_new[i] = x_cable_new[idx - 1]
+                            y_cable_new[i] = y_cable_new[idx - 1]
+                    
+                    # Réappliquer les extrémités
+                    x_cable_new[0] = x_boat
+                    y_cable_new[0] = 0.0
+                    x_cable_new[-1] = x_rov
+                    y_cable_new[-1] = y_rov
+            
+            # Réappliquer la contrainte y <= 0 après renormalisation
+            y_cable_new = np.clip(y_cable_new, None, 0.0)
+            # Réappliquer la contrainte stricte sur les points intermédiaires
+            for i in range(1, len(y_cable_new) - 1):
+                if y_cable_new[i] >= -0.01:
+                    y_prev = y_cable_new[i-1]
+                    y_next = y_cable_new[i+1]
+                    if y_prev < -0.01 and y_next < -0.01:
+                        y_cable_new[i] = min(-0.01, 0.5 * (y_prev + y_next))
+                    elif y_prev < -0.01:
+                        y_cable_new[i] = min(-0.01, y_prev - 0.01)
+                    elif y_next < -0.01:
+                        y_cable_new[i] = min(-0.01, y_next - 0.01)
+                    else:
+                        y_cable_new[i] = -0.01
+            
+            # Réappliquer les extrémités après toutes les opérations
+            x_cable_new[0] = x_boat
+            y_cable_new[0] = 0.0
+            x_cable_new[-1] = x_rov
+            y_cable_new[-1] = y_rov
+            
+            # Vérification finale après clipping : si la longueur a encore changé, ajuster une dernière fois
+            L_final_after_clip = 0.0
+            for i in range(N_seg):
+                dx = x_cable_new[i+1] - x_cable_new[i]
+                dy = y_cable_new[i+1] - y_cable_new[i]
+                L_final_after_clip += np.sqrt(dx**2 + dy**2)
+            
+            if abs(L_final_after_clip - L) / max(L, 1e-9) > 1e-2:
+                # Ajustement proportionnel final
+                if L_final_after_clip > 1e-9:
+                    scale = L / L_final_after_clip
+                    for i in range(1, N_seg):
+                        dx = x_cable_new[i] - x_cable_new[0]
+                        dy = y_cable_new[i] - y_cable_new[0]
+                        x_cable_new[i] = x_cable_new[0] + dx * scale
+                        y_cable_new[i] = y_cable_new[0] + dy * scale
+                
+                # Réappliquer les extrémités
+                x_cable_new[0] = x_boat
+                y_cable_new[0] = 0.0
+                x_cable_new[-1] = x_rov
+                y_cable_new[-1] = y_rov
+                
+                # Rééchantillonner une dernière fois pour garantir des segments égaux
+                s_cum = np.zeros(N_seg + 1)
+                for i in range(N_seg):
+                    dx = x_cable_new[i+1] - x_cable_new[i]
+                    dy = y_cable_new[i+1] - y_cable_new[i]
+                    s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
+                
+                for i in range(1, N_seg):
+                    s_i = s_points[i]
+                    idx = np.searchsorted(s_cum, s_i)
+                    if idx == 0:
+                        idx = 1
+                    elif idx >= len(s_cum):
+                        idx = len(s_cum) - 1
+                    s_prev = s_cum[idx - 1]
+                    s_next = s_cum[idx]
+                    if abs(s_next - s_prev) > 1e-6:
+                        alpha = (s_i - s_prev) / (s_next - s_prev)
+                        x_cable_new[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
+                        y_cable_new[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
+                    else:
+                        x_cable_new[i] = x_cable_new[idx - 1]
+                        y_cable_new[i] = y_cable_new[idx - 1]
+                
+                # Réappliquer les extrémités une dernière fois
+                x_cable_new[0] = x_boat
+                y_cable_new[0] = 0.0
+                x_cable_new[-1] = x_rov
                 y_cable_new[-1] = y_rov
         
         if len(x_cable_new) > 0:
@@ -309,25 +641,63 @@ class ROVSystem:
         )
         F_buoyancy_temp = self.rov.compute_buoyancy_force(self.environment)
         F_weight_temp = self.rov.compute_weight_force(self.environment)
-        F_apparent_weight_temp = F_weight_temp - F_buoyancy_temp
+        # Force apparente (positive vers le haut)
+        F_apparent_weight_temp = F_buoyancy_temp - F_weight_temp
         
-        # Calculer la tension cible dynamique en fonction du mouvement
-        # Si le ROV remonte alors qu'il devrait descendre, réduire la tension cible
-        # pour permettre au poids apparent de créer une force nette vers le bas
+        # Calculer la tension cible dynamique en fonction du mouvement et du slack
+        # CONTRAINTE CRITIQUE : Le slack doit toujours être >= 0
+        # Si slack < 0, augmenter la tension au ROV pour tirer le ROV vers le bateau
         T_rov_target = T_rov_target_static
-        if vy_rov > 0.0 and F_apparent_weight_temp > 0.0 and abs(u['Fy_rov']) < 1e-6:
+        
+        # Calculer le slack actuel
+        dx_straight_curr = x_rov - x_boat
+        dy_straight_curr = y_rov - 0.0
+        L_straight_curr = np.hypot(dx_straight_curr, dy_straight_curr)
+        slack_curr = L - L_straight_curr
+        
+        # Si slack < 0, augmenter la tension pour forcer slack >= 0
+        if slack_curr < 0.0:
+            # Le slack est négatif, le câble est tendu
+            # Augmenter la tension au ROV pour tirer le ROV vers le bateau
+            # La tension doit être suffisante pour réduire L_straight jusqu'à slack >= 0
+            # Facteur d'augmentation basé sur la magnitude du slack négatif
+            slack_deficit = abs(slack_curr)
+            # Augmenter la tension proportionnellement au déficit de slack
+            # Utiliser un facteur qui augmente rapidement quand slack devient très négatif
+            # Plus le slack est négatif, plus la tension doit être forte
+            tension_multiplier = 1.0 + min(20.0, slack_deficit / max(L, 1e-9) * 50.0)
+            T_rov_target = T_rov_target_static * tension_multiplier
+            # Assurer une tension minimale même si T_rov_target_static est faible
+            # La tension doit être au moins suffisante pour créer une force significative
+            min_tension = abs(F_apparent_weight_temp) * 2.0  # Au moins 2x le poids apparent
+            T_rov_target = max(T_rov_target, min_tension)
+            # Limiter la tension maximale pour éviter des valeurs irréalistes
+            T_rov_target = min(T_rov_target, T_rov_target_static * 50.0)
+        
+        # Si le ROV remonte alors qu'il devrait descendre, réduire la tension cible
+        # pour permettre à la force apparente (vers le bas) de dominer
+        # MAIS seulement si slack >= 0 (pas de contrainte de slack)
+        if slack_curr >= 0.0 and vy_rov > 0.0 and F_apparent_weight_temp < 0.0 and abs(u['Fy_rov']) < 1e-6:
             # Le ROV remonte alors qu'il devrait descendre
-            # Réduire la tension cible pour permettre au poids apparent de dominer
-            # La tension cible doit être inférieure au poids apparent pour créer une force nette vers le bas
+            # Réduire la tension cible pour permettre à la force apparente (vers le bas) de dominer
+            # La tension cible doit être faible devant |F_apparent_weight| pour créer une force nette vers le bas
             reduction_factor = min(0.8, 0.3 + abs(vy_rov) * 0.5)  # Réduction jusqu'à 80%
-            T_rov_target = T_rov_target_static * (1.0 - reduction_factor)
-            # Limiter la tension cible entre 10% et 20% du poids apparent
-            T_rov_target = min(T_rov_target, F_apparent_weight_temp * 0.2)
-            T_rov_target = max(T_rov_target, F_apparent_weight_temp * 0.1)
+            T_rov_target = T_rov_target * (1.0 - reduction_factor)
+            # Limiter la tension cible entre 10% et 20% de |F_apparent_weight|
+            target_cap = abs(F_apparent_weight_temp)
+            T_rov_target = min(T_rov_target, target_cap * 0.2)
+            T_rov_target = max(T_rov_target, target_cap * 0.1)
         
         # Utiliser la tension de l'état actuel au niveau du ROV (index -1)
         # La tension T[-1] est mise à jour dynamiquement via dT_dt vers T_rov_target
-        T_rov = T[-1] if len(T) > 0 else T_rov_target
+        # IMPORTANT : Si slack < 0, utiliser directement T_rov_target pour un effet immédiat
+        # afin de ramener rapidement slack >= 0
+        if slack_curr < 0.0:
+            # Slack négatif : utiliser directement T_rov_target pour un effet immédiat
+            T_rov = T_rov_target
+        else:
+            # Slack >= 0 : utiliser la tension dynamique qui évolue progressivement
+            T_rov = T[-1] if len(T) > 0 else T_rov_target
         
         # Calculer le vecteur unitaire au niveau du ROV (direction vers le bateau)
         # CORRECTION: Après correction de _compute_catenary_tensions :
@@ -379,9 +749,9 @@ class ROVSystem:
         F_weight = F_weight_temp
         F_apparent_weight = F_apparent_weight_temp
         
-        # CORRECTION: Le solveur de câble calcule une tension au ROV qui équilibre le poids apparent
-        # à l'équilibre statique. Quand le câble est vertical, T_rov ≈ F_apparent_weight et sin_theta0 ≈ 1.0,
-        # donc T_rov * sin_theta0 ≈ F_apparent_weight, ce qui annule exactement F_apparent_weight dans
+        # CORRECTION: Le solveur de câble calcule une tension au ROV qui équilibre la force apparente
+        # à l'équilibre statique. Quand le câble est vertical, T_rov ≈ |F_apparent_weight| et sin_theta0 ≈ 1.0,
+        # donc T_rov * sin_theta0 ≈ |F_apparent_weight|, ce qui annule exactement F_apparent_weight dans
         # l'équation du mouvement, empêchant tout mouvement vertical même quand une force est appliquée.
         #
         # Solution: La tension du câble T_rov * sin_theta0 équilibre déjà le poids apparent à l'équilibre.
@@ -510,7 +880,7 @@ class ROVSystem:
         # Utiliser un modèle de relaxation pour mettre à jour les tensions
         # Le temps de relaxation s'adapte selon le mouvement pour une réponse plus rapide
         # quand le ROV remonte alors qu'il devrait descendre
-        if vy_rov > 0.0 and F_apparent_weight > 0.0 and abs(u['Fy_rov']) < 1e-6:
+        if vy_rov > 0.0 and F_apparent_weight < 0.0 and abs(u['Fy_rov']) < 1e-6:
             # Le ROV remonte alors qu'il devrait descendre : adapter la tension plus rapidement
             # Temps de relaxation plus court pour une réponse plus rapide
             tau_tension = 0.01  # 10 ms pour une adaptation rapide
@@ -595,6 +965,13 @@ class ROVSystem:
                 pass
 
         dT_dt = (T_new - T) / tau_tension
+        
+        # IMPORTANT : Si slack < 0, forcer une adaptation immédiate de la tension au ROV
+        # pour ramener rapidement slack >= 0
+        if slack_curr < 0.0 and len(T) > 0 and len(T_new) > 0:
+            # Forcer une adaptation très rapide de la tension au ROV (index -1)
+            # pour que l'effet soit immédiat sur le mouvement
+            dT_dt[-1] = (T_rov_target - T[-1]) / max(tau_tension, 0.001)  # Adaptation très rapide
         
         # Assembler les dérivées
         dydt = np.zeros_like(y)

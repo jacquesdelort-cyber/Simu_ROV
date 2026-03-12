@@ -1,0 +1,31 @@
+[SCEN] t=0.10 scen=Fx crit=(t>0:10) T_bat=0.04491421974583886 p=-10.00 L=12.00
+[SCEN] t=0.10 scen=Fy crit=(t>0:-5) T_bat=0.04491421974583886 p=-10.00 L=12.00
+IC_L_7: t= 0.10, L= 12.00, L_straight= 10.20, slack=  1.80, T=None, Fy=None, desired=  0.00, ret=  0.00, exp=CATENARY_HOLD_ACC
+IC_L_7: t= 0.20, L= 12.00, L_straight= 10.20, slack=  1.80, T=None, Fy=None, desired=  0.20, ret=  0.02, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.30, L= 12.00, L_straight= 10.22, slack=  1.79, T=None, Fy=None, desired=  0.20, ret=  0.04, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.40, L= 12.01, L_straight= 10.23, slack=  1.78, T=None, Fy=None, desired=  0.20, ret=  0.05, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.50, L= 12.01, L_straight= 10.25, slack=  1.76, T=None, Fy=None, desired=  0.20, ret=  0.07, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.60, L= 12.02, L_straight= 10.27, slack=  1.75, T=None, Fy=None, desired=  0.20, ret=  0.08, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.70, L= 12.03, L_straight= 10.30, slack=  1.73, T=None, Fy=None, desired=  0.20, ret=  0.09, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.80, L= 12.04, L_straight= 10.33, slack=  1.71, T=None, Fy=None, desired=  0.20, ret=  0.10, exp=PILOT_DESC_ACC
+IC_L_7: t= 0.90, L= 12.05, L_straight= 10.36, slack=  1.69, T=None, Fy=None, desired=  0.20, ret=  0.11, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.00, L= 12.06, L_straight= 10.39, slack=  1.67, T=None, Fy=None, desired=  0.20, ret=  0.12, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.10, L= 12.07, L_straight= 10.42, slack=  1.65, T=None, Fy=None, desired=  0.20, ret=  0.13, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.20, L= 12.08, L_straight= 10.46, slack=  1.63, T=None, Fy=None, desired=  0.20, ret=  0.14, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.30, L= 12.10, L_straight= 10.49, slack=  1.60, T=None, Fy=None, desired=  0.20, ret=  0.14, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.40, L= 12.11, L_straight= 10.53, slack=  1.58, T=None, Fy=None, desired=  0.20, ret=  0.15, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.50, L= 12.13, L_straight= 10.57, slack=  1.56, T=None, Fy=None, desired=  0.20, ret=  0.15, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.60, L= 12.14, L_straight= 10.61, slack=  1.54, T=None, Fy=None, desired=  0.20, ret=  0.16, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.70, L= 12.16, L_straight= 10.64, slack=  1.51, T=None, Fy=None, desired=  0.20, ret=  0.16, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.80, L= 12.17, L_straight= 10.68, slack=  1.49, T=None, Fy=None, desired=  0.20, ret=  0.17, exp=PILOT_DESC_ACC
+IC_L_7: t= 1.90, L= 12.19, L_straight= 10.72, slack=  1.47, T=None, Fy=None, desired=  0.20, ret=  0.17, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.00, L= 12.21, L_straight= 10.76, slack=  1.45, T=None, Fy=None, desired=  0.20, ret=  0.17, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.10, L= 12.22, L_straight= 10.80, slack=  1.42, T=None, Fy=None, desired=  0.20, ret=  0.18, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.20, L= 12.24, L_straight= 10.84, slack=  1.40, T=None, Fy=None, desired=  0.20, ret=  0.18, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.30, L= 12.26, L_straight= 10.88, slack=  1.38, T=None, Fy=None, desired=  0.20, ret=  0.18, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.40, L= 12.28, L_straight= 10.92, slack=  1.36, T=None, Fy=None, desired=  0.20, ret=  0.18, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.50, L= 12.30, L_straight= 10.96, slack=  1.34, T=None, Fy=None, desired=  0.20, ret=  0.18, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.60, L= 12.31, L_straight= 11.00, slack=  1.31, T=None, Fy=None, desired=  0.20, ret=  0.19, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.70, L= 12.33, L_straight= 11.04, slack=  1.29, T=None, Fy=None, desired=  0.20, ret=  0.19, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.80, L= 12.35, L_straight= 11.08, slack=  1.27, T=None, Fy=None, desired=  0.20, ret=  0.19, exp=PILOT_DESC_ACC
+IC_L_7: t= 2.90, L= 12.37, L_straight= 11.12, slack=  1.25, T=None, Fy=None, desired=  0.20, ret=  0.19, exp=PILOT_DESC_ACC

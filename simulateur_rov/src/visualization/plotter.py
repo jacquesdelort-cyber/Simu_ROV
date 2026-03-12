@@ -15,6 +15,7 @@ def create_system_plot(
     y_range=None,
     T_cable=None,
     cable_mode=None,
+    point_indices=None,
 ):
     """
     Crée la visualisation 2D du système
@@ -50,6 +51,7 @@ def create_system_plot(
     x_cable_complete = None
     y_cable_complete = None
     T_cable_complete = None
+    point_ids_complete = None
     
     if len(x_cable) > 0 and len(y_cable) > 0:
         # Convertir en arrays numpy si nécessaire
@@ -59,6 +61,11 @@ def create_system_plot(
         # Créer un array complet incluant les extrémités
         x_cable_complete = x_cable_arr.copy()
         y_cable_complete = y_cable_arr.copy()
+        # Indices globaux des points (si fournis)
+        if point_indices is not None and len(point_indices) == len(x_cable_arr):
+            point_ids_complete = np.asarray(point_indices).copy()
+        else:
+            point_ids_complete = np.arange(len(x_cable_arr), dtype=int)
         
         # Gérer les tensions si fournies
         if T_cable is not None and len(T_cable) > 0:
@@ -77,6 +84,8 @@ def create_system_plot(
             y_cable_complete = np.flip(y_cable_complete)
             if T_cable_complete is not None:
                 T_cable_complete = np.flip(T_cable_complete)
+            if point_ids_complete is not None:
+                point_ids_complete = np.flip(point_ids_complete)
         
         # S'assurer que le premier point est exactement au bateau et le dernier au ROV
         x_cable_complete[0] = x_bateau
@@ -101,7 +110,14 @@ def create_system_plot(
                 y_val = y_cable_complete[i]
                 T_val = T_cable_complete[i]
                 s_val = s_cumulative[i]
-                hover_texts.append(f"Point: {i}<br>s: {s_val:.2f} m<br>X: {x_val:.2f} m<br>Y: {y_val:.2f} m<br>Tension: {T_val:.2f} N")
+                point_id = int(point_ids_complete[i]) if point_ids_complete is not None else i
+                hover_texts.append(
+                    f"Point: {point_id}<br>"
+                    f"s: {s_val:.2f} m<br>"
+                    f"X: {x_val:.2f} m<br>"
+                    f"Y: {y_val:.2f} m<br>"
+                    f"Tension: {T_val:.2f} N"
+                )
             
             hover_data = hover_texts
             use_hovertext = True
@@ -338,22 +354,40 @@ def create_current_profile_plot(depths, speeds, title="Profil du courant"):
     Returns:
     --------
     go.Figure
-        Figure Plotly
+        Figure Plotly avec vitesse en abscisse (horizontal) et profondeur en ordonnée (vertical, orienté vers le haut)
     """
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=speeds,
-        y=depths,
+        x=speeds,  # Abscisse : vitesse du courant (axe horizontal)
+        y=depths,  # Ordonnée : profondeur (axe vertical)
         mode='lines+markers',
         name='Courant',
         line=dict(color='teal', width=3),
         marker=dict(size=4, color='teal')
     ))
     
+    # Calculer les limites pour l'axe Y (profondeur) - orientation normale (valeurs positives en haut)
+    depth_min = min(depths) if depths else 0.0
+    depth_max = max(depths) if depths else 0.0
+    # Ordre normal : valeurs négatives en bas, valeurs positives en haut
+    y_range = [depth_min, depth_max] if depth_max > depth_min else None
+    
+    # Échelle fixe pour l'axe X (vitesse) : de -3 à +3 m/s
+    x_range = [-3.0, 3.0]
+    
     fig.update_layout(
         title=title,
-        xaxis_title="Vitesse du courant (m/s)",
-        yaxis_title="Profondeur (m)",
+        xaxis_title="Vitesse du courant (m/s)",  # Abscisse : axe horizontal
+        yaxis_title="Profondeur (m)",  # Ordonnée : axe vertical
+        xaxis=dict(
+            range=x_range,  # Échelle fixe : -3 à +4 m/s
+            showticklabels=True,  # Afficher les valeurs numériques sur l'axe X
+            ticks="outside",  # Afficher les ticks à l'extérieur
+            showline=True,  # Afficher la ligne de l'axe
+        ),
+        yaxis=dict(
+            range=y_range,  # Orientation normale : valeurs positives en haut
+        ),
         margin=dict(l=40, r=20, t=50, b=40),
         showlegend=False
     )
@@ -528,37 +562,13 @@ def create_dl_dt_plot(
     x_max = 30.0 * k
     max_val = max([abs(v) for v in dl_dt], default=0.0)
     n = max(1, int(np.ceil(max_val)))
+    # Limite verticale utilisée pour l'axe Y
     y_range_max = float(n) * 1.05
-    y_top = y_range_max * 0.98
+    # Position des marqueurs d'événements : juste sous le bord supérieur de l'axe
+    y_events = y_range_max * 0.98
 
-    if cable_mode:
-        n_mode = min(len(time), len(cable_mode))
-        mode_x = time[:n_mode]
-        mode_y = [y_top] * n_mode
-        y_cat = [mode_y[i] if cable_mode[i] == "catenary" else None for i in range(n_mode)]
-        y_str = [mode_y[i] if cable_mode[i] == "straight" else None for i in range(n_mode)]
-        fig.add_trace(
-            go.Scatter(
-                x=mode_x,
-                y=y_cat,
-                mode="lines",
-                name="",
-                showlegend=False,
-                hoverinfo="skip",
-                line=dict(color="#1e6bb8", width=2),
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=mode_x,
-                y=y_str,
-                mode="lines",
-                name="",
-                showlegend=False,
-                hoverinfo="skip",
-                line=dict(color="#d9534f", width=2),
-            )
-        )
+    # On ne trace plus la ligne horizontale en haut du diagramme pour le mode câble
+    # afin de ne laisser visibles que les marqueurs d'événements.
 
     if scenario_triggers:
         n_trig = min(len(time), len(scenario_triggers))
@@ -569,7 +579,7 @@ def create_dl_dt_plot(
             triggers = scenario_triggers[i]
             if triggers:
                 trig_x.append(time[i])
-                trig_y.append(y_top)
+                trig_y.append(y_events)
                 trig_text.append("<br>".join(triggers))
         if trig_x:
             fig.add_trace(
@@ -641,6 +651,32 @@ def create_slack_plot(
     return fig
 
 
+def create_slack_distribution_plot(s_m, slack_local, title="Répartition slack"):
+    """
+    Crée un graphique de répartition locale du slack le long du câble.
+    """
+    fig = go.Figure()
+    slack_local_mm = [1000.0 * float(val) for val in slack_local]
+    fig.add_trace(go.Scatter(
+        x=s_m,
+        y=slack_local_mm,
+        mode='lines',
+        name='Slack local',
+        line=dict(color='orange', width=2),
+        hovertemplate="s=%{x:.2f} m<br>Slack local=%{y:.4f} mm<extra></extra>",
+    ))
+    fig.update_layout(
+        xaxis_title="s (m)",
+        yaxis_title="Slack local (mm)",
+        yaxis=dict(tickformat=".3f"),
+        title=title,
+        hovermode='x unified',
+        width=600,
+        height=400
+    )
+    return fig
+
+
 def create_tension_vs_target_plot(
     time,
     t_rupture,
@@ -688,36 +724,11 @@ def create_tension_vs_target_plot(
         _safe_max(t_rov),
         _safe_max(t_max),
     )
-    y_top = float(max_val) * 0.98 if max_val > 0.0 else 0.0
+    # Position des marqueurs d'événements : juste sous le maximum des courbes
+    y_events = float(max_val) * 0.98 if max_val > 0.0 else 0.0
 
-    if cable_mode:
-        n_mode = min(len(time), len(cable_mode))
-        mode_x = time[:n_mode]
-        mode_y = [y_top] * n_mode
-        y_cat = [mode_y[i] if cable_mode[i] == "catenary" else None for i in range(n_mode)]
-        y_str = [mode_y[i] if cable_mode[i] == "straight" else None for i in range(n_mode)]
-        fig.add_trace(
-            go.Scatter(
-                x=mode_x,
-                y=y_cat,
-                mode="lines",
-                name="",
-                showlegend=False,
-                hoverinfo="skip",
-                line=dict(color="#1e6bb8", width=2),
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=mode_x,
-                y=y_str,
-                mode="lines",
-                name="",
-                showlegend=False,
-                hoverinfo="skip",
-                line=dict(color="#d9534f", width=2),
-            )
-        )
+    # On ne trace plus la ligne horizontale en haut du diagramme pour le mode câble
+    # afin de ne laisser visibles que les marqueurs d'événements.
 
     if scenario_triggers:
         n_trig = min(len(time), len(scenario_triggers))
@@ -728,7 +739,7 @@ def create_tension_vs_target_plot(
             triggers = scenario_triggers[i]
             if triggers:
                 trig_x.append(time[i])
-                trig_y.append(y_top)
+                trig_y.append(y_events)
                 trig_text.append("<br>".join(triggers))
         if trig_x:
             fig.add_trace(
@@ -983,6 +994,9 @@ def create_rov_local_plot(
     y_rov,
     x_cable,
     y_cable,
+    T_cable=None,
+    s_cable=None,
+    point_indices=None,
     title="Profil fond",
     margin=2.0,
 ):
@@ -994,15 +1008,51 @@ def create_rov_local_plot(
 
     x_vals = list(x_cable) if x_cable is not None else []
     y_vals = list(y_cable) if y_cable is not None else []
+    point_ids = list(point_indices) if point_indices is not None else list(range(len(x_vals)))
 
     if x_vals and y_vals:
-        fig.add_trace(go.Scatter(
-            x=x_vals,
-            y=y_vals,
-            mode='lines',
-            name='Câble (proche ROV)',
-            line=dict(color='#1e6bb8', width=2)
-        ))
+        trace_params = {
+            'x': x_vals,
+            'y': y_vals,
+            'mode': 'lines+markers',
+            'name': 'Câble (proche ROV)',
+            'line': dict(color='#1e6bb8', width=2),
+            'marker': dict(size=4, color='#1e6bb8', opacity=0.7, symbol='circle'),
+        }
+
+        if s_cable is not None and len(s_cable) == len(x_vals):
+            s_values = np.asarray(s_cable, dtype=float)
+        else:
+            dx = np.diff(np.asarray(x_vals, dtype=float))
+            dy = np.diff(np.asarray(y_vals, dtype=float))
+            ds = np.sqrt(dx**2 + dy**2)
+            s_values = np.concatenate(([0.0], np.cumsum(ds)))
+
+        if T_cable is not None and len(T_cable) == len(x_vals):
+            hover_texts = []
+            for i in range(len(x_vals)):
+                hover_texts.append(
+                    f"Point: {point_ids[i]}<br>"
+                    f"s: {s_values[i]:.2f} m<br>"
+                    f"X: {x_vals[i]:.2f} m<br>"
+                    f"Y: {y_vals[i]:.2f} m<br>"
+                    f"Tension: {float(T_cable[i]):.2f} N"
+                )
+            trace_params['hovertext'] = hover_texts
+            trace_params['hoverinfo'] = 'text'
+        elif s_cable is not None and len(s_cable) == len(x_vals):
+            hover_texts = []
+            for i in range(len(x_vals)):
+                hover_texts.append(
+                    f"Point: {point_ids[i]}<br>"
+                    f"s: {s_values[i]:.2f} m<br>"
+                    f"X: {x_vals[i]:.2f} m<br>"
+                    f"Y: {y_vals[i]:.2f} m"
+                )
+            trace_params['hovertext'] = hover_texts
+            trace_params['hoverinfo'] = 'text'
+
+        fig.add_trace(go.Scatter(**trace_params))
 
     fig.add_trace(go.Scatter(
         x=[x_rov],
