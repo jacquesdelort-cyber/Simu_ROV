@@ -106,8 +106,8 @@ solve_equilibrium(..., L, courant):
 
 ### 3.1 Statique (caténaire)
 
-Lorsque le câble est plus dense que l’eau, la forme est calculée via une
-caténaire :
+Lorsque le câble est plus dense que l’eau, la forme de référence est calculée via
+une caténaire :
 
 ```
 y = a * cosh((x - x0) / a) + y0
@@ -118,7 +118,24 @@ Un solveur itératif ajuste les paramètres (a, x0, y0) pour satisfaire :
 - les positions des extrémités
 - la longueur totale L
 
-Si le câble est tendu (L < distance droite), une solution rectiligne est utilisée.
+Deux cas particuliers sont ensuite gérés finement dans `CableSolver.solve_equilibrium_static` :
+
+- **cas câble plus court que la distance droite** (`L < L_straight`) : la géométrie
+  est **forcée rectiligne** entre bateau et ROV, puis la longueur est renormalisée
+  pour respecter exactement `L`, et les tensions d’extrémité sont obtenues en
+  résolvant un petit système d’équilibre global (avec repli sur une projection
+  des forces si la matrice est quasi singulière) ;
+- **cas câble légèrement plus long que la distance droite** (`r = L / L_straight`
+  proche de 1) : le solveur calcule **à la fois** une caténaire et une ligne droite,
+  puis effectue un **blending continu** entre les deux géométries en fonction de r.
+  Pour `r = 1`, la solution est 100 % rectiligne ; pour `r ≥ 1.01`, la solution est
+  100 % caténaire ; entre les deux, la transition est linéaire.  
+
+Ce blending continu remplace l’ancien basculement binaire (hystérésis) et supprime
+les discontinuités numériques lorsque le câble passe progressivement d’un régime
+quasi-tendu à un régime nettement fléchi. Après le blending, la longueur est
+de nouveau renormalisée (`_normalize_cable_length`) pour garantir `Σ ds = L` et
+des segments de longueur identique.
 
 ### 3.2 Statique avec courant
 
@@ -131,7 +148,16 @@ Le courant est intégré par une approche itérative :
 5. Répétition jusqu’à convergence.
 
 Une variante tente un solveur « complet » (fsolve) avant de se replier
-sur l’algorithme itératif.
+sur l’algorithme itératif.  
+
+Afin de préserver la forme de caténaire lorsque le courant est **faible**, le
+solveur commence par évaluer l’ordre de grandeur des forces de traînée par
+rapport au poids apparent du câble :
+
+- si le **rapport traînée/poids** reste inférieur à un seuil (≈ 10 %), l’algorithme
+  **saute les itérations** et conserve la géométrie de caténaire initiale ;
+- si ce rapport devient significatif, l’itération complète est activée jusqu’à
+  convergence, avec renormalisations intermédiaires de longueur.
 
 ### 3.3 Dynamique
 
@@ -351,6 +377,8 @@ s_cumulative = s_cumulative * (L_target / L_actual)
 **Objectif** : Remettre à l'échelle `s_cumulative` pour que `s_cumulative[-1] = L_target` exactement.
 
 **Effet** : Tous les points sont "étirés" ou "contractés" proportionnellement selon leur position curviligne, garantissant que le dernier point corresponde à `s = L_target`.
+
+**Remarque importante** : cette remise à l’échelle est appliquée **même si** `L_actual` est déjà très proche de `L_target`. Il n’y a plus de retour anticipé dans ce cas : on reparamétrise systématiquement la courbe en abscisse curviligne avant le rééchantillonnage, afin de régulariser entièrement les longueurs de segments.
 
 #### Étape 4 : Rééchantillonnage uniforme
 

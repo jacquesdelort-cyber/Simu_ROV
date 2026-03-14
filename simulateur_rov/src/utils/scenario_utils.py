@@ -2023,6 +2023,10 @@ def auto_L_7(
         exp = f"{exp}_ACC"
 
     ret = ret1
+
+    # On borne si besoin ret.
+    ret, exp = _finalize(ret, exp)
+
     curr["dl_dt_cmd_prev"] = ret
 
     # DEBUG: Vérifier cohérence entre L passé en paramètre et curr['L']
@@ -2034,14 +2038,21 @@ def auto_L_7(
             f"ÉCART={abs(L_param - L_curr):.6f} m"
         )
     
-    trace_print(8, "IC_L_7: "
+    # Utiliser les valeurs passées en paramètre plutôt que _last_val() pour garantir la cohérence
+    # T_boat est passé directement en paramètre
+    T_boat_display = T_boat if T_boat is not None else curr.get("T")
+    # T_rov et cable_drag viennent de data (itération précédente) car non disponibles en paramètre
+    T_rov_display = curr.get('T_rov')
+    cable_drag_display = _last_val('cable_drag')
+    
+    trace_print(9, "\nIC_L_7: "
         f"t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
         f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
         f"L_straight={L_straight: 6.2f}, "
         f"slack={slack: 6.2f}, "
-        f"T_bat={_fmt(_last_val('T_boat'))}, "
-        f"T_rov={_fmt(curr.get('T_rov'))}, "
-        f"F_drag_cable={_fmt_vec(_last_val('cable_drag'))}, "
+        f"T_bat={_fmt(T_boat_display)}, "  # Utiliser T_boat passé en paramètre
+        f"T_rov={_fmt(T_rov_display)}, "  # Depuis data (itération précédente)
+        f"F_drag_cable={_fmt_vec(cable_drag_display)}, "  # Depuis data (itération précédente)
         f"Fy_cmd={Fy_rov: 6.2f}, "
         f"desired={desired: 6.2f}, ret={ret: 6.2f}, exp={exp}"
     )
@@ -2051,4 +2062,4 @@ def auto_L_7(
         f"L_last_data={_fmt(_last_val('L'))} m"
     )
 
-    return _finalize(ret, exp)
+    return ret, exp

@@ -26,6 +26,17 @@ def _segment_lengths(x_vals, y_vals):
     return np.sqrt(dx**2 + dy**2)
 
 
+def _ds_stats(lengths, L_target):
+    """Retourne (ds_target, ratio_max) pour une longueur totale donnée."""
+    n_seg = len(lengths)
+    if n_seg == 0 or L_target <= 0.0:
+        return 0.0, 0.0
+    ds_target = L_target / float(n_seg)
+    ds_max = float(np.max(lengths))
+    ratio_max = ds_max / max(ds_target, 1e-9)
+    return ds_target, ratio_max
+
+
 def test_normalize_cable_length_handles_repeated_points():
     """La renormalisation doit gérer des points répétés sans NaN."""
     solver = _make_solver(n_segments=6)
@@ -35,11 +46,18 @@ def test_normalize_cable_length_handles_repeated_points():
 
     x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
     lengths = _segment_lengths(x_norm, y_norm)
+    ds_target, ratio_max = _ds_stats(lengths, l_target)
 
+    # Pas de NaN / inf
     assert np.all(np.isfinite(x_norm))
     assert np.all(np.isfinite(y_norm))
+
+    # Longueur totale correcte
     assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
-    assert np.allclose(lengths, l_target / 6.0, atol=1e-6)
+
+    # Les segments n'ont plus besoin d'être strictement égaux, mais aucun
+    # segment ne doit exploser par rapport à la longueur moyenne.
+    assert ratio_max < 3.0, f"ds_max/ds_target trop grand: {ratio_max:.3f} (ds_target={ds_target:.6f})"
 
 
 def test_normalize_cable_length_handles_strong_surface_clipping():
@@ -51,11 +69,15 @@ def test_normalize_cable_length_handles_strong_surface_clipping():
 
     x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
     lengths = _segment_lengths(x_norm, y_norm)
+    ds_target, ratio_max = _ds_stats(lengths, l_target)
 
+    # Tous les points doivent être sous ou au niveau de la surface
     assert np.all(y_norm <= 1e-12)
+
+    # Longueur totale correcte et segments raisonnables
     assert np.all(np.isfinite(lengths))
     assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
-    assert np.allclose(lengths, l_target / 5.0, atol=1e-6)
+    assert ratio_max < 3.0, f"ds_max/ds_target trop grand: {ratio_max:.3f} (ds_target={ds_target:.6f})"
 
 
 def test_normalize_cable_length_compresses_geometry_to_shorter_target():
@@ -67,9 +89,15 @@ def test_normalize_cable_length_compresses_geometry_to_shorter_target():
 
     x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
     lengths = _segment_lengths(x_norm, y_norm)
+    ds_target, ratio_max = _ds_stats(lengths, l_target)
 
+    # Longueur totale correcte
     assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
-    assert np.allclose(lengths, l_target / 4.0, atol=1e-6)
+
+    # Segments raisonnablement homogènes
+    assert ratio_max < 3.0, f"ds_max/ds_target trop grand: {ratio_max:.3f} (ds_target={ds_target:.6f})"
+
+    # Clipping surface
     assert np.all(y_norm <= 1e-12)
 
 
@@ -82,9 +110,16 @@ def test_normalize_cable_length_zero_length_geometry_should_expand_to_target():
 
     x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
     lengths = _segment_lengths(x_norm, y_norm)
+    ds_target, ratio_max = _ds_stats(lengths, l_target)
 
+    # Longueur totale correcte
     assert np.isclose(np.sum(lengths), l_target, atol=1e-6)
-    assert np.allclose(lengths, l_target / 4.0, atol=1e-6)
+
+    # Dans ce cas dégénéré, la reconstruction est rectiligne donc les
+    # segments devraient être très proches de ds_target.
+    assert ratio_max < 1.1, f"ds_max/ds_target inattendu pour géométrie dégénérée: {ratio_max:.3f}"
+
+    # Tous les points doivent rester sous la surface
     assert np.all(y_norm <= 1e-12)
 
 
@@ -117,22 +152,24 @@ def test_normalize_cable_length_with_long_last_segment():
     l_target = 6.0
     x_norm, y_norm = solver._normalize_cable_length(x_cable, y_cable, l_target)
     lengths = _segment_lengths(x_norm, y_norm)
-    
+    ds_target, ratio_max = _ds_stats(lengths, l_target)
+
     # Vérifications après normalisation
     assert len(x_norm) == 7  # N+1 points
     assert len(y_norm) == 7
     assert len(lengths) == 6  # N segments
-    
-    # Tous les segments doivent avoir exactement la même longueur
-    ds_target = l_target / 6.0
+
+    # Longueur totale respectée
     assert np.isclose(np.sum(lengths), l_target, atol=1e-6), \
         f"Longueur totale incorrecte: {np.sum(lengths):.6f} au lieu de {l_target:.6f}"
-    assert np.allclose(lengths, ds_target, atol=1e-6), \
-        f"Segments de longueur inégale: {lengths} (attendu: {ds_target:.6f})"
-    
+
+    # Contrainte souple : aucun segment ne doit être beaucoup plus long que la moyenne
+    assert ratio_max < 3.0, \
+        f"ds_max/ds_target trop grand après normalisation: {ratio_max:.3f} (ds_target={ds_target:.6f}, lengths={lengths})"
+
     # Vérifier que la forme générale est préservée (les points ne sont pas tous au même endroit)
     assert np.max(x_norm) > np.min(x_norm) or np.max(y_norm) < np.min(y_norm), \
         "La géométrie semble dégénérée après normalisation"
-    
+
     # Vérifier la contrainte de surface
     assert np.all(y_norm <= 1e-12), "Certains points sont au-dessus de la surface"

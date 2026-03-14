@@ -2591,7 +2591,7 @@ class SimulationTab(QWidget):
                             T_cable = None
                     else:
                         T_cable = None
-
+                    
                     if point_indices_raw is not None and isinstance(point_indices_raw, list):
                         cable_point_indices = list(point_indices_raw)
                         if len(cable_point_indices) != len(x_cable):
@@ -2691,18 +2691,19 @@ class SimulationTab(QWidget):
                     # (elles ont été recalculées dans create_system_plot si nécessaire)
                     # S'assurer que les plages sont bien arrondies par paliers de 10 mètres
                     import numpy as np
-                    if fig.layout.xaxis.range is not None:
-                        x_min, x_max = fig.layout.xaxis.range
-                        # Arrondir par paliers de 10 mètres
-                        x_min = np.floor(x_min / 10.0) * 10.0
-                        x_max = np.ceil(x_max / 10.0) * 10.0
-                        self.current_x_range = [x_min, x_max]
-                    if fig.layout.yaxis.range is not None:
-                        y_max, y_min = fig.layout.yaxis.range  # Note: reversed
-                        # Arrondir par paliers de 10 mètres
-                        y_min = np.floor(y_min / 10.0) * 10.0
-                        y_max = np.ceil(y_max / 10.0) * 10.0
-                        self.current_y_range = [y_max, y_min]  # Stocker dans l'ordre reversed
+                    if 'fig' in locals() and fig is not None:
+                        if fig.layout.xaxis.range is not None:
+                            x_min, x_max = fig.layout.xaxis.range
+                            # Arrondir par paliers de 10 mètres
+                            x_min = np.floor(x_min / 10.0) * 10.0
+                            x_max = np.ceil(x_max / 10.0) * 10.0
+                            self.current_x_range = [x_min, x_max]
+                        if fig.layout.yaxis.range is not None:
+                            y_max, y_min = fig.layout.yaxis.range  # Note: reversed
+                            # Arrondir par paliers de 10 mètres
+                            y_min = np.floor(y_min / 10.0) * 10.0
+                            y_max = np.ceil(y_max / 10.0) * 10.0
+                            self.current_y_range = [y_max, y_min]  # Stocker dans l'ordre reversed
                     
                     # Mettre à jour le graphique "Courant"
                     self.update_current_profile_plot(y_ref=y_rov)

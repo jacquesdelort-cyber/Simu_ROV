@@ -1,4 +1,5 @@
 """Gestion simple du niveau de trace global."""
+import sys
 
 TRACE_LEVEL = 0
 TRACE_FILE_HANDLE = None
@@ -46,3 +47,6 @@ def trace_print(level: int, *args, **kwargs) -> None:
                 print(*args, **kwargs, file=TRACE_FILE_HANDLE, flush=True)
             except Exception:
                 pass
+        # Forcer l'écriture immédiate dans le terminal pour garantir l'ordre d'affichage
+        sys.stdout.flush()
+        sys.stderr.flush()

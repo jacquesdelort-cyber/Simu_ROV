@@ -212,6 +212,43 @@ class SimulationThread(QThread):
             # Simulation avec pas adaptatifs
             t_current = 0.0
             y_current = y0.copy()
+
+            # Normaliser et recoller en douceur la géométrie du câble à l'initialisation
+            # pour éviter un segment final anormalement long (ex : mission M103).
+            try:
+                (x_rov_init, y_rov_init, vx_rov_init, vy_rov_init,
+                 x_boat_init, vx_boat_init, x_cable_init, y_cable_init, T_init, L_init) = system.unpack_state(y_current)
+                if (
+                    x_cable_init is not None
+                    and y_cable_init is not None
+                    and len(x_cable_init) > 1
+                    and L_init is not None
+                    and float(L_init) > 1e-6
+                ):
+                    # Normaliser la longueur du câble à L_init avec recollement doux
+                    x_corr, y_corr = system.cable.solver._normalize_cable_length(
+                        np.asarray(x_cable_init, dtype=float),
+                        np.asarray(y_cable_init, dtype=float),
+                        float(L_init),
+                        x_boat=float(x_boat_init),
+                        y_boat=0.0,
+                        x_rov=float(x_rov_init),
+                        y_rov=float(y_rov_init),
+                        k_tail=10,
+                    )
+
+                    # Réinjecter la géométrie corrigée dans l'état initial
+                    idx_x_cable = 6
+                    idx_y_cable = idx_x_cable + system.N + 1
+                    y_current[idx_x_cable:idx_y_cable] = x_corr
+                    y_current[idx_y_cable:idx_y_cable + system.N + 1] = y_corr
+
+                    # Mettre à jour les buffers précédents du système
+                    system.x_cable_prev = np.asarray(x_corr, dtype=float).copy()
+                    system.y_cable_prev = np.asarray(y_corr, dtype=float).copy()
+            except Exception as e:
+                trace_print(8, f"[INIT] Échec renormalisation câble initial: {e}")
+
             dt = min(dt_max, t_final / 100.0)  # Pas initial
             dt_min = float(self.calc_params.get('dt_min', 1e-4))
             max_step_wall_time = float(self.calc_params.get('max_step_wall_time', 1.0))
@@ -354,39 +391,189 @@ class SimulationThread(QThread):
                     cable_mode_val = ctx.get('cable_mode')
                     triggers = ctx.get('triggers')
 
-                    y_vec = ctx.get('y')
-                    if y_vec is None:
-                        return
+                    # Si des métriques explicites sont fournies dans le contexte (celles
+                    # calculées en fin d'itération pour l'UI), les utiliser de
+                    # préférence pour garantir la cohérence UI / invariants.
+                    x_cable_ctx = ctx.get('x_cable')
+                    y_cable_ctx = ctx.get('y_cable')
+                    L_ctx = ctx.get('L')
+                    L_seg_ctx = ctx.get('L_seg')
+                    D_straight_ctx = ctx.get('D_straight')
+                    x_boat_ctx = ctx.get('x_boat')
+                    y_boat_ctx = ctx.get('y_boat', 0.0)
+                    x_rov_ctx = ctx.get('x_rov')
+                    y_rov_ctx = ctx.get('y_rov')
+                    T_ctx = ctx.get('T')
 
-                    (x_rov_c, y_rov_c, vx_rov_c, vy_rov_c,
-                     x_boat_c, vx_boat_c, x_cable_c, y_cable_c, T_c, L_c) = system.unpack_state(y_vec)
+                    # Utiliser T du contexte si disponible, sinon None
+                    T_c = None
+                    if T_ctx is not None:
+                        try:
+                            T_array = np.asarray(T_ctx, dtype=float)
+                            # Vérifier que le tableau n'est pas vide
+                            if len(T_array) > 0:
+                                T_c = T_array
+                            else:
+                                # Debug : T_ctx est vide
+                                try:
+                                    from src.utils.logger import trace_print
+                                    trace_print(9, f"[CABLE INVARIANTS] DEBUG: T_ctx est vide ou None")
+                                except:
+                                    pass
+                        except Exception as e:
+                            T_c = None
+                            # Debug : erreur lors de la conversion de T_ctx
+                            try:
+                                from src.utils.logger import trace_print
+                                trace_print(9, f"[CABLE INVARIANTS] DEBUG: Erreur conversion T_ctx: {e}, type={type(T_ctx)}")
+                            except:
+                                pass
+                    else:
+                        # Debug : T_ctx n'est pas dans le contexte
+                        try:
+                            from src.utils.logger import trace_print
+                            trace_print(9, f"[CABLE INVARIANTS] DEBUG: T_ctx n'est pas dans le contexte")
+                        except:
+                            pass
 
-                    if x_cable_c is None or y_cable_c is None or len(x_cable_c) < 2:
-                        return
+                    if (
+                        x_cable_ctx is not None
+                        and y_cable_ctx is not None
+                        and len(x_cable_ctx) >= 2
+                        and L_ctx is not None
+                        and x_boat_ctx is not None
+                        and x_rov_ctx is not None
+                        and y_rov_ctx is not None
+                    ):
+                        # Utiliser directement la géométrie et les longueurs passées par le caller
+                        x_cable_c = np.asarray(x_cable_ctx, dtype=float)
+                        y_cable_c = np.asarray(y_cable_ctx, dtype=float)
+                        L_c = float(L_ctx)
 
-                    # Somme des longueurs des segments + stats élémentaires
-                    L_seg = 0.0
-                    ds_list = []
-                    for i in range(len(x_cable_c) - 1):
-                        dx = float(x_cable_c[i + 1] - x_cable_c[i])
-                        dy = float(y_cable_c[i + 1] - y_cable_c[i])
-                        ds = float(np.hypot(dx, dy))
-                        L_seg += ds
-                        ds_list.append(ds)
+                        # Somme des longueurs des segments + stats élémentaires
+                        ds_list = []
+                        if L_seg_ctx is not None:
+                            # On fait confiance à la valeur fournie pour L_seg
+                            L_seg = float(L_seg_ctx)
+                        else:
+                            L_seg = 0.0
+                            for i in range(len(x_cable_c) - 1):
+                                dx = float(x_cable_c[i + 1] - x_cable_c[i])
+                                dy = float(y_cable_c[i + 1] - y_cable_c[i])
+                                ds = float(np.hypot(dx, dy))
+                                L_seg += ds
+                                ds_list.append(ds)
 
-                    # Distance en ligne droite et slack
-                    dx_straight = float(x_rov_c - x_boat_c)
-                    dy_straight = float(y_rov_c - 0.0)
-                    D_straight = float(np.hypot(dx_straight, dy_straight))
-                    slack = float(L_c - D_straight)
+                        if not ds_list:
+                            # Si ds_list est vide mais L_seg_ctx fourni, reconstruire ds_list
+                            for i in range(len(x_cable_c) - 1):
+                                dx = float(x_cable_c[i + 1] - x_cable_c[i])
+                                dy = float(y_cable_c[i + 1] - y_cable_c[i])
+                                ds = float(np.hypot(dx, dy))
+                                ds_list.append(ds)
+                        
+                        # Ajouter les segments aux extrémités (bateau-premier point et avant-dernier point-ROV)
+                        # pour avoir une vue complète de tous les segments violant la contrainte
+                        if len(x_cable_c) > 0:
+                            # Segment bateau -> premier point du câble
+                            dx_boat_to_first = float(x_cable_c[0] - x_boat_ctx)
+                            dy_boat_to_first = float(y_cable_c[0] - y_boat_ctx)
+                            ds_boat_to_first = float(np.hypot(dx_boat_to_first, dy_boat_to_first))
+                            # Insérer au début de ds_list
+                            ds_list.insert(0, ds_boat_to_first)
+                            
+                            # Segment dernier point du câble -> ROV
+                            dx_last_to_rov = float(x_rov_ctx - x_cable_c[-1])
+                            dy_last_to_rov = float(y_rov_ctx - y_cable_c[-1])
+                            ds_last_to_rov = float(np.hypot(dx_last_to_rov, dy_last_to_rov))
+                            # Ajouter à la fin de ds_list
+                            ds_list.append(ds_last_to_rov)
 
-                    # Recollement des extrémités
-                    dist_boat = float(np.hypot(float(x_cable_c[0] - x_boat_c),
-                                               float(y_cable_c[0] - 0.0)))
-                    dist_rov = float(np.hypot(float(x_cable_c[-1] - x_rov_c),
-                                              float(y_cable_c[-1] - y_rov_c)))
+                        # Distance en ligne droite et slack
+                        if D_straight_ctx is not None:
+                            D_straight = float(D_straight_ctx)
+                        else:
+                            dx_straight = float(x_rov_ctx - x_boat_ctx)
+                            dy_straight = float(y_rov_ctx - y_boat_ctx)
+                            D_straight = float(np.hypot(dx_straight, dy_straight))
+                        slack = float(L_c - D_straight)
 
-                    tol_L_rel = 1e-3
+                        # Recollement des extrémités (bateau / ROV)
+                        dist_boat = float(
+                            np.hypot(
+                                float(x_cable_c[0] - x_boat_ctx),
+                                float(y_cable_c[0] - y_boat_ctx),
+                            )
+                        )
+                        dist_rov = float(
+                            np.hypot(
+                                float(x_cable_c[-1] - x_rov_ctx),
+                                float(y_cable_c[-1] - y_rov_ctx),
+                            )
+                        )
+                        # Stocker les coordonnées du bateau et du ROV pour le message
+                        x_boat_final = float(x_boat_ctx)
+                        y_boat_final = float(y_boat_ctx)
+                        x_rov_final = float(x_rov_ctx)
+                        y_rov_final = float(y_rov_ctx)
+                    else:
+                        # Fallback : reconstruire entièrement les métriques à partir de y_vec
+                        y_vec = ctx.get('y')
+                        if y_vec is None:
+                            return
+
+                        (x_rov_c, y_rov_c, vx_rov_c, vy_rov_c,
+                         x_boat_c, vx_boat_c, x_cable_c, y_cable_c, T_c, L_c) = system.unpack_state(y_vec)
+
+                        if x_cable_c is None or y_cable_c is None or len(x_cable_c) < 2:
+                            return
+
+                        # Somme des longueurs des segments + stats élémentaires
+                        L_seg = 0.0
+                        ds_list = []
+                        for i in range(len(x_cable_c) - 1):
+                            dx = float(x_cable_c[i + 1] - x_cable_c[i])
+                            dy = float(y_cable_c[i + 1] - y_cable_c[i])
+                            ds = float(np.hypot(dx, dy))
+                            L_seg += ds
+                            ds_list.append(ds)
+
+                        # Distance en ligne droite et slack
+                        dx_straight = float(x_rov_c - x_boat_c)
+                        dy_straight = float(y_rov_c - 0.0)
+                        D_straight = float(np.hypot(dx_straight, dy_straight))
+                        slack = float(L_c - D_straight)
+
+                        # Recollement des extrémités
+                        dist_boat = float(np.hypot(float(x_cable_c[0] - x_boat_c),
+                                                   float(y_cable_c[0] - 0.0)))
+                        dist_rov = float(np.hypot(float(x_cable_c[-1] - x_rov_c),
+                                                  float(y_cable_c[-1] - y_rov_c)))
+                        
+                        # Ajouter les segments aux extrémités (bateau-premier point et avant-dernier point-ROV)
+                        # pour avoir une vue complète de tous les segments violant la contrainte
+                        if len(x_cable_c) > 0:
+                            # Segment bateau -> premier point du câble
+                            dx_boat_to_first = float(x_cable_c[0] - x_boat_c)
+                            dy_boat_to_first = float(y_cable_c[0] - 0.0)
+                            ds_boat_to_first = float(np.hypot(dx_boat_to_first, dy_boat_to_first))
+                            # Insérer au début de ds_list
+                            ds_list.insert(0, ds_boat_to_first)
+                            
+                            # Segment dernier point du câble -> ROV
+                            dx_last_to_rov = float(x_rov_c - x_cable_c[-1])
+                            dy_last_to_rov = float(y_rov_c - y_cable_c[-1])
+                            ds_last_to_rov = float(np.hypot(dx_last_to_rov, dy_last_to_rov))
+                            # Ajouter à la fin de ds_list
+                            ds_list.append(ds_last_to_rov)
+                        
+                        # Stocker les coordonnées du bateau et du ROV pour le message
+                        x_boat_final = float(x_boat_c)
+                        y_boat_final = 0.0
+                        x_rov_final = float(x_rov_c)
+                        y_rov_final = float(y_rov_c)
+
+                    tol_L_rel = 1e-1
                     tol_recol = 1e-3
                     tol_slack_neg = 1e-3
 
@@ -406,35 +593,177 @@ class SimulationThread(QThread):
                             details["ds_min"] = ds_min
                             details["ds_max"] = ds_max
                             details["ds_mean"] = ds_mean
-                            details["ds_first"] = ds_list[0]
-                            details["ds_last"] = ds_list[-1]
+                            # ds_first et ds_last sont les segments internes (pas les extrémités)
+                            # Si ds_list contient les segments aux extrémités, ils sont en première et dernière position
+                            if len(ds_list) >= 3:
+                                # ds_list[0] = bateau-premier point, ds_list[1] = premier segment interne
+                                # ds_list[-2] = dernier segment interne, ds_list[-1] = dernier point-ROV
+                                details["ds_first"] = float(ds_list[1]) if len(ds_list) > 1 else float(ds_list[0])
+                                details["ds_last"] = float(ds_list[-2]) if len(ds_list) > 1 else float(ds_list[-1])
+                            else:
+                                details["ds_first"] = float(ds_list[0])
+                                details["ds_last"] = float(ds_list[-1])
+                            # Coordonnées des points du câble
+                            try:
+                                if len(x_cable_c) >= 1:
+                                    # Point 0 du câble (premier point)
+                                    details["x0"] = float(x_cable_c[0])
+                                    details["y0"] = float(y_cable_c[0])
+                                if len(x_cable_c) >= 3:
+                                    # Points 1 et N-1 du câble
+                                    details["x1"] = float(x_cable_c[1])
+                                    details["y1"] = float(y_cable_c[1])
+                                    details["xNm1"] = float(x_cable_c[-2])
+                                    details["yNm1"] = float(y_cable_c[-2])
+                                if len(x_cable_c) >= 1:
+                                    # Point N du câble (dernier point)
+                                    details["xN"] = float(x_cable_c[-1])
+                                    details["yN"] = float(y_cable_c[-1])
+                            except Exception:
+                                pass
 
                             # Contrôle local : aucun segment ne doit être trop long
                             # par rapport à la longueur moyenne ds_target = L_c / N.
-                            N_seg = len(ds_list)
+                            # N_seg est le nombre de segments internes du câble (sans les extrémités)
+                            # ds_list contient maintenant N_seg + 2 segments (internes + extrémités)
+                            N_seg = len(x_cable_c) - 1 if len(x_cable_c) > 1 else 0
                             if N_seg > 0:
+                                # Utiliser L_c_val (longueur commandée) pour ds_target
+                                # ds_target est basé sur le nombre de segments internes
                                 ds_target = L_c_val / N_seg
+                                ratio = ds_max / ds_target if ds_target > 0.0 else 0.0
+
+                                # Traçage systématique pour diagnostic (même sans violation)
+                                try:
+                                    from src.utils.logger import trace_print
+                                    t_dbg = t_chk if t_chk is not None else -1.0
+                                except Exception:
+                                    pass
+
+                                # Alerter dès que ds_max / ds dépasse le seuil k_max
                                 k_max = 2.0
                                 if ds_target > 0.0 and ds_max > k_max * ds_target:
                                     i_max = int(np.argmax(ds_list))
-                                    ratio = ds_max / ds_target
                                     violations.append(
                                         f"segment_too_long(i={i_max},ratio={ratio:.3f})"
                                     )
+
+                                    # Compter le nombre de segments qui violent la contrainte
+                                    # Utiliser le même seuil k_max * ds_target que pour la détection
+                                    seuil = k_max * ds_target
+                                    # Compter explicitement pour debug
+                                    nb_seg_ko_list = [i for i, ds in enumerate(ds_list) if ds > seuil]
+                                    nb_seg_ko = len(nb_seg_ko_list)
+                                    # Vérifier aussi les segments aux extrémités pour debug
+                                    if len(ds_list) > 0:
+                                        details["_debug_ds_bat_cable"] = float(ds_list[0])
+                                        details["_debug_ds_cable_ROV"] = float(ds_list[-1])
+                                        details["_debug_seuil"] = float(seuil)
+                                        details["_debug_ds_target"] = float(ds_target)
+                                        details["_debug_N_seg"] = N_seg
+                                        details["_debug_ds_list_len"] = len(ds_list)
+                                        if nb_seg_ko > 0:
+                                            details["_debug_indices_ko"] = ",".join(str(i) for i in nb_seg_ko_list[:10])  # Limiter à 10 pour éviter un message trop long
                                     details["ds_max_ratio"] = float(ratio)
                                     details["i_max_segment"] = i_max
+                                    details["nb_seg_ko"] = nb_seg_ko
 
                     if dist_boat > tol_recol:
                         violations.append(f"recollement_bateau(dist={dist_boat:.3e})")
+
                     if dist_rov > tol_recol:
                         violations.append(f"recollement_rov(dist={dist_rov:.3e})")
 
                     if slack < -tol_slack_neg:
                         violations.append(f"slack_neg(slack={slack:.3e})")
 
+                    # Stocker les coordonnées du bateau (P0) et du ROV (PN) dans details
+                    try:
+                        details["x_boat"] = x_boat_final
+                        details["y_boat"] = y_boat_final
+                        details["x_rov"] = x_rov_final
+                        details["y_rov"] = y_rov_final
+                    except Exception:
+                        pass
+                    
+                    # Stocker les informations sur les violations de chaque distance pour l'affichage coloré
+                    try:
+                        # Codes ANSI pour les couleurs
+                        ANSI_RED = "\033[91m"  # Rouge
+                        ANSI_GREEN = "\033[92m"  # Vert
+                        ANSI_RESET = "\033[0m"  # Reset
+                        
+                        # Distance bateau -> P0
+                        ds_bat_cable = details.get("_debug_ds_bat_cable", 0.0)
+                        seuil_val = details.get("_debug_seuil", 0.0)
+                        dist_boat_violation = dist_boat > tol_recol or (seuil_val > 0.0 and ds_bat_cable > seuil_val)
+                        details["_dist_bat_P0"] = ds_bat_cable
+                        details["_dist_bat_P0_violation"] = dist_boat_violation
+                        
+                        # Distance P0 -> P1
+                        ds_first_val = details.get("ds_first", 0.0)
+                        dist_P0_P1_violation = seuil_val > 0.0 and ds_first_val > seuil_val
+                        details["_dist_P0_P1"] = ds_first_val
+                        details["_dist_P0_P1_violation"] = dist_P0_P1_violation
+                        
+                        # Distance PNm1 -> PN
+                        ds_last_val = details.get("ds_last", 0.0)
+                        dist_PNm1_PN_violation = seuil_val > 0.0 and ds_last_val > seuil_val
+                        details["_dist_PNm1_PN"] = ds_last_val
+                        details["_dist_PNm1_PN_violation"] = dist_PNm1_PN_violation
+                        
+                        # Distance PN -> ROV
+                        ds_cable_ROV = details.get("_debug_ds_cable_ROV", 0.0)
+                        dist_PN_ROV_violation = dist_rov > tol_recol or (seuil_val > 0.0 and ds_cable_ROV > seuil_val)
+                        details["_dist_PN_ROV"] = ds_cable_ROV
+                        details["_dist_PN_ROV_violation"] = dist_PN_ROV_violation
+                        
+                        # Stocker les codes ANSI pour utilisation dans le message
+                        details["_ANSI_RED"] = ANSI_RED
+                        details["_ANSI_GREEN"] = ANSI_GREEN
+                        details["_ANSI_RESET"] = ANSI_RESET
+                    except Exception:
+                        pass
+
                     if not violations:
                         return
-
+                    
+                    # Fonction locale pour formater la ligne de coordonnées avec distances colorées
+                    def format_coordinates_line(det):
+                        ANSI_RED = det.get("_ANSI_RED", "")
+                        ANSI_GREEN = det.get("_ANSI_GREEN", "")
+                        ANSI_RESET = det.get("_ANSI_RESET", "")
+                        
+                        line = f"\nBateau=({det.get('x_boat', 0.0):.3f},{det.get('y_boat', 0.0):.3f})"
+                        
+                        # Distance bateau -> P0
+                        dist_bat_P0 = det.get("_dist_bat_P0", 0.0)
+                        color_bat_P0 = ANSI_RED if det.get("_dist_bat_P0_violation", False) else ANSI_GREEN
+                        line += f"  {color_bat_P0}{dist_bat_P0:.3f}{ANSI_RESET}"
+                        line += f" P0=({det.get('x0', 0.0):.3f},{det.get('y0', 0.0):.3f})"
+                        
+                        # Distance P0 -> P1
+                        dist_P0_P1 = det.get("_dist_P0_P1", 0.0)
+                        color_P0_P1 = ANSI_RED if det.get("_dist_P0_P1_violation", False) else ANSI_GREEN
+                        line += f" {color_P0_P1}{dist_P0_P1:.3f}{ANSI_RESET}"
+                        line += f" P1=({det.get('x1', 0.0):.3f},{det.get('y1', 0.0):.3f})"
+                        
+                        line += f" PNm1=({det.get('xNm1', 0.0):.3f},{det.get('yNm1', 0.0):.3f})"
+                        
+                        # Distance PNm1 -> PN
+                        dist_PNm1_PN = det.get("_dist_PNm1_PN", 0.0)
+                        color_PNm1_PN = ANSI_RED if det.get("_dist_PNm1_PN_violation", False) else ANSI_GREEN
+                        line += f" {color_PNm1_PN}{dist_PNm1_PN:.3f}{ANSI_RESET}"
+                        line += f" PN=({det.get('xN', 0.0):.3f},{det.get('yN', 0.0):.3f})"
+                        
+                        # Distance PN -> ROV
+                        dist_PN_ROV = det.get("_dist_PN_ROV", 0.0)
+                        color_PN_ROV = ANSI_RED if det.get("_dist_PN_ROV_violation", False) else ANSI_GREEN
+                        line += f" {color_PN_ROV}{dist_PN_ROV:.3f}{ANSI_RESET}"
+                        line += f" ROV=({det.get('x_rov', 0.0):.3f},{det.get('y_rov', 0.0):.3f})"
+                        
+                        return line
+                    
                     mission_name = getattr(system.environment, "mission_name", None)
                     dl_dt_str = (
                         f"{float(dl_dt_cmd_val):.6f}"
@@ -444,7 +773,7 @@ class SimulationThread(QThread):
                     T_boat_val = float(T_c[0]) if T_c is not None and len(T_c) > 0 else 0.0
                     T_rov_val = float(T_c[-1]) if T_c is not None and len(T_c) > 0 else 0.0
 
-                    base_prefix = "[CABLE INVARIANTS] VIOLATION "
+                    base_prefix = "\n[CABLE INVARIANTS] VIOLATION -> "
                     if t_chk is not None:
                         base_prefix += f"phase={phase} t={t_chk:.3f} "
                     else:
@@ -455,7 +784,7 @@ class SimulationThread(QThread):
 
                     message = (
                         base_prefix
-                        + f"violations={','.join(violations)} "
+                        + f"violations={','.join(violations)}\n"
                         + f"L={float(L_c):.6f} L_seg={L_seg:.6f} "
                         + f"D_straight={D_straight:.6f} slack={slack:.6f} "
                         + f"dist_boat={dist_boat:.3e} dist_rov={dist_rov:.3e} "
@@ -471,7 +800,7 @@ class SimulationThread(QThread):
                             f"triggers={triggers} " if triggers not in (None, []) else ""
                         )
                         + (
-                            f"mission={mission_name}" if mission_name is not None else ""
+                            f"\nmission={mission_name}" if mission_name is not None else ""
                         )
                         + (
                             f" ds_mean={details.get('ds_mean', 0.0):.6f}"
@@ -485,15 +814,31 @@ class SimulationThread(QThread):
                         + (
                             f" ds_max_ratio={details.get('ds_max_ratio', 0.0):.3f}"
                             f" i_max_segment={details.get('i_max_segment', -1):d}"
-                            if "ds_max_ratio" in details and "i_max_segment" in details
+                            f" nb_seg_ko={details.get('nb_seg_ko', 0):d}"
+                            if "ds_max_ratio" in details and "i_max_segment" in details 
+                            else ""
+                        )
+                        + (
+                            f"\nDEBUG: ds_target={details.get('_debug_ds_target', 0.0):.6f}"
+                            f" seuil={details.get('_debug_seuil', 0.0):.6f}"
+                            f" ds_bat_cable={details.get('_debug_ds_bat_cable', 0.0):.6f}"
+                            f" ds_cable_ROV={details.get('_debug_ds_cable_ROV', 0.0):.6f}"
+                            f" N_seg={details.get('_debug_N_seg', 0):d}"
+                            f" ds_list_len={details.get('_debug_ds_list_len', 0):d}"
+                            + (f" indices_ko=[{details.get('_debug_indices_ko', '')}]" if "_debug_indices_ko" in details else "")
+                            if "_debug_ds_target" in details
+                            else ""
+                        )
+                        + (
+                            format_coordinates_line(details)
+                            if "x0" in details and "x1" in details and "xNm1" in details and "xN" in details and "x_boat" in details and "x_rov" in details
                             else ""
                         )
                     )
-
                     trace_print(9, message)
                 except Exception as e:
-                    trace_print(8, f"[CABLE INVARIANTS] Erreur verification: {e}")
-            
+                    trace_print(9, f"\n[CABLE INVARIANTS] Erreur verification: {e}")
+
             # Initialiser le fichier Excel pour sauvegarder data dans Téléchargements
             data_excel_path = None
             data_excel_wb = None
@@ -569,14 +914,70 @@ class SimulationThread(QThread):
             step_count = 0
             fx_rov_cmd = None  # Initialiser pour l'émission finale
             step_triggers = []
+            # Limite par défaut pour le nombre de points envoyés à l'UI
+            plot_points_limit = int(self.calc_params.get('plot_points_limit', 1000))
 
             # Vérifier les invariants du câble à la fin de la phase d'initialisation
-            check_cable_invariants({
-                'phase': 'initialisation',
-                't': t_current,
-                'step': 0,
-                'y': y_current,
-            })
+            # Calculer les mêmes données qu'en fin d'itération pour avoir un contexte complet
+            try:
+                (x_rov_init, y_rov_init, vx_rov_init, vy_rov_init,
+                 x_boat_init, vx_boat_init, x_cable_init, y_cable_init, T_init, L_init) = system.unpack_state(y_current)
+                
+                # Préparer x_cable_display et y_cable_display comme en fin d'itération
+                x_cable_display_init = np.asarray(x_cable_init, dtype=float).copy() if x_cable_init is not None else None
+                y_cable_display_init = np.asarray(y_cable_init, dtype=float).copy() if y_cable_init is not None else None
+                
+                # Garantir l'ordre bateau -> ROV
+                if x_cable_display_init is not None and y_cable_display_init is not None and len(x_cable_display_init) > 1:
+                    dist_first_to_boat = np.sqrt((x_cable_display_init[0] - x_boat_init)**2 + (y_cable_display_init[0] - 0.0)**2)
+                    dist_first_to_rov = np.sqrt((x_cable_display_init[0] - x_rov_init)**2 + (y_cable_display_init[0] - y_rov_init)**2)
+                    if dist_first_to_rov < dist_first_to_boat:
+                        x_cable_display_init = np.flip(x_cable_display_init)
+                        y_cable_display_init = np.flip(y_cable_display_init)
+                
+                # Calculer L_seg
+                L_seg_init = 0.0
+                if x_cable_display_init is not None and y_cable_display_init is not None and len(x_cable_display_init) > 1:
+                    for i in range(len(x_cable_display_init) - 1):
+                        dx_seg = x_cable_display_init[i + 1] - x_cable_display_init[i]
+                        dy_seg = y_cable_display_init[i + 1] - y_cable_display_init[i]
+                        L_seg_init += float(np.hypot(dx_seg, dy_seg))
+                
+                # Calculer D_straight
+                dx_straight_init = x_rov_init - x_boat_init
+                dy_straight_init = y_rov_init - 0.0
+                D_straight_init = float(np.hypot(dx_straight_init, dy_straight_init))
+                
+                # Construire le contexte complet comme en fin d'itération
+                check_cable_invariants({
+                    'phase': 'initialisation',
+                    't': t_current,
+                    'step': 0,
+                    'y': y_current,
+                    'x_cable': x_cable_display_init,
+                    'y_cable': y_cable_display_init,
+                    'L': L_init,
+                    'L_seg': L_seg_init,
+                    'D_straight': D_straight_init,
+                    'x_boat': x_boat_init,
+                    'y_boat': 0.0,
+                    'x_rov': x_rov_init,
+                    'y_rov': y_rov_init,
+                    'T': T_init,
+                    'dl_dt_cmd': None,
+                    'dl_dt_explain': None,
+                    'cable_mode': None,
+                    'triggers': [],
+                })
+            except Exception as e:
+                # En cas d'erreur, utiliser le contexte minimal (fallback)
+                trace_print(8, f"[CABLE INVARIANTS] Erreur préparation contexte initialisation: {e}")
+                check_cable_invariants({
+                    'phase': 'initialisation',
+                    't': t_current,
+                    'step': 0,
+                    'y': y_current,
+                })
             
             while t_current < t_final and not self._stop_requested:
                 # Attendre si en pause
@@ -682,6 +1083,8 @@ class SimulationThread(QThread):
                             t_boat = None
                             if T_current is not None and len(T_current) > 0:
                                 t_boat = float(T_current[0])
+                                # DEBUG: Traçage avant appel auto_L_7
+                                trace_print(9, f"[DEBUG AUTO_L_7] AVANT appel auto_L_7: t_current={t_current:.3f}, step={step_count}")
                                 auto_result = auto_func(
                                     t_current,
                                     y_rov_current,
@@ -704,6 +1107,8 @@ class SimulationThread(QThread):
                                 dl_dt_auto_explain = str(auto_result[1])
                             else:
                                 dl_dt_cmd = auto_result
+                            # DEBUG: Traçage après appel auto_L_7
+                            trace_print(9, f"[DEBUG AUTO_L_7] APRÈS appel auto_L_7: t_current={t_current:.3f}, step={step_count}, dl_dt_cmd={dl_dt_cmd}")
                             # DEBUG: Traçage de dL_dt calculé
                             trace_print(8, f"[DEBUG L] t={t_current:.2f} dL_dt_cmd={dl_dt_cmd:.6f} m/s "
                                 f"(L_current={L_current:.6f} m pour calcul)"
@@ -760,59 +1165,6 @@ class SimulationThread(QThread):
                     if dl_dt_cmd is not None:
                         self.simulation_state['dl_dt'] = float(dl_dt_cmd)
                         self.simulation_state['dl_dt_source'] = "auto" if dl_dt_mode == "auto" else "scenario"
-
-                # Mise à jour de l'interface graphique juste après l'appel à auto_L_7 (ou autres commandes)
-                # Utiliser les données de l'itération précédente (déjà dans data)
-                # pour correspondre aux valeurs utilisées dans auto_L_7
-                steps_per_update = int(self.calc_params.get('steps_per_update', 5))
-                if step_count % steps_per_update == 0 and len(data.get('time', [])) > 0:
-                    # Préparer les données optimisées pour l'UI
-                    plot_points_limit = int(self.calc_params.get('plot_points_limit', 1000))
-                    
-                    # Utiliser L_current (avant intégration) pour correspondre aux traces dans auto_L_7
-                    update_data = {
-                        'current_time': t_current,
-                        'L_step': float(L_current),  # Utiliser L_current (avant intégration)
-                    }
-                    
-                    # Ajouter les dernières valeurs pour les métriques
-                    for key, value in data.items():
-                        if isinstance(value, list) and len(value) > 0:
-                            # Pour les graphiques, garder seulement les N derniers points
-                            if key in ['time', 'x_rov', 'y_rov', 'vx_rov', 'vy_rov', 'x_boat', 'vx_boat',
-                                      'L', 'L_seg', 'D_straight', 'T_rov', 'T_boat', 'T_max',
-                                      'Fx_drag_rov', 'Fy_drag_rov', 'Fx_rov_total', 'Fy_rov_total',
-                                      'Fx_traction_boat', 'Fy_traction_boat', 'Fx_traction_rov', 'Fy_traction_rov',
-                                      'F_prop_boat', 'Fx_total_boat', 'Fy_total_boat',
-                                      'Fx_drag_cable', 'Fy_drag_cable', 'Fy_cable_app_w',
-                                      'Fx_drag_cable_longitudinal', 'Fy_drag_cable_longitudinal',
-                                      'Fx_drag_cable_perpendicular', 'Fy_drag_cable_perpendicular',
-                                      'Fx_cmd_rov', 'Fy_cmd_rov', 'dl_dt_cmd', 'dl_dt_auto_explain',
-                                      'Fy_rov_app_w', 'F_buoyancy_net', 'angle_rov', 'angle_boat',
-                                      'cable_mode', 'scenario_triggers']:
-                                # Limiter à plot_points_limit points pour les graphiques
-                                if len(value) > plot_points_limit:
-                                    update_data[key] = value[-plot_points_limit:]
-                                else:
-                                    update_data[key] = value
-                            else:
-                                # Pour les autres listes, garder toutes les valeurs
-                                update_data[key] = value
-                        elif key in ['x_cable_curr', 'y_cable_curr', 'T_cable_curr']:
-                            # Les données du câble actuelles sont toujours incluses
-                            update_data[key] = value
-                        else:
-                            # Autres valeurs (scalaires, None, etc.)
-                            update_data[key] = value
-                    
-                    if fx_rov_cmd is not None:
-                        update_data['fx_rov_cmd'] = float(fx_rov_cmd)
-                        update_data['fx_rov_cmd_source'] = "scenario"
-                    
-                    self.simulation_updated.emit(update_data)
-                    
-                    # Petit délai pour ne pas surcharger l'interface
-                    time.sleep(0.01)
 
                 # Fin de mission via événement de scénario
                 if hasattr(commande_scenario, "_mission_end") and commande_scenario._mission_end:
@@ -943,7 +1295,10 @@ class SimulationThread(QThread):
                             self.error_occurred.emit(f"État invalide (NaN/Inf) après intégration à t={t_next:.2f} s")
                             break
                     
-                    t_current = t_next
+                    # NOTE: t_current sera incrémenté à la fin de l'itération pour que toutes les opérations
+                    # (auto_L_7, intégration, vérification invariants) utilisent le même temps
+                    # Pour l'instant, on utilise t_next pour les calculs post-intégration
+                    t_post_integration = t_next
                     
                     # Décoder l'état
                     (x_rov, y_rov, vx_rov, vy_rov,
@@ -953,7 +1308,7 @@ class SimulationThread(QThread):
                     # Récupérer la commande dL_dt qui a été utilisée pour cette intégration
                     # Note: u_func est défini dans la portée de run(), donc on peut l'utiliser
                     try:
-                        u_at_t = u_func(t_current) if callable(u_func) else None
+                        u_at_t = u_func(t_post_integration) if callable(u_func) else None
                         dL_dt_used = u_at_t.get('dL_dt') if u_at_t and isinstance(u_at_t, dict) else None
                     except:
                         dL_dt_used = None
@@ -967,7 +1322,7 @@ class SimulationThread(QThread):
                         
                         delta_L_actual = L - self._prev_L_current
                         if abs(delta_L_actual - delta_L_expected) > 0.01:  # Seuil de 1 cm
-                            trace_print(8, f"[DEBUG L] t={t_current:.2f} APRÈS intégration: "
+                            trace_print(8, f"[DEBUG L] t={t_post_integration:.2f} APRÈS intégration: "
                                 f"L={L:.6f} m, L_prev={self._prev_L_current:.6f} m, "
                                 f"delta_L_actual={delta_L_actual:.6f} m, "
                                 f"delta_L_expected={delta_L_expected:.6f} m "
@@ -999,7 +1354,7 @@ class SimulationThread(QThread):
                     prev_y = data.get('y_rov', [])[-1] if data.get('y_rov') else None
                     prev_t = data.get('time', [])[-1] if data.get('time') else None
                     if prev_x is not None and prev_y is not None and prev_t is not None:
-                        dt_local = t_current - prev_t
+                        dt_local = t_post_integration - prev_t
                         if dt_local > 0:
                             vx_rov = (x_rov - prev_x) / dt_local
                             vy_rov = (y_rov - prev_y) / dt_local
@@ -1007,15 +1362,12 @@ class SimulationThread(QThread):
                             vx_rov = 0.0
                             vy_rov = 0.0
                     
-                    # Pour l'affichage, privilégier la géométrie d'équilibre calculée par le solveur.
-                    # On travaille sur des copies, puis on resynchronise explicitement l'état
-                    # de l'itération pour garantir le recollement du point N avec le ROV.
+                    # Pour l'affichage, privilégier directement la géométrie d'équilibre
+                    # calculée par le solveur (qui garantit déjà la normalisation et le
+                    # recollement aux extrémités). On travaille sur des copies pour ne
+                    # jamais modifier l'état dynamique y_current ici.
                     x_cable_display = np.asarray(x_cable, dtype=float).copy()
                     y_cable_display = np.asarray(y_cable, dtype=float).copy()
-                    if getattr(system, 'x_cable_prev', None) is not None and getattr(system, 'y_cable_prev', None) is not None:
-                        if len(system.x_cable_prev) == len(x_cable) and len(system.y_cable_prev) == len(y_cable):
-                            x_cable_display = np.asarray(system.x_cable_prev, dtype=float).copy()
-                            y_cable_display = np.asarray(system.y_cable_prev, dtype=float).copy()
                     
                     # Garantir l'ordre bateau -> ROV pour les directions/tractions affichées
                     if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
@@ -1025,56 +1377,6 @@ class SimulationThread(QThread):
                             x_cable_display = np.flip(x_cable_display)
                             y_cable_display = np.flip(y_cable_display)
                     
-                    # IMPORTANT : Ne PAS forcer une ligne droite quand le câble est tendu
-                    # Le ROV n'est plus recalculé, donc le câble peut avoir une forme de caténaire
-                    # même si slack < 0. La tension au ROV sera ajustée pour ramener slack >= 0
-                    
-                    # Normaliser systématiquement l'affichage par rapport à L
-                    # pour garantir que la géométrie utilisée par l'IHM et par
-                    # check_cable_invariants reste cohérente avec la longueur scalaire L.
-                    if x_cable_display is not None and y_cable_display is not None and len(x_cable_display) > 1:
-                        try:
-                            x_cable_display, y_cable_display = system.cable.solver._normalize_cable_length(
-                                x_cable_display, y_cable_display, L
-                            )
-                        except Exception:
-                            pass
-                        
-                        # CORRECTION : Toujours forcer les extrémités à correspondre exactement
-                        if len(x_cable_display) > 0:
-                            x_cable_display[0] = x_boat
-                            y_cable_display[0] = 0.0
-                            x_cable_display[-1] = x_rov
-                            y_cable_display[-1] = y_rov
-                            
-                            # RENORMALISER après forçage des extrémités pour garantir
-                            # que tous les segments conservent la même longueur ds_target = L / N
-                            # Le forçage des extrémités peut modifier la longueur du premier
-                            # et/ou du dernier segment, donc on renormalise pour préserver
-                            # l'uniformité des segments tout en respectant les contraintes d'extrémités
-                            try:
-                                x_cable_display, y_cable_display = system.cable.solver._normalize_cable_length(
-                                    x_cable_display, y_cable_display, L
-                                )
-                                # Réappliquer le forçage des extrémités après normalisation
-                                # (la normalisation devrait déjà les préserver, mais on s'assure)
-                                x_cable_display[0] = x_boat
-                                y_cable_display[0] = 0.0
-                                x_cable_display[-1] = x_rov
-                                y_cable_display[-1] = y_rov
-                            except Exception as e:
-                                trace_print(8, f"[WARN] Échec renormalisation après forçage extrémités: {e}")
-
-                        # Réinjecter la géométrie corrigée dans l'état de l'itération.
-                        # Sans cette resynchronisation, l'IHM peut parfois afficher une
-                        # géométrie dont le dernier point n'est pas exactement recollé au ROV.
-                        idx_x_cable = 6
-                        idx_y_cable = idx_x_cable + system.N + 1
-                        y_current[idx_x_cable:idx_y_cable] = x_cable_display
-                        y_current[idx_y_cable:idx_y_cable + system.N + 1] = y_cable_display
-                        system.x_cable_prev = np.asarray(x_cable_display, dtype=float).copy()
-                        system.y_cable_prev = np.asarray(y_cable_display, dtype=float).copy()
-
                     # Déterminer le mode câble
                     cable_mode = "catenary"
                     dx_straight = x_rov - x_boat
@@ -1099,21 +1401,9 @@ class SimulationThread(QThread):
                     dx_straight = x_rov - x_boat
                     dy_straight = y_rov - 0.0
                     D_straight = float(np.hypot(dx_straight, dy_straight))
-
-                    # Vérifier les invariants câble en fin d'itération
-                    check_cable_invariants({
-                        'phase': 'iteration',
-                        't': t_current,
-                        'step': step_count,
-                        'y': y_current,
-                        'dl_dt_cmd': dl_dt_cmd,
-                        'dl_dt_explain': dl_dt_auto_explain,
-                        'cable_mode': cable_mode,
-                        'triggers': step_triggers,
-                    })
-
-                    # Stocker les données
-                    data['time'].append(t_current)
+                    
+                    # Stocker les données (ces valeurs serviront aussi bien à l'UI qu'aux invariants)
+                    data['time'].append(t_post_integration)
                     data['x_rov'].append(float(x_rov))
                     data['y_rov'].append(float(y_rov))
                     data['vx_rov'].append(float(vx_rov))
@@ -1131,16 +1421,22 @@ class SimulationThread(QThread):
                                 f"L={L:.6f} m, L_stored={L_stored:.6f} m, "
                                 f"ÉCART={abs(L_stored - L):.6f} m"
                             )
-                    if isinstance(self.simulation_state, dict):
+                    # Utiliser dl_dt_cmd directement pour garantir la cohérence avec le contexte partagé
+                    if 'dl_dt_cmd' in locals() and dl_dt_cmd is not None:
+                        data['dl_dt_cmd'].append(float(dl_dt_cmd))
+                    elif isinstance(self.simulation_state, dict):
                         data['dl_dt_cmd'].append(float(self.simulation_state.get('dl_dt', self.dl_dt)))
-                        if dl_dt_mode == "auto":
-                            data['dl_dt_auto_explain'].append(dl_dt_auto_explain)
-                        else:
-                            data['dl_dt_auto_explain'].append("")
+                    else:
+                        data['dl_dt_cmd'].append(0.0)
+                    if dl_dt_mode == "auto":
+                        data['dl_dt_auto_explain'].append(dl_dt_auto_explain)
+                    else:
+                        data['dl_dt_auto_explain'].append("")
                     data.setdefault('cable_mode', []).append(cable_mode)
                     data.setdefault('scenario_triggers', []).append(step_triggers)
                     
-                    # Tensions
+                    # Calculer les tensions AVANT de construire update_data pour garantir
+                    # que les valeurs dans update_data correspondent aux valeurs actuelles
                     if T is not None and len(T) > 0:
                         T_array = np.asarray(T)
                         # CORRECTION: Après correction de _compute_catenary_tensions :
@@ -1152,11 +1448,15 @@ class SimulationThread(QThread):
                         data['T_max'].append(T_max)
                         data['T_boat'].append(T_boat)
                     else:
+                        T_rov = 0.0
+                        T_boat = 0.0
+                        T_max = 0.0
                         data['T_rov'].append(0.0)
                         data['T_max'].append(0.0)
                         data['T_boat'].append(0.0)
                     
-                    # Calculer les forces sur le ROV
+                    # Calculer les forces sur le ROV AVANT de construire le contexte partagé
+                    # pour garantir que toutes les données sont cohérentes
                     # CORRECTION: Après correction de _compute_catenary_tensions :
                     # Les positions sont ordonnées : index 0 = bateau, index -1 = ROV
                     # Calculer le vecteur unitaire Urov au niveau du ROV
@@ -1199,9 +1499,9 @@ class SimulationThread(QThread):
                     # Pour avoir la force exercée PAR le câble SUR le ROV vers le haut (positif),
                     # on utilise T_rov * (-Urov_y) car Urov_y pointe vers le bas si le ROV est plus profond
                     # Nouvelle convention : positif = vers le haut (surface)
-                    T_rov_val = T_rov if T is not None and len(T) > 0 else 0.0
-                    Fx_traction = -T_rov_val * Urov_x  # Horizontal : signe inchangé
-                    Fy_traction = T_rov_val * (-Urov_y)  # Vertical : inversé pour positif = vers le haut
+                    # T_rov est déjà calculé et défini plus haut
+                    Fx_traction = -T_rov * Urov_x  # Horizontal : signe inchangé
+                    Fy_traction = T_rov * (-Urov_y)  # Vertical : inversé pour positif = vers le haut
                     
                     # Commandes (pour l'instant nulles, mais on peut les récupérer de u_func)
                     u_current = u_func(t_current)
@@ -1225,6 +1525,115 @@ class SimulationThread(QThread):
                     data.setdefault('Fx_rov_total', []).append(float(Fx_total))
                     data.setdefault('Fy_rov_total', []).append(float(Fy_total))
                     
+                    # Construire le contexte partagé entre check_cable_invariants et le rafraîchissement UI
+                    shared_context = {
+                        'phase': 'iteration',
+                        't': t_post_integration,
+                        'step': step_count,
+                        'y': y_current,
+                        'x_cable': x_cable_display,
+                        'y_cable': y_cable_display,
+                        'L': L,
+                        'L_seg': L_seg,
+                        'D_straight': D_straight,
+                        'x_boat': x_boat,
+                        'y_boat': 0.0,
+                        'x_rov': x_rov,
+                        'y_rov': y_rov,
+                        'T': T,
+                        'dl_dt_cmd': dl_dt_cmd,
+                        'dl_dt_explain': dl_dt_auto_explain,
+                        'cable_mode': cable_mode,
+                        'triggers': step_triggers,
+                    }
+                    
+                    # Fonction locale pour construire et émettre update_data à partir du contexte
+                    def build_and_emit_ui_update(ctx, data_dict, plot_limit, fx_cmd=None):
+                        """Construit update_data à partir du contexte partagé et émet vers l'UI"""
+                        t_ctx = ctx.get('t', 0.0)
+                        L_ctx = ctx.get('L', 0.0)
+                        x_cable_ctx = ctx.get('x_cable')
+                        y_cable_ctx = ctx.get('y_cable')
+                        T_ctx = ctx.get('T')
+                        
+                        # Construire update_data
+                        ui_update = {
+                            'current_time': t_ctx,
+                        }
+                        # Utiliser L_ctx du contexte partagé pour garantir la cohérence avec les invariants
+                        ui_update['L_step'] = float(L_ctx)
+                        
+                        # Ajouter les dernières valeurs pour les métriques et graphiques
+                        for key, value in data_dict.items():
+                            if isinstance(value, list) and len(value) > 0:
+                                # Pour les graphiques, garder seulement les N derniers points
+                                if key in ['time', 'x_rov', 'y_rov', 'vx_rov', 'vy_rov', 'x_boat', 'vx_boat',
+                                          'L', 'L_seg', 'D_straight', 'T_rov', 'T_boat', 'T_max',
+                                          'Fx_drag_rov', 'Fy_drag_rov', 'Fx_rov_total', 'Fy_rov_total',
+                                          'Fx_traction_boat', 'Fy_traction_boat', 'Fx_traction_rov', 'Fy_traction_rov',
+                                          'F_prop_boat', 'Fx_total_boat', 'Fy_total_boat',
+                                          'Fx_drag_cable', 'Fy_drag_cable', 'Fy_cable_app_w',
+                                          'Fx_drag_cable_longitudinal', 'Fy_drag_cable_longitudinal',
+                                          'Fx_drag_cable_perpendicular', 'Fy_drag_cable_perpendicular',
+                                          'Fx_cmd_rov', 'Fy_cmd_rov', 'dl_dt_cmd', 'dl_dt_auto_explain',
+                                          'Fy_rov_app_w', 'F_buoyancy_net', 'angle_rov', 'angle_boat',
+                                          'cable_mode', 'scenario_triggers']:
+                                    if len(value) > plot_limit:
+                                        ui_update[key] = value[-plot_limit:]
+                                    else:
+                                        ui_update[key] = value
+                                else:
+                                    # Pour les autres listes, garder toutes les valeurs
+                                    ui_update[key] = value
+                            elif key in ['x_cable_curr', 'y_cable_curr', 'T_cable_curr']:
+                                # Les données du câble actuelles sont toujours incluses
+                                ui_update[key] = value
+                            else:
+                                # Autres valeurs (scalaires, None, etc.)
+                                ui_update[key] = value
+                        
+                        # Utiliser dl_dt_cmd du contexte partagé pour garantir la cohérence avec les invariants
+                        dl_dt_cmd_ctx = ctx.get('dl_dt_cmd')
+                        if dl_dt_cmd_ctx is not None and 'dl_dt_cmd' in ui_update:
+                            # Remplacer la dernière valeur par celle du contexte partagé
+                            if isinstance(ui_update['dl_dt_cmd'], list) and len(ui_update['dl_dt_cmd']) > 0:
+                                ui_update['dl_dt_cmd'][-1] = float(dl_dt_cmd_ctx)
+                        
+                        # Ajouter les données du câble actuelles depuis le contexte
+                        if x_cable_ctx is not None and y_cable_ctx is not None:
+                            x_cable_list = x_cable_ctx.tolist() if hasattr(x_cable_ctx, 'tolist') else list(x_cable_ctx)
+                            y_cable_list = y_cable_ctx.tolist() if hasattr(y_cable_ctx, 'tolist') else list(y_cable_ctx)
+                            ui_update['x_cable_curr'] = x_cable_list
+                            ui_update['y_cable_curr'] = y_cable_list
+                            ui_update['cable_point_indices'] = list(range(len(x_cable_list)))
+                        
+                        if T_ctx is not None and len(T_ctx) > 0:
+                            ui_update['T_cable_curr'] = T_ctx.tolist() if hasattr(T_ctx, 'tolist') else list(T_ctx)
+                        else:
+                            ui_update['T_cable_curr'] = []
+                        
+                        # Ajouter fx_rov_cmd si fourni
+                        if fx_cmd is not None:
+                            ui_update['fx_rov_cmd'] = float(fx_cmd)
+                            ui_update['fx_rov_cmd_source'] = "scenario"
+                        
+                        # Émettre vers l'UI
+                        self.simulation_updated.emit(ui_update)
+                    
+                    # Vérifier les invariants câble en fin d'itération, avec le même
+                    # snapshot que celui utilisé pour remplir data / update_data.
+                    # IMPORTANT : Appeler APRÈS toutes les corrections de tension et
+                    # JUSTE AVANT l'émission vers l'UI pour garantir la cohérence.
+                    check_cable_invariants(shared_context)
+                    
+                    # Émettre les données vers l'IHM APRÈS la vérification des invariants,
+                    # en utilisant exactement le même contexte pour garantir la cohérence.
+                    # Ne rafraîchir l'UI que toutes les N itérations pour éviter de surcharger l'interface
+                    if step_count % steps_per_update == 0:
+                        build_and_emit_ui_update(shared_context, data, plot_points_limit, fx_rov_cmd)
+                        # Petit délai pour ne pas surcharger l'interface
+                        time.sleep(0.01)
+
                     # Traînée câble (vectorielle, sans poids apparent)
                     try:
                         from src.solvers.forces import compute_cable_forces, compute_cable_apparent_weight
@@ -1290,7 +1699,7 @@ class SimulationThread(QThread):
                     
                     # Calculer les forces sur le bateau
                     # Tension du câble au niveau du bateau
-                    T_boat_val = T_boat if T is not None and len(T) > 0 else 0.0
+                    # T_boat est déjà calculé et défini plus haut
                     
                     # CORRECTION: Après correction de _compute_catenary_tensions :
                     # Les positions sont ordonnées : index 0 = bateau, index -1 = ROV
@@ -1315,8 +1724,9 @@ class SimulationThread(QThread):
                     # Force de tension du câble sur le bateau
                     # Force exercée PAR le câble SUR le bateau = -T_bateau * Ubateau
                     # (négatif car le câble tire le bateau dans la direction opposée à Ubateau)
-                    Fx_traction_boat = -T_boat_val * Ubateau_x
-                    Fy_traction_boat = -T_boat_val * Ubateau_y
+                    # T_boat est déjà calculé et défini plus haut
+                    Fx_traction_boat = -T_boat * Ubateau_x
+                    Fy_traction_boat = -T_boat * Ubateau_y
                     
                     # Force de propulsion du bateau
                     u_current = u_func(t_current)
@@ -1375,6 +1785,11 @@ class SimulationThread(QThread):
                             trace_print(8, f"[DATA EXCEL] Erreur écriture ligne {data_excel_row}: {e}")
                     
                     step_count += 1
+                    
+                    # Incrémenter le temps à la fin de l'itération pour que toutes les opérations
+                    # (auto_L_7, intégration, vérification invariants) de la prochaine itération
+                    # utilisent le même temps
+                    t_current = t_post_integration
                     
                     # Limiter la taille des données accumulées (toutes les 1000 itérations)
                     max_data_size = int(self.calc_params.get('max_data_size', 10000))

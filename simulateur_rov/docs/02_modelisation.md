@@ -160,9 +160,25 @@ où `L(0)` est la longueur initiale. La longueur `L(t)` est **fixe** à chaque i
 Deux régimes sont utilisés :
 
 1) **Statique (caténaire)**
-   
-   - Si le câble est plus dense que l'eau : solution en caténaire
-   - Si le slack est négatif (L < distance droite) : la tension au ROV est augmentée pour forcer slack >= 0
+
+   - Si le câble est plus dense que l'eau : la solution de référence est une
+     caténaire reliant le bateau au ROV.
+   - Si le slack est négatif (L < distance droite) : la tension au ROV est
+     augmentée pour forcer slack >= 0, et la géométrie est forcée rectiligne.
+   - Lorsque la longueur de câble est **proche** de la distance droite
+     (`r = L / L_straight ≈ 1`), le modèle n’effectue plus un basculement
+     binaire entre « ligne droite » et « caténaire ». À la place, le solveur
+     construit **deux géométries** (une caténaire et une ligne droite) et fait
+     un **blending continu** entre les deux en fonction de r :
+
+     - pour `r = 1`, la solution est 100 % rectiligne ;
+     - pour `r ≥ 1.01`, la solution est 100 % caténaire ;
+     - entre les deux, la transition est linéaire.
+
+   Cette interpolation continue supprime les discontinuités numériques quand le
+   câble passe d’un régime quasi tendu à un régime nettement fléchi. Dans tous
+   les cas, la géométrie obtenue est ensuite **renormalisée** pour respecter
+   exactement la longueur `L(t)` et garantir des segments de même longueur.
 
 2) **Dynamique**
    
@@ -214,7 +230,16 @@ Pour chaque segment, la traînée est calculée dans un repère local :
    F_drag = F_longitudinal * U + F_perpendicular * V
    ```
 
-Cette approche permet de distinguer correctement la traînée selon l'angle entre le courant et l'orientation du segment.
+Cette approche permet de distinguer correctement la traînée selon l'angle entre
+le courant et l'orientation du segment.  
+
+Dans le solveur, l’influence du courant sur la **géométrie statique** du câble
+est modulée par un critère d’ordre de grandeur : si la **traînée horizontale
+totale** reste faible devant le **poids apparent total** (par exemple, ratio
+traînée/poids < 10 %), le solveur conserve la **caténaire initiale** sans lancer
+les itérations de déformation ; sinon, il active une boucle itérative qui
+déforme progressivement le câble sous l’effet du courant, avec renormalisation
+de longueur à chaque étape significative.
 
 ## 6. Conditions aux limites
 

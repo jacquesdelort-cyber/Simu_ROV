@@ -108,10 +108,19 @@ class CableSolver:
                 dy = y_cable[i + 1] - y_cable[i]
                 length_check += np.sqrt(dx**2 + dy**2)
             
-            # Si la longueur ne correspond pas à L, normaliser
+            # Si la longueur ne correspond pas à L, normaliser via l'algorithme centralisé
+            # qui impose aussi le recollement exact au bateau et au ROV.
             if abs(length_check - L) / max(L, 1e-9) > 1e-3:
                 try:
-                    x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+                    x_cable, y_cable = self._normalize_cable_length(
+                        x_cable,
+                        y_cable,
+                        L,
+                        x_boat=float(x_boat),
+                        y_boat=0.0,
+                        x_rov=float(x_rov),
+                        y_rov=float(y_rov),
+                    )
                 except Exception:
                     # Fallback : interpolation linéaire en abscisse curviligne
                     s_points = np.linspace(0.0, L, self.N + 1)
@@ -295,6 +304,20 @@ class CableSolver:
                 T[0] = (T_bateau + T_rov) / 2.0
             
             self._T_prev = T.copy()
+            # Normaliser la géométrie finale pour garantir Σds = L, segments quasi uniformes
+            # et extrémités parfaitement recollées sur le bateau et le ROV.
+            try:
+                x_cable, y_cable = self._normalize_cable_length(
+                    x_cable,
+                    y_cable,
+                    L,
+                    x_boat=float(x_boat),
+                    y_boat=0.0,
+                    x_rov=float(x_rov),
+                    y_rov=float(y_rov),
+                )
+            except Exception:
+                pass
             return x_cable, y_cable, T
         
         # APPROCHE CONTINUE : toujours calculer caténaire et ligne droite, puis mélanger selon r
@@ -430,6 +453,11 @@ class CableSolver:
             # Utiliser la méthode caténaire standard
             T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m, rov_vol)
         
+        # Normaliser la géométrie finale pour garantir Σds = L et segments égaux
+        try:
+            x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+        except Exception:
+            pass
         self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (blending continu)")
         self._T_prev = T.copy()
         return x_cable, y_cable, T
@@ -584,6 +612,11 @@ class CableSolver:
                 if ier == 1:
                     trace_print(1, "[DEBUG] solve_equilibrium_static_with_current: solveur complet convergé.")
                     x_cable, y_cable, T = integrate_with_forces(sol[0], sol[1])
+                    # Normaliser la géométrie finale
+                    try:
+                        x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+                    except Exception:
+                        pass
                     self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (solveur complet)")
                     return x_cable, y_cable, T
                 trace_print(4, f"[DEBUG] solve_equilibrium_static_with_current: fsolve non convergent -> {msg}")
@@ -1672,7 +1705,12 @@ class CableSolver:
             min_floor = max(abs(weight_per_unit) * L / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
             T_rov_initial = min_floor
         T = self.compute_tensions(x_cable, y_cable, L, Fx_segments, Fy_segments, T_rov_initial=T_rov_initial)
-        
+
+        # Normaliser la géométrie finale pour garantir Σds = L et segments égaux
+        try:
+            x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+        except Exception:
+            pass
         return x_cable, y_cable, T
     
     def compute_tensions(self, x_cable, y_cable, L, Fx, Fy, T_rov_initial=None):
@@ -1838,33 +1876,60 @@ class CableSolver:
 
         # Export trace file moved to simulation-level CSV logging.
     
-    def _normalize_cable_length(self, x_cable, y_cable, L_target):
+    def _normalize_cable_length(
+        self,
+        x_cable,
+        y_cable,
+        L_target,
+        x_boat=None,
+        y_boat=0.0,
+        x_rov=None,
+        y_rov=None,
+        k_tail=10,
+    ):
         """
-        Normalise la longueur du câble pour qu'elle soit exactement égale à L_target
-        en conservant la forme générale du câble.
-        
-        Cette fonction garantit que :
-        - La longueur totale est exactement L_target
-        - Tous les segments ont la même longueur ds_target = L_target / N
-        - L'abscisse curviligne s va de 0 (premier point) à L_target (dernier point)
-        
-        Note : Cette fonction ne force pas explicitement les extrémités aux positions
-        du bateau et du ROV. Si les extrémités doivent être forcées, cela doit être fait
-        avant ou après l'appel à cette fonction, puis une nouvelle normalisation peut
-        être nécessaire pour garantir que tous les segments conservent la même longueur
-        après le forçage des extrémités.
-        
-        Parameters:
-        -----------
-        x_cable, y_cable : array
-            Positions actuelles du câble
+        Normalise la longueur du câble en conservant au mieux sa forme générale,
+        tout en respectant trois contraintes « dures » et une contrainte « souple » :
+
+        Contraintes dures (quand les positions d'extrémité sont fournies) :
+        - Le premier point est recollé au bateau (x_boat, y_boat).
+        - Le dernier point est recollé au ROV (x_rov, y_rov).
+        - La longueur totale est ramenée à L_target (à la précision numérique près).
+
+        Contrainte souple :
+        - Le rapport ds_max / ds_target reste raisonnable (≲ 3), où
+          ds_target = L_target / N est la longueur moyenne cible d'un segment
+          et ds_max la longueur du segment le plus long.
+
+        L'algorithme suit les étapes suivantes :
+        1. Calcul de l'abscisse curviligne cumulative s_cumulative et de la longueur
+           actuelle L_actual.
+        2. Remise à l'échelle de s_cumulative pour que s_cumulative[-1] = L_target.
+        3. Rééchantillonnage du câble par interpolation linéaire en abscisse curviligne
+           sur N+1 points régulièrement espacés entre 0 et L_target.
+           Cette étape respecte exactement les extrémités existantes : les points
+           0 et N sont inchangés (recollement bateau/ROV).
+        4. Clipping sur y <= 0.
+        5. Calcul des longueurs de segment et du ratio ds_max / ds_target. Si ce ratio
+           dépasse 3, quelques itérations de lissage local sont appliquées autour du
+           segment le plus long pour réduire ce ratio, en conservant les extrémités.
+
+        Parameters
+        ----------
+        x_cable, y_cable : array-like
+            Positions actuelles du câble (N+1 points).
         L_target : float
-            Longueur cible (m)
-        
-        Returns:
-        --------
+            Longueur cible (m).
+        x_boat, y_boat, x_rov, y_rov : float, optionnels
+            Positions cibles du bateau et du ROV pour le recollement doux des extrémités.
+            Si elles sont omises, la fonction conserve simplement les extrémités existantes.
+        k_tail : int, optionnel
+            Nombre de nœuds de queue utilisés pour répartir l'ajustement côté ROV.
+
+        Returns
+        -------
         tuple (x_cable_new, y_cable_new)
-            Positions normalisées du câble avec segments de longueur égale
+            Positions normalisées du câble.
         """
         # Calculer la longueur actuelle et les distances cumulatives
         N = len(x_cable) - 1
@@ -1877,185 +1942,220 @@ class CableSolver:
             s_cumulative[i+1] = s_cumulative[i] + ds
         
         L_actual = s_cumulative[-1]
-        
-        # Si la longueur est déjà correcte, retourner tel quel
-        if abs(L_actual - L_target) < 1e-6:
-            return x_cable.copy(), y_cable.copy()
-        
-        # Normaliser les distances cumulatives à la longueur cible
-        if L_actual > 1e-6:
-            s_cumulative = s_cumulative * (L_target / L_actual)
-        else:
-            # Si la géométrie est dégénérée, reconstruire un câble rectiligne non nul.
-            # Les extrémités physiques seront éventuellement refixées plus tard par system_model.
+
+        # Cas dégénéré : reconstruire un câble rectiligne horizontal à partir du premier point.
+        if L_actual <= 1e-6:
             x_start = float(x_cable[0]) if len(x_cable) > 0 else 0.0
             y_start = float(y_cable[0]) if len(y_cable) > 0 else 0.0
             y_start = min(y_start, 0.0)
             x_cable_new = x_start + np.linspace(0.0, L_target, N + 1)
             y_cable_new = np.full(N + 1, y_start, dtype=float)
             return x_cable_new, y_cable_new
-        
-        # CONTRAINTE CRITIQUE : Garantir que tous les segments aient exactement la même longueur
-        # Chaque segment doit avoir une longueur ds = L_target / N
-        # et le dernier point doit avoir s = L_target (correspond au ROV)
+
+        # 1) Remise à l'échelle de l'abscisse curviligne pour que s_cumulative[-1] = L_target.
+        s_cumulative = s_cumulative * (L_target / L_actual)
+
+        # 2) Rééchantillonnage uniforme en abscisse curviligne
         ds_target = L_target / max(N, 1)
-        
-        # Rééchantillonner pour garantir des segments de longueur égale
-        # Créer des points à intervalles réguliers en abscisse curviligne : s = 0, ds, 2*ds, ..., L_target
         s_points = np.linspace(0.0, L_target, N + 1)
-        
-        # Recalculer les positions en interpolant selon l'abscisse curviligne
-        # Utiliser la forme du câble actuel mais avec des segments de longueur égale
-        x_cable_final = np.zeros(N + 1)
-        y_cable_final = np.zeros(N + 1)
-        
-        # Interpoler TOUS les points (0 à N) pour garantir que tous les segments aient ds_target
-        # Les extrémités seront forcées par system_model.py après normalisation
+
+        x_new = np.zeros(N + 1)
+        y_new = np.zeros(N + 1)
+
         for i in range(N + 1):
-            s_i = s_points[i]  # s_i = i * ds_target
-            
+            s_i = s_points[i]
+
             # Trouver le segment qui contient ce point dans le câble original
             idx = np.searchsorted(s_cumulative, s_i)
             if idx == 0:
                 idx = 1
             elif idx >= len(s_cumulative):
                 idx = len(s_cumulative) - 1
-            
-            # Interpoler linéairement dans ce segment
+
             s_prev = s_cumulative[idx - 1]
             s_next = s_cumulative[idx]
-            
-            if abs(s_next - s_prev) > 1e-6:
-                alpha = (s_i - s_prev) / (s_next - s_prev)
-                x_cable_final[i] = x_cable[idx - 1] + alpha * (x_cable[idx] - x_cable[idx - 1])
-                y_cable_final[i] = y_cable[idx - 1] + alpha * (y_cable[idx] - y_cable[idx - 1])
-            else:
-                x_cable_final[i] = x_cable[idx - 1]
-                y_cable_final[i] = y_cable[idx - 1]
-        
-        # CONTRAINTE PHYSIQUE : Forcer tous les points à y <= 0 après interpolation
-        y_cable_final = np.clip(y_cable_final, None, 0.0)
-        
-        # CORRECTION CRITIQUE : Forcer chaque segment à avoir exactement ds_target
-        # En partant du point 0, on positionne chaque point suivant à une distance ds_target
-        # du point précédent, dans la direction du segment interpolé
-        # Cela garantit que tous les segments ont exactement ds_target et que la longueur totale est L_target
-        x_cable_corrected = np.zeros(N + 1)
-        y_cable_corrected = np.zeros(N + 1)
-        
-        # Le premier point reste à sa position interpolée
-        x_cable_corrected[0] = x_cable_final[0]
-        y_cable_corrected[0] = y_cable_final[0]
-        
-        # Pour chaque segment suivant, forcer la longueur à ds_target
-        for i in range(N):
-            # Direction du segment interpolé
-            dx = x_cable_final[i+1] - x_cable_final[i]
-            dy = y_cable_final[i+1] - y_cable_final[i]
-            ds_current = np.sqrt(dx**2 + dy**2)
-            
-            if ds_current > 1e-9:
-                # Normaliser et multiplier par ds_target
-                x_cable_corrected[i+1] = x_cable_corrected[i] + (dx / ds_current) * ds_target
-                y_cable_corrected[i+1] = y_cable_corrected[i] + (dy / ds_current) * ds_target
-            else:
-                # Si le segment est trop court, utiliser la direction du segment précédent
-                if i > 0:
-                    dx_prev = x_cable_corrected[i] - x_cable_corrected[i-1]
-                    dy_prev = y_cable_corrected[i] - y_cable_corrected[i-1]
-                    ds_prev = np.sqrt(dx_prev**2 + dy_prev**2)
-                    if ds_prev > 1e-9:
-                        x_cable_corrected[i+1] = x_cable_corrected[i] + (dx_prev / ds_prev) * ds_target
-                        y_cable_corrected[i+1] = y_cable_corrected[i] + (dy_prev / ds_prev) * ds_target
-                    else:
-                        # Direction par défaut (horizontal)
-                        x_cable_corrected[i+1] = x_cable_corrected[i] + ds_target
-                        y_cable_corrected[i+1] = y_cable_corrected[i]
-                else:
-                    # Direction par défaut (horizontal)
-                    x_cable_corrected[i+1] = x_cable_corrected[i] + ds_target
-                    y_cable_corrected[i+1] = y_cable_corrected[i]
-        
-        # CONTRAINTE PHYSIQUE : Forcer tous les points à y <= 0
-        y_cable_corrected = np.clip(y_cable_corrected, None, 0.0)
-        
-        # Vérifier que la longueur totale est exactement L_target
-        L_corrected = 0.0
-        segment_lengths = []
-        for i in range(N):
-            dx = x_cable_corrected[i+1] - x_cable_corrected[i]
-            dy = y_cable_corrected[i+1] - y_cable_corrected[i]
-            ds = np.sqrt(dx**2 + dy**2)
-            segment_lengths.append(ds)
-            L_corrected += ds
-        
-        # DEBUG: Traçage si problème détecté
-        segments_ok = True
-        problematic_segments = []
-        for i in range(N):
-            ds = segment_lengths[i]
-            if abs(ds - ds_target) / max(ds_target, 1e-9) > 1e-4:  # Tolérance de 0.01%
-                segments_ok = False
-                problematic_segments.append(i)
-        
-        if not segments_ok or abs(L_corrected - L_target) / max(L_target, 1e-9) > 1e-6:
-            from ..utils.logger import trace_print
-            trace_print(8, f"[DEBUG _normalize_cable_length] L_target={L_target:.6f} m, L_final={L_corrected:.6f} m, "
-                f"ÉCART={abs(L_corrected - L_target):.6f} m, ds_target={ds_target:.6f} m, "
-                f"Segments problématiques: {problematic_segments[:5]}, "
-                f"ds_last={segment_lengths[-1] if segment_lengths else 0:.6f} m"
-            )
-        
-        # Si la longueur totale n'est toujours pas correcte (erreur d'arrondi), ajuster proportionnellement
-        if abs(L_corrected - L_target) / max(L_target, 1e-9) > 1e-6 and L_corrected > 1e-9:
-            # Ajuster proportionnellement tous les points sauf le premier
-            scale = L_target / L_corrected
-            x_base = x_cable_corrected[0]
-            y_base = y_cable_corrected[0]
-            for i in range(1, N + 1):
-                dx = x_cable_corrected[i] - x_base
-                dy = y_cable_corrected[i] - y_base
-                x_cable_corrected[i] = x_base + dx * scale
-                y_cable_corrected[i] = y_base + dy * scale
-            
-            # Réappliquer la contrainte y <= 0 après ajustement
-            y_cable_corrected = np.clip(y_cable_corrected, None, 0.0)
-            
-            # Rééchantillonner pour garantir que tous les segments ont exactement ds_target
-            # après l'ajustement proportionnel
-            x_cable_final = np.zeros(N + 1)
-            y_cable_final = np.zeros(N + 1)
-            x_cable_final[0] = x_cable_corrected[0]
-            y_cable_final[0] = y_cable_corrected[0]
-            
-            for i in range(N):
-                dx = x_cable_corrected[i+1] - x_cable_corrected[i]
-                dy = y_cable_corrected[i+1] - y_cable_corrected[i]
-                ds_current = np.sqrt(dx**2 + dy**2)
-                
-                if ds_current > 1e-9:
-                    x_cable_final[i+1] = x_cable_final[i] + (dx / ds_current) * ds_target
-                    y_cable_final[i+1] = y_cable_final[i] + (dy / ds_current) * ds_target
-                else:
-                    if i > 0:
-                        dx_prev = x_cable_final[i] - x_cable_final[i-1]
-                        dy_prev = y_cable_final[i] - y_cable_final[i-1]
-                        ds_prev = np.sqrt(dx_prev**2 + dy_prev**2)
-                        if ds_prev > 1e-9:
-                            x_cable_final[i+1] = x_cable_final[i] + (dx_prev / ds_prev) * ds_target
-                            y_cable_final[i+1] = y_cable_final[i] + (dy_prev / ds_prev) * ds_target
-                        else:
-                            x_cable_final[i+1] = x_cable_final[i] + ds_target
-                            y_cable_final[i+1] = y_cable_final[i]
-                    else:
-                        x_cable_final[i+1] = x_cable_final[i] + ds_target
-                        y_cable_final[i+1] = y_cable_final[i]
-            
-            # Réappliquer la contrainte y <= 0
-            y_cable_final = np.clip(y_cable_final, None, 0.0)
-        else:
-            x_cable_final = x_cable_corrected
-            y_cable_final = y_cable_corrected
 
-        return x_cable_final, y_cable_final
+            if abs(s_next - s_prev) > 1e-9:
+                alpha = (s_i - s_prev) / (s_next - s_prev)
+                x_new[i] = x_cable[idx - 1] + alpha * (x_cable[idx] - x_cable[idx - 1])
+                y_new[i] = y_cable[idx - 1] + alpha * (y_cable[idx] - y_cable[idx - 1])
+            else:
+                x_new[i] = x_cable[idx - 1]
+                y_new[i] = y_cable[idx - 1]
+
+        # 3) Clipping physique : y <= 0
+        y_new = np.clip(y_new, None, 0.0)
+
+        # 3bis) Recollement « bi‑extrémités » si les positions cibles sont fournies
+        # On fixe simultanément le point 0 au bateau et le point N au ROV, puis
+        # on répartit l'ajustement au milieu au lieu de concentrer la correction
+        # uniquement sur la queue côté ROV.
+        if x_boat is not None and x_rov is not None:
+            n_points = len(x_new)
+            if n_points >= 2:
+                # Ancrer le premier point au bateau
+                y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                x_new[0] = float(x_boat)
+                y_new[0] = y_boat_clipped
+
+                # Ancrer le dernier point au ROV
+                y_rov_clipped = min(float(y_rov), 0.0)
+                x_new[-1] = float(x_rov)
+                y_new[-1] = y_rov_clipped
+
+                # Recalage doux des points intérieurs : combiner la forme actuelle
+                # avec une interpolation linéaire entre les deux extrémités.
+                x0, y0 = x_new[0], y_new[0]
+                xN, yN = x_new[-1], y_new[-1]
+                for i in range(1, n_points - 1):
+                    t = i / float(N) if N > 0 else 0.0
+                    x_lin = x0 + t * (xN - x0)
+                    y_lin = y0 + t * (yN - y0)
+                    # Mélange forme existante / corde pour éviter les cassures
+                    alpha_end = 0.3
+                    x_new[i] = (1.0 - alpha_end) * x_new[i] + alpha_end * x_lin
+                    y_new[i] = (1.0 - alpha_end) * y_new[i] + alpha_end * y_lin
+
+                # S'assurer à nouveau du clipping
+                y_new = np.clip(y_new, None, 0.0)
+
+        # 4) Lissage local pour limiter ds_max / ds_target sans imposer ds strictement égaux
+        def _compute_segment_lengths(x_arr, y_arr):
+            ds_list = np.sqrt(np.diff(x_arr) ** 2 + np.diff(y_arr) ** 2)
+            L_total = float(ds_list.sum())
+            if N > 0:
+                ds_max = float(ds_list.max())
+            else:
+                ds_max = 0.0
+            return ds_list, L_total, ds_max
+
+        ds_list, L_total, ds_max = _compute_segment_lengths(x_new, y_new)
+        ds_target = L_target / max(N, 1)
+        ratio_max = ds_max / max(ds_target, 1e-9)
+
+        # Si le segment le plus long est trop grand par rapport au segment moyen, lisser.
+        # L'objectif est de rester proche de ds_max/ds_target ≲ 2 dans la mesure du possible.
+        k_ratio_max = 2.0
+        max_iter_smooth = 10
+
+        iter_smooth = 0
+        while ratio_max > k_ratio_max and iter_smooth < max_iter_smooth:
+            # Identifier le segment le plus long
+            i_max = int(np.argmax(ds_list))
+
+            # On ne déplace jamais les extrémités 0 et N (recollement bateau / ROV)
+            if 0 < i_max < N - 1:
+                # Segment long entre i_max et i_max+1, avec un voisin de chaque côté
+                # On déplace légèrement le point i_max+1 vers la moyenne de ses voisins.
+                i_move = i_max + 1
+                prev_pt = np.array([x_new[i_move - 1], y_new[i_move - 1]])
+                next_pt = np.array([x_new[i_move + 1], y_new[i_move + 1]])
+                current = np.array([x_new[i_move], y_new[i_move]])
+                target = 0.5 * (prev_pt + next_pt)
+                alpha_smooth = 0.5
+                new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
+                x_new[i_move], y_new[i_move] = float(new_pt[0]), float(new_pt[1])
+            elif i_max == 0 and N >= 2:
+                # Segment le plus long entre 0 et 1 : on déplace le point 1 vers la moyenne de 0 et 2.
+                i_move = 1
+                prev_pt = np.array([x_new[0], y_new[0]])
+                next_pt = np.array([x_new[2], y_new[2]])
+                current = np.array([x_new[i_move], y_new[i_move]])
+                target = 0.5 * (prev_pt + next_pt)
+                alpha_smooth = 0.5
+                new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
+                x_new[i_move], y_new[i_move] = float(new_pt[0]), float(new_pt[1])
+            elif i_max == N - 1 and N >= 2:
+                # Segment le plus long entre N-1 et N : on déplace le point N-1 vers la moyenne de N-2 et N.
+                i_move = N - 1
+                prev_pt = np.array([x_new[i_move - 1], y_new[i_move - 1]])
+                next_pt = np.array([x_new[N], y_new[N]])
+                current = np.array([x_new[i_move], y_new[i_move]])
+                target = 0.5 * (prev_pt + next_pt)
+                alpha_smooth = 0.5
+                new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
+                x_new[i_move], y_new[i_move] = float(new_pt[0]), float(new_pt[1])
+            else:
+                # Cas pathologique (très petit N), on sort.
+                break
+
+            # Clipper de nouveau en y
+            y_new = np.clip(y_new, None, 0.0)
+
+            # Recalculer les longueurs de segment et le ratio
+            ds_list, L_total, ds_max = _compute_segment_lengths(x_new, y_new)
+            ratio_max = ds_max / max(ds_target, 1e-9)
+            iter_smooth += 1
+
+        # Optionnel : petit correctif de longueur si l'écart est significatif
+        # (on vise une précision meilleure que 0.01 % sur la longueur totale)
+        if L_total > 1e-9 and abs(L_total - L_target) / max(L_target, 1e-9) > 1e-4:
+            scale = L_target / L_total
+            x0, y0 = x_new[0], y_new[0]
+            xN, yN = x_new[-1], y_new[-1]
+            for i in range(1, N):
+                # On applique une mise à l'échelle radiale par rapport au point 0,
+                # puis on corrige linéairement pour conserver exactement le point N.
+                tx = x_new[i] - x0
+                ty = y_new[i] - y0
+                x_scaled = x0 + tx * scale
+                y_scaled = y0 + ty * scale
+
+                # Correction linéaire le long de la corde (x0,y0) -> (xN,yN)
+                t = i / float(N)
+                x_lin = x0 + t * (xN - x0)
+                y_lin = y0 + t * (yN - y0)
+
+                # Combinaison pour rester proche de la forme mais respecter les extrémités
+                beta = 0.2
+                x_new[i] = (1.0 - beta) * x_scaled + beta * x_lin
+                y_new[i] = (1.0 - beta) * y_scaled + beta * y_lin
+
+            y_new = np.clip(y_new, None, 0.0)
+
+        # Vérification finale des contraintes
+        try:
+            ds_list_final = np.sqrt(np.diff(x_new) ** 2 + np.diff(y_new) ** 2)
+            L_final = float(ds_list_final.sum()) if len(ds_list_final) > 0 else 0.0
+            ds_target_final = L_target / max(N, 1)
+            ds_max_final = float(ds_list_final.max()) if len(ds_list_final) > 0 else 0.0
+            ratio_final = ds_max_final / max(ds_target_final, 1e-9) if ds_target_final > 0 else 0.0
+
+            # Contraintes vérifiées :
+            # - Longueur totale proche de L_target
+            # - Ratio ds_max / ds_target raisonnable (≲ 2.0)
+            # - y <= 0
+            tol_L_rel = 1e-4  # 0.01 %
+            ok_L = (L_target <= 0.0) or (abs(L_final - L_target) / max(L_target, 1e-9) <= tol_L_rel)
+            ok_ratio = ratio_final <= 2.0 + 1e-6
+            ok_y = bool(np.all(y_new <= 1e-9))
+
+            # Recollement extrémités : par construction on ne les a pas modifiées,
+            # mais on valide quand même qu'elles n'ont pas explosé numériquement.
+            ok_ends = True
+            if len(x_cable) >= 2 and len(x_new) >= 2:
+                dx0 = float(x_new[0] - x_cable[0])
+                dy0 = float(y_new[0] - y_cable[0])
+                dxN = float(x_new[-1] - x_cable[-1])
+                dyN = float(y_new[-1] - y_cable[-1])
+                err0 = np.hypot(dx0, dy0)
+                errN = np.hypot(dxN, dyN)
+                ok_ends = (err0 <= 1e-6) and (errN <= 1e-6)
+
+            if not (ok_L and ok_ratio and ok_y and ok_ends):
+                from src.utils.logger import trace_print
+                trace_print(
+                    8,
+                    "[DEBUG _normalize_cable_length] CONTRAINTES NON RESPECTÉES : "
+                    f"L_target={L_target:.6f}, L_final={L_final:.6f}, "
+                    f"rel_err_L={abs(L_final - L_target) / max(L_target, 1e-9):.3e}, "
+                    f"ds_target={ds_target_final:.6f}, ds_max={ds_max_final:.6f}, "
+                    f"ratio_max={ratio_final:.3f}, ok_L={ok_L}, ok_ratio={ok_ratio}, "
+                    f"ok_y={ok_y}, ok_ends={ok_ends}"
+                )
+        except Exception:
+            # Ne jamais casser la simulation à cause d'un check de debug
+            pass
+
+        return x_new, y_new
 

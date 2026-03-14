@@ -781,15 +781,13 @@ class AllParametersTab(QWidget):
             self._suppress_auto_L_tooltip = True
             self.auto_L_tooltip.hide()
             self.auto_L_combo.blockSignals(True)
-            try:
-                idx = self.auto_L_combo.findText(auto_L_val)
-                if idx >= 0:
-                    self.auto_L_combo.setCurrentIndex(idx)
-                else:
-                    self.auto_L_combo.setCurrentIndex(0)
-            finally:
-                self.auto_L_combo.blockSignals(False)
-                self._suppress_auto_L_tooltip = False
+            idx = self.auto_L_combo.findText(auto_L_val)
+            if idx >= 0:
+                self.auto_L_combo.setCurrentIndex(idx)
+            else:
+                self.auto_L_combo.setCurrentIndex(0)
+            self.auto_L_combo.blockSignals(False)
+            self._suppress_auto_L_tooltip = False
         if hasattr(self, "tcible"):
             self.tcible.setText(str(calc_params.get('Tcible', "")))
 
