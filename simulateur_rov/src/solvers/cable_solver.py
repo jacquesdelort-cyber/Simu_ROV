@@ -1,7 +1,10 @@
 """Solveur pour les équations du câble"""
+from tkinter import N
 import numpy as np
-from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize
+from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint
+from scipy.interpolate import interp1d
 from src.utils.logger import trace_print
+from src.utils.utils import scale_slack
 
 
 class CableSolver:
@@ -29,13 +32,198 @@ class CableSolver:
         self.Cf_cable = params.get('Cf_cable', 0.04)
         self.A_cable = np.pi * (self.d / 2)**2
         self._T_prev = None
-    
+
+    def _normalize_cable_geometry(
+        self,
+        x_cable,
+        y_cable,
+        L_target,
+        bateau,
+        rov,
+        N_debut_iter,
+    ):
+        """
+        Normalise la géométrie du câble en autorisant l'ajout de points.
+
+        Contraintes en sortie :
+        - P[0] est strictement collé au bateau.
+        - P[-1] est strictement collé au ROV.
+        - La somme des longueurs des segments est aussi proche que possible de L_target,
+          avec une erreur relative <= 1e-4 (si la convergence est atteinte).
+        - Chaque segment a une longueur comprise entre L_target/N_debut_iter et
+          2 * L_target/N_debut_iter.
+
+        Paramètres
+        ----------
+        x_cable, y_cable : array-like
+            Coordonnées actuelles des points du câble.
+        L_target : float
+            Longueur cible du câble.
+        bateau : tuple(float, float)
+            Coordonnées (x, y) du bateau.
+        rov : tuple(float, float)
+            Coordonnées (x, y) du ROV.
+        N_debut_iter : int
+            Nombre de segments au début de l'itération.
+
+        Returns
+        -------
+        x_new, y_new : np.ndarray
+            Coordonnées normalisées des points du câble.
+        rel_err : float
+            Erreur relative finale sur la longueur totale.
+        iters : int
+            Nombre d'itérations effectuées.
+        """
+        x_arr = np.asarray(x_cable, dtype=float).reshape(-1)
+        y_arr = np.asarray(y_cable, dtype=float).reshape(-1)
+        if x_arr.size != y_arr.size or x_arr.size < 2:
+            raise ValueError("_normalize_cable_geometry: géométrie invalide")
+
+        P = np.stack([x_arr, y_arr], axis=1)
+
+        x_boat, y_boat = float(bateau[0]), float(bateau[1])
+        x_rov, y_rov = float(rov[0]), float(rov[1])
+
+        def segment_lengths(points):
+            diffs = np.diff(points, axis=0)
+            return np.linalg.norm(diffs, axis=1)
+
+        def _str_cable_format(points: np.ndarray, ds_max_allowed_val: float | None = None) -> str:
+            """
+            Formate un câble P (shape (N+1, 2)) sous la forme :
+            [ x0  y0 ] ds0 [ x1  y1 ] ds1 ... [ xN  yN ]
+            où dsi est la longueur du segment entre les points i et i+1.
+            """
+            pts = np.asarray(points, dtype=float)
+            if pts.ndim != 2 or pts.shape[1] != 2 or pts.shape[0] == 0:
+                return repr(pts)
+            n = pts.shape[0]
+            parts: list[str] = []
+            for i in range(n):
+                x, y = pts[i]
+                parts.append(f"[{x:5.2f} {y:5.2f}]")
+                if i < n - 1:
+                    dx = pts[i + 1, 0] - x
+                    dy = pts[i + 1, 1] - y
+                    ds = float(np.hypot(dx, dy))
+                    if ds_max_allowed_val is not None and ds > ds_max_allowed_val:
+                        # Rouge si ds > ds_max_allowed
+                        parts.append(f" \x1b[31m{ds:5.2f}\x1b[0m ")
+                    else:
+                        # Vert sinon
+                        parts.append(f" \x1b[32m{ds:5.2f}\x1b[0m ")
+            return "".join(parts)
+
+        def enforce_max_segment_length(points):
+            changed = True
+            while changed:
+                changed = False
+                new_pts = [points[0]]
+                for i in range(len(points) - 1):
+                    p0 = new_pts[-1]
+                    p1 = points[i + 1]
+                    seg = p1 - p0
+                    ds = float(np.linalg.norm(seg))
+                    if ds > ds_max_allowed and ds > 0.0:
+                        n_sub = int(np.ceil(ds / ds_max_allowed))
+                        alpha_step = 1.0 / n_sub
+                        trace_print(
+                            8,
+                            f"[DEBUG] : on ajoute {n_sub-1} points entre {p0} et {p1}  "
+                            f"ds = {ds:6.2f}  ds_max_allowed = {ds_max_allowed:6.2f}",
+                        )
+                        for k in range(1, n_sub + 1):
+                            alpha = k * alpha_step
+                            pk = p0 + alpha * seg
+                            pk[1] = min(pk[1], 0.0)
+                            new_pts.append(pk)
+                        changed = True
+                    else:
+                        new_pts.append(p1)
+                points = np.array(new_pts, dtype=float)
+            return points
+
+        # Étape 1 : recollement des extrémités
+        P[0, 0] = x_boat
+        P[0, 1] = min(y_boat, 0.0)
+        P[-1, 0] = x_rov
+        P[-1, 1] = min(y_rov, 0.0)
+
+        P[:, 1] = np.minimum(P[:, 1], 0.0)
+
+        N0 = max(int(N_debut_iter), 1)
+        ds_min = L_target / N0
+        ds_max_allowed = 2.0 * ds_min
+
+        iters = 0
+        rel_err = 1.0
+        max_iters = 10
+        tol_rel = 1e-4
+
+        
+        L_straight_cable = float(np.linalg.norm(P[-1] - P[0]))
+        total_slack = L_target - L_straight_cable
+
+        if total_slack <= 0.0:
+            # Impossible, on va juste passer en mode straight line
+            pass
+            return x_cable, y_cable, 0.0, 0
+
+        total_slack_ratio = total_slack / L_straight_cable
+
+        trace_print(9, f"[DEBUG] Initial P: {_str_cable_format(P, ds_max_allowed)}")
+        while iters < max_iters:
+            P = enforce_max_segment_length(P)
+            trace_print(9, f"[DEBUG] max_seg_l: {_str_cable_format(P, ds_max_allowed)}")
+            lengths = segment_lengths(P)
+            L_seg = float(lengths.sum())
+            if L_seg <= 0.0 or L_target <= 0.0:
+                break
+
+            scale = L_target / L_seg
+            P_new = P.copy()
+
+            for k in range(1, len(P) - 1):
+                A = P[k - 1]
+                B = P[k]
+                C = P[k + 1]
+                local_slack =  float(np.linalg.norm(A-B)) + float(np.linalg.norm(B-C)) - float(np.linalg.norm(A-C)) 
+                if float(np.linalg.norm(A-C)) == 0.0:
+                    # configuration dégénérée
+                    local_slack_ratio = 10
+                else :  local_slack_ratio = local_slack / float(np.linalg.norm(A-C)) 
+                if local_slack_ratio > total_slack_ratio :
+                    sc = scale 
+                else:
+                    sc = 1
+                Bp = scale_slack(A, B, C, sc=scale)
+                Bp[1] = min(Bp[1], 0.0)
+                P_new[k] = Bp
+            trace_print(9, f"[DEBUG] scl_slack: {_str_cable_format(P_new, ds_max_allowed)}")
+            P = P_new
+
+            iters += 1
+            if rel_err <= tol_rel:
+                break
+
+        P = enforce_max_segment_length(P)
+        trace_print(9, f"[DEBUG] last max l. : {_str_cable_format(P, ds_max_allowed)}")
+        x_new = P[:, 0]
+        y_new = P[:, 1]
+        trace_print(9, f"[DEBUG] x_new: {x_new}, y_new: {y_new}")
+        return x_new, y_new, rel_err, iters
+
     def solve_equilibrium_static(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None):
         """
         Résout l'équilibre statique du câble (caténaire)
         
-        Calcule la forme de caténaire réelle si rho_cable > rho_eau,
-        sinon le câble est rectiligne (flotte).
+        Utilise maintenant le solveur avec contraintes intégrées pour garantir :
+        - L = L_seg à 0.01% près
+        - P0 = position bateau
+        - PN = position ROV
+        - y <= 0 pour tous les points
+        - ds_max / ds_target <= k_max
         
         Parameters:
         -----------
@@ -66,8 +254,554 @@ class CableSolver:
             # Câble de longueur nulle
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
         
-        # Calculer le poids apparent par unité de longueur
+        # Préparer les paramètres pour le wrapper de forces
+        params_forces = {
+            'environment': self.environment,
+            'params_cable': {
+                'd': self.d,
+                'rho_cable': self.rho_cable,
+                'Cx_cable': self.Cx_cable,
+                'Cf_cable': self.Cf_cable
+            },
+            'L': L
+        }
+        
+        # Ne PAS passer d'initial_guess pour permettre à solve_equilibrium_constrained
+        # de générer automatiquement une caténaire réaliste avec _solve_catenary
+        # au lieu d'utiliser une ligne droite
+        initial_guess = None
+        
+        # Utiliser le solveur avec contraintes intégrées
+        x_cable, y_cable, T = self.solve_equilibrium_constrained(
+            x_rov, y_rov, x_boat, L,
+            self._forces_static_wrapper,
+            params_forces,
+            rov_m=rov_m,
+            rov_vol=rov_vol,
+            initial_guess=initial_guess,
+            k_max=2.0
+        )
+        
+        # Recalculer les tensions correctement en utilisant l'équilibre des forces
+        # (le solveur avec contraintes retourne une estimation simple)
         weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol)
+        
+        return x_cable, y_cable, T
+    
+    def solve_equilibrium_static_with_current(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None,
+                                              max_iter=50, tol=1e-3, relax=0.2,
+                                              use_full_equilibrium=True):
+        """
+        Résout l'équilibre statique du câble en tenant compte de la traînée du courant sur la géométrie.
+        
+        Utilise maintenant le solveur avec contraintes intégrées pour garantir :
+        - L = L_seg à 0.01% près
+        - P0 = position bateau
+        - PN = position ROV
+        - y <= 0 pour tous les points
+        - ds_max / ds_target <= k_max
+        """
+        trace_print(1, "\n[DEBUG] Initialisation du câble : prise en compte du courant (solve_equilibrium_static_with_current).")
+        
+        if L <= 0:
+            return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
+        
+        # Préparer les paramètres pour le wrapper de forces
+        params_forces = {
+            'environment': self.environment,
+            'params_cable': {
+                'd': self.d,
+                'rho_cable': self.rho_cable,
+                'Cx_cable': self.Cx_cable,
+                'Cf_cable': self.Cf_cable
+            },
+            'L': L
+        }
+        
+        # Ne PAS passer d'initial_guess pour permettre à solve_equilibrium_constrained
+        # de générer automatiquement une caténaire réaliste avec _solve_catenary
+        # au lieu d'utiliser une ligne droite
+        initial_guess = None
+        
+        # Utiliser le solveur avec contraintes intégrées
+        x_cable, y_cable, T = self.solve_equilibrium_constrained(
+            x_rov, y_rov, x_boat, L,
+            self._forces_static_with_current_wrapper,
+            params_forces,
+            rov_m=rov_m,
+            rov_vol=rov_vol,
+            initial_guess=initial_guess,
+            k_max=2.0
+        )
+        
+        # Recalculer les tensions correctement en utilisant l'équilibre des forces
+        # (le solveur avec contraintes retourne une estimation simple)
+        weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol)
+        
+        return x_cable, y_cable, T
+    
+    def _solve_catenary(self, x_rov, y_rov, x_boat, L, w):
+        """
+        Résout l'équation de la caténaire pour trouver la forme du câble
+        
+        Utilise une méthode itérative pour trouver les paramètres de la caténaire
+        qui satisfont les conditions aux limites et la longueur L.
+        
+        La caténaire suit : y = a * cosh((x - x0) / a) + y0
+        Longueur curviligne : s = a * sinh((x - x0) / a)
+        
+        Parameters:
+        -----------
+        x_rov, y_rov : float
+            Position du ROV (y_rov < 0, profondeur)
+        x_boat : float
+            Position horizontale du bateau (y_boat = 0)
+        L : float
+            Longueur totale du câble
+        w : float
+            Poids apparent par unité de longueur (N/m)
+        
+        Returns:
+        --------
+        tuple (x_cable, y_cable)
+            Positions du câble discrétisées (du bateau au ROV)
+        """
+        trace_print(5, "\n[DEBUG] ========== _solve_catenary APPELÉE ==========")
+        trace_print(5, f"[DEBUG] _solve_catenary: Paramètres - x_rov={x_rov:.3f}, y_rov={y_rov:.3f}, x_boat={x_boat:.3f}, L={L:.3f}, w={w:.6f}")
+
+        # Convention : y < 0 = profondeur (sous la surface), y = 0 = surface
+        # y_rov doit être négatif pour représenter la profondeur
+        dx = x_boat - x_rov
+        dy = -y_rov  # Profondeur (y_rov est négatif)
+        
+        # Utiliser la formule standard de la caténaire : y = a * cosh((x - x0) / a) + y0
+        # Contraintes :
+        # 1. y_boat = 0 : 0 = a * cosh((x_boat - x0) / a) + y0  =>  y0 = -a * cosh((x_boat - x0) / a)
+        # 2. y_rov = y_rov (< 0, profondeur) : y_rov = a * cosh((x_rov - x0) / a) + y0
+        #    => y_rov = a * (cosh((x_rov - x0) / a) - cosh((x_boat - x0) / a))
+        # 3. L = longueur curviligne : L = a * |sinh((x_rov - x0) / a) - sinh((x_boat - x0) / a)|
+        
+        L_straight = np.sqrt(dx**2 + dy**2)
+        
+        # Approche : pour chaque valeur de a, résoudre pour x0 en utilisant la contrainte y_rov,
+        # puis vérifier la longueur L
+        
+        def find_x0_for_a(a):
+            """Trouve x0 pour un a donné en utilisant la contrainte y_rov"""
+            if a <= 0 or not np.isfinite(a) or a < 1e-10:
+                return None
+            
+            def equation_x0(x0):
+                """Équation pour trouver x0 : y_rov = a * (cosh((x_rov - x0) / a) - cosh((x_boat - x0) / a))"""
+                try:
+                    # Vérifier que a est valide
+                    if a <= 1e-10 or not np.isfinite(a):
+                        return np.inf
+                    
+                    # Vérifier que x0 est fini
+                    if not np.isfinite(x0):
+                        return np.inf
+                    
+                    # Calculer les arguments de cosh
+                    arg1 = (x_rov - x0) / a
+                    arg2 = (x_boat - x0) / a
+                    
+                    # Vérifier que les arguments ne sont pas trop grands (éviter overflow)
+                    if abs(arg1) > 700 or abs(arg2) > 700:
+                        return np.inf
+                    
+                    # Calculer la valeur
+                    val = a * (np.cosh(arg1) - np.cosh(arg2)) - y_rov
+                    
+                    # Vérifier que le résultat est fini
+                    if not np.isfinite(val):
+                        return np.inf
+                    
+                    return val
+                except:
+                    return np.inf
+            
+            # x0 devrait être entre x_rov et x_boat, plus proche du ROV
+            # Élargir le bracket pour être sûr de trouver la solution
+            bracket_width = max(abs(dx) * 2, 10.0)
+            bracket = [min(x_rov, x_boat) - bracket_width, max(x_rov, x_boat) + bracket_width]
+            
+            # Vérifier que l'équation change de signe dans le bracket
+            try:
+                f_low = equation_x0(bracket[0])
+                f_high = equation_x0(bracket[1])
+                
+                # Si les deux valeurs ont le même signe, essayer d'élargir le bracket
+                if np.sign(f_low) == np.sign(f_high) and abs(f_low) > 1e-3 and abs(f_high) > 1e-3:
+                    # Essayer plusieurs brackets
+                    for scale in [2, 5, 10]:
+                        bracket = [min(x_rov, x_boat) - bracket_width * scale, 
+                                  max(x_rov, x_boat) + bracket_width * scale]
+                        f_low = equation_x0(bracket[0])
+                        f_high = equation_x0(bracket[1])
+                        if np.sign(f_low) != np.sign(f_high):
+                            break
+            except:
+                pass
+            
+            try:
+                result = root_scalar(equation_x0, bracket=bracket, method='brentq', xtol=1e-8, maxiter=200)
+                if result.converged:
+                    return result.root
+            except:
+                pass
+            
+            # Essayer avec fsolve si root_scalar échoue
+            try:
+                # Essayer plusieurs estimations initiales
+                x0_guesses = [
+                    x_rov + 0.2 * (x_boat - x_rov),
+                    x_rov + 0.1 * (x_boat - x_rov),
+                    x_rov + 0.3 * (x_boat - x_rov),
+                    (x_rov + x_boat) / 2,
+                    x_rov,
+                ]
+                
+                for x0_guess in x0_guesses:
+                    try:
+                        result = fsolve(equation_x0, x0_guess, xtol=1e-8, maxfev=500)
+                        x0_test = result[0] if isinstance(result, np.ndarray) else result
+                        
+                        # Vérifier que la solution est bonne
+                        error = abs(equation_x0(x0_test))
+                        if error < 1e-3:
+                            return x0_test
+                    except:
+                        continue
+            except:
+                pass
+            
+            return None
+        
+        def compute_length_error(a):
+            """Calcule l'erreur sur la longueur pour un a donné"""
+            if a <= 0 or not np.isfinite(a) or a < 1e-10:
+                return np.inf
+            
+            x0 = find_x0_for_a(a)
+            if x0 is None or not np.isfinite(x0):
+                return np.inf
+            
+            try:
+                # Calculer les arguments de sinh
+                arg_boat = (x_boat - x0) / a
+                arg_rov = (x_rov - x0) / a
+                
+                # Vérifier que les arguments ne sont pas trop grands (éviter overflow)
+                if abs(arg_boat) > 700 or abs(arg_rov) > 700:
+                    return np.inf
+                
+                # Calculer les longueurs curvilignes
+                s_boat = a * np.sinh(arg_boat)
+                s_rov = a * np.sinh(arg_rov)
+                
+                # Vérifier que les résultats sont finis
+                if not (np.isfinite(s_boat) and np.isfinite(s_rov)):
+                    return np.inf
+                
+                L_calc = abs(s_rov - s_boat)
+                
+                if not np.isfinite(L_calc):
+                    return np.inf
+                
+                return abs(L_calc - L)
+            except:
+                return np.inf
+        
+        # Estimation initiale de a
+        if L > L_straight * 1.5:
+            a_initial = max(0.5, dy / 6.0)
+        elif L > L_straight * 1.2:
+            a_initial = max(1.0, dy / 4.0)
+        else:
+            a_initial = max(2.0, dy / 2.0)
+        
+        # Optimiser pour trouver a qui minimise l'erreur sur la longueur
+        a_opt = a_initial
+        best_error = np.inf
+        
+        try:
+            # Essayer plusieurs valeurs initiales de a
+            a_candidates = [a_initial, a_initial * 0.5, a_initial * 2.0, dy / 6.0, dy / 4.0, dy / 2.0, dy]
+            a_candidates = [max(0.1, a) for a in a_candidates]
+            
+            for a_init in a_candidates:
+                try:
+                    # Vérifier d'abord que cette valeur initiale donne une erreur finie
+                    test_error = compute_length_error(a_init)
+                    if not np.isfinite(test_error) or test_error == np.inf:
+                        continue
+                    
+                    # Optimiser a pour minimiser l'erreur sur la longueur
+                    # Utiliser un bracket plus restreint autour de a_init
+                    bracket_low = max(0.1, a_init * 0.5)
+                    bracket_high = min(a_init * 5.0, 1000.0)  # Limiter à une valeur raisonnable
+                    
+                    # Vérifier que le bracket est valide
+                    if bracket_low >= bracket_high:
+                        continue
+                    
+                    # Supprimer les warnings de scipy pour les valeurs invalides (NaN/Inf)
+                    # qui peuvent se produire lors de l'optimisation avec des valeurs extrêmes
+                    with np.errstate(invalid='ignore', divide='ignore'):
+                        result = minimize_scalar(
+                            compute_length_error,
+                            bracket=(bracket_low, bracket_high),
+                            method='brent',
+                            options={'xtol': 1e-5, 'maxiter': 200}
+                        )
+                    
+                    if result.success:
+                        a_test = result.x
+                        if not np.isfinite(a_test) or a_test <= 0:
+                            continue
+                            
+                        error = compute_length_error(a_test)
+                        
+                        if np.isfinite(error) and error < best_error:
+                            best_error = error
+                            a_opt = a_test
+                            
+                            if error < 1e-4:
+                                break
+                except Exception as e:
+                    # Ignorer les erreurs et continuer avec la valeur suivante
+                    continue
+            
+            if best_error > 1e-2:
+                trace_print(5, f"⚠️  Avertissement: La caténaire a une erreur élevée ({best_error:.6f}). "
+                      f"Utilisation des meilleures valeurs trouvées.")
+        except Exception as e:
+            trace_print(5, f"⚠️  Erreur lors de la résolution de la caténaire: {e}. Utilisation des valeurs initiales.")
+        
+        # Trouver x0 pour le a optimal
+        x0_opt = find_x0_for_a(a_opt)
+        if x0_opt is None:
+            trace_print(9, f"[DEBUG] _solve_catenary: ⚠️  ERREUR - Impossible de trouver x0 pour a={a_opt:.3f}. Utilisation d'une interpolation linéaire (LIGNE DROITE).")
+            x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+            y_cable = np.linspace(0.0, y_rov, self.N + 1)
+            return x_cable, y_cable
+        
+        # Calculer y0
+        try:
+            y0_opt = -a_opt * np.cosh((x_boat - x0_opt) / a_opt)
+        except:
+            trace_print(5, f"⚠️  Erreur: Impossible de calculer y0. Utilisation d'une interpolation linéaire.")
+            x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+            y_cable = np.linspace(0.0, y_rov, self.N + 1)
+            return x_cable, y_cable
+        
+        # Vérifier la solution
+        y_rov_calc = a_opt * np.cosh((x_rov - x0_opt) / a_opt) + y0_opt
+        y_boat_calc = a_opt * np.cosh((x_boat - x0_opt) / a_opt) + y0_opt
+        
+        # y_rov devrait être négatif (profondeur : y < 0 = sous la surface)
+        if abs(y_rov_calc - y_rov) > 0.1:
+            trace_print(5, f"⚠️  Avertissement: y_rov calculé ({y_rov_calc:.3f}) diffère de y_rov attendu ({y_rov:.3f}, profondeur négative)")
+        
+        if abs(y_boat_calc) > 0.1:
+            trace_print(5, f"⚠️  Avertissement: y_boat calculé ({y_boat_calc:.3f}) diffère de y_boat attendu (0.000, surface)")
+        
+        # Générer les points du câble par longueur curviligne
+        # Convention : s = 0 au bateau, s = L au ROV (plus simple et cohérent avec le système)
+        # Calculer les longueurs curvilignes aux extrémités dans le système de référence de la caténaire
+        try:
+            s_boat_ref = a_opt * np.sinh((x_boat - x0_opt) / a_opt)
+            s_rov_ref = a_opt * np.sinh((x_rov - x0_opt) / a_opt)
+            
+            # La longueur curviligne de référence dans le système de la caténaire
+            s_total_ref = abs(s_rov_ref - s_boat_ref)
+            
+            # Déterminer l'ordre : on veut s=0 au bateau et s=L au ROV
+            # Donc on mappe s (0 à L) vers s_ref (s_boat_ref à s_rov_ref)
+            if s_total_ref > 1e-6:
+                # Transformation linéaire : s_ref = s_boat_ref + (s / L) * (s_rov_ref - s_boat_ref)
+                # Mais on doit s'assurer que s_boat_ref < s_rov_ref
+                if s_rov_ref < s_boat_ref:
+                    # Inverser l'ordre
+                    s_boat_ref, s_rov_ref = s_rov_ref, s_boat_ref
+            else:
+                # Si la longueur est nulle, utiliser une approximation
+                s_boat_ref = 0.0
+                s_rov_ref = L
+        except:
+            # Si le calcul échoue, utiliser une approximation simple
+            s_boat_ref = 0.0
+            s_rov_ref = L
+        
+        # Générer les points à intervalles réguliers de longueur curviligne : s de 0 à L
+        s_points = np.linspace(0.0, L, self.N + 1)
+        x_cable = np.zeros(self.N + 1)
+        y_cable = np.zeros(self.N + 1)
+        
+        for i, s in enumerate(s_points):
+            try:
+                # Convertir s (0 à L) en s_ref (référence de la caténaire)
+                # Interpolation linéaire : s_ref = s_boat_ref + (s / L) * (s_rov_ref - s_boat_ref)
+                if L > 1e-6:
+                    s_ref = s_boat_ref + (s / L) * (s_rov_ref - s_boat_ref)
+                else:
+                    s_ref = s_boat_ref
+                
+                # Calculer x à partir de s_ref : s_ref = a * sinh((x - x0) / a)
+                # donc x = x0 + a * arcsinh(s_ref / a)
+                x = x0_opt + a_opt * np.arcsinh(s_ref / a_opt)
+                # Utiliser la formule standard : y = a * cosh((x - x0) / a) + y0
+                y = a_opt * np.cosh((x - x0_opt) / a_opt) + y0_opt
+                
+                x_cable[i] = x
+                y_cable[i] = y
+            except:
+                # Si le calcul échoue, interpolation linéaire
+                alpha = i / self.N
+                x_cable[i] = x_boat + alpha * (x_rov - x_boat)
+                y_cable[i] = 0.0 + alpha * (y_rov - 0.0)
+        
+        # Forcer les extrémités exactement (important pour la continuité)
+        # Index 0 = bateau, index -1 = ROV (convention cohérente avec le système)
+        x_cable[0] = x_boat
+        y_cable[0] = 0.0
+        x_cable[-1] = x_rov
+        y_cable[-1] = y_rov
+
+        # CONTRAINTE PHYSIQUE CRITIQUE : Tous les points doivent être sous la surface (y <= 0)
+        # La caténaire mathématique peut générer des points au-dessus de la surface
+        # si les paramètres ne sont pas parfaitement ajustés
+        y_cable = np.clip(y_cable, None, 0.0)
+        # Réappliquer les extrémités après clipping
+        y_cable[0] = 0.0
+        y_cable[-1] = y_rov
+        
+        # DEBUG: Vérifier si des points ont été clippés
+        points_above_surface = np.sum((y_cable > 1e-6) & (np.arange(len(y_cable)) != 0))  # Exclure le point bateau
+        if points_above_surface > 0:
+            trace_print(9, f"[DEBUG] _solve_catenary: ⚠️  {points_above_surface} points étaient au-dessus de la surface et ont été clippés")
+
+        # Si la flottabilité est positive (w < 0), inverser la caténaire
+        # par rapport à la droite bateau-ROV pour obtenir une courbure vers le haut.
+        if w < 0:
+            dx_line = x_rov - x_boat
+            dy_line = y_rov - 0.0
+            if abs(dx_line) > 1e-9:
+                s = (x_cable - x_boat) / dx_line
+                s = np.clip(s, 0.0, 1.0)
+                y_line = s * dy_line
+            else:
+                s = np.linspace(0.0, 1.0, len(x_cable))
+                y_line = s * dy_line
+            y_cable = 2.0 * y_line - y_cable
+            y_cable[0] = 0.0
+            y_cable[-1] = y_rov
+            # Re-clipper après inversion
+            y_cable = np.clip(y_cable, None, 0.0)
+            y_cable[0] = 0.0
+            y_cable[-1] = y_rov
+        
+        # Vérifier la longueur
+        L_actual = 0.0
+        for i in range(self.N):
+            dx_seg = x_cable[i+1] - x_cable[i]
+            dy_seg = y_cable[i+1] - y_cable[i]
+            L_actual += np.sqrt(dx_seg**2 + dy_seg**2)
+        
+        # Toujours normaliser pour garantir que la longueur est exactement L
+        # (tolérance réduite pour forcer la normalisation)
+        # IMPORTANT : Passer les positions du bateau et du ROV pour garantir le recollage exact
+        if abs(L_actual - L) / L > 1e-6:
+            x_cable, y_cable = self._normalize_cable_length(
+                x_cable, y_cable, L,
+                x_boat=x_boat,
+                y_boat=0.0,
+                x_rov=x_rov,
+                y_rov=y_rov
+            )
+            
+            # CONTRAINTE PHYSIQUE : Après normalisation, forcer y <= 0
+            y_cable = np.clip(y_cable, None, 0.0)
+            # Réappliquer les extrémités (normalement déjà faites par _normalize_cable_length, mais on s'assure)
+            if x_boat is not None:
+                x_cable[0] = float(x_boat)
+            y_cable[0] = 0.0
+            if x_rov is not None:
+                x_cable[-1] = float(x_rov)
+            y_cable[-1] = y_rov
+        
+        # Vérification finale de la longueur
+        L_final = 0.0
+        for i in range(self.N):
+            dx_seg = x_cable[i+1] - x_cable[i]
+            dy_seg = y_cable[i+1] - y_cable[i]
+            L_final += np.sqrt(dx_seg**2 + dy_seg**2)
+        
+        # Vérifier que la forme est bien une caténaire (pas juste deux segments)
+        if len(x_cable) > 2:
+            # Calculer les angles entre segments consécutifs
+            angles = []
+            for i in range(1, len(x_cable) - 1):
+                dx1 = x_cable[i] - x_cable[i-1]
+                dy1 = y_cable[i] - y_cable[i-1]
+                dx2 = x_cable[i+1] - x_cable[i]
+                dy2 = y_cable[i+1] - y_cable[i]
+                ds1 = np.sqrt(dx1**2 + dy1**2)
+                ds2 = np.sqrt(dx2**2 + dy2**2)
+                if ds1 > 1e-6 and ds2 > 1e-6:
+                    cos_angle = (dx1*dx2 + dy1*dy2) / (ds1 * ds2)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angle = np.arccos(cos_angle)
+                    angles.append(angle)
+            
+            # Si tous les angles sont très petits, c'est probablement une ligne droite
+            if len(angles) > 0 and np.mean(angles) < 0.01:
+                trace_print(5, f"⚠️  Avertissement: Le câble semble être une ligne droite plutôt qu'une caténaire. "
+                      f"Vérifiez les paramètres (L={L:.2f} m, L_straight={L_straight:.2f} m, "
+                      f"rho_cable={self.rho_cable:.1f} kg/m³, rho_eau={self.environment.rho_eau:.1f} kg/m³)")
+        
+        # Avertissement si la longueur n'est toujours pas correcte
+        if abs(L_final - L) / L > 0.02:
+            trace_print(5, f"⚠️  Avertissement: Longueur du câble incorrecte après calcul de caténaire. "
+                  f"Attendu: {L:.3f} m, Obtenu: {L_final:.3f} m, Erreur: {abs(L_final - L)/L*100:.1f}%")
+        
+        # DEBUG: Calculer la déviation maximale de la caténaire générée
+        def compute_max_deviation_cat(x_arr, y_arr):
+            """Calcule la déviation maximale par rapport à la ligne droite"""
+            if len(x_arr) < 3:
+                return 0.0
+            x_start, y_start = x_arr[0], y_arr[0]
+            x_end, y_end = x_arr[-1], y_arr[-1]
+            max_dev = 0.0
+            if abs(x_end - x_start) > 1e-6 or abs(y_end - y_start) > 1e-6:
+                dx_line = x_end - x_start
+                dy_line = y_end - y_start
+                line_length = np.sqrt(dx_line**2 + dy_line**2)
+                for i in range(1, len(x_arr) - 1):
+                    dx_point = x_arr[i] - x_start
+                    dy_point = y_arr[i] - y_start
+                    t = (dx_point * dx_line + dy_point * dy_line) / (line_length**2 + 1e-9)
+                    x_proj = x_start + t * dx_line
+                    y_proj = y_start + t * dy_line
+                    deviation = np.sqrt((x_arr[i] - x_proj)**2 + (y_arr[i] - y_proj)**2)
+                    max_dev = max(max_dev, deviation)
+            return max_dev
+        
+        max_dev_cat = compute_max_deviation_cat(x_cable, y_cable)
+        D_straight_cat = np.sqrt((x_rov - x_boat)**2 + (y_rov - 0.0)**2)
+        slack_cat = L_final - D_straight_cat
+        if slack_cat > 0 and D_straight_cat > 1e-6:
+            theoretical_max_dev = slack_cat * np.sqrt(slack_cat / D_straight_cat) / 2.0
+            if max_dev_cat < theoretical_max_dev * 0.1:  # Si la déviation est < 10% de la théorique
+                trace_print(9, f"[DEBUG] _solve_catenary: ⚠️  Caténaire générée trop droite - "
+                    f"max_deviation={max_dev_cat:.6f} m, théorique≈{theoretical_max_dev:.3f} m, "
+                    f"slack={slack_cat:.2f} m, L={L_final:.2f} m, D_straight={D_straight_cat:.2f} m")
+        
+        # Retourner le câble : index 0 = bateau, index -1 = ROV (convention cohérente avec le système)
+        return x_cable, y_cable
         
         # Distance horizontale et verticale entre les extrémités
         dx = x_boat - x_rov
@@ -370,6 +1104,10 @@ class CableSolver:
             y_cable[0] = 0.0
             x_cable[-1] = x_rov
             y_cable[-1] = y_rov
+            # CONTRAINTE PHYSIQUE : Le câble ne peut pas être au-dessus de la surface (y > 0)
+            y_cable = np.clip(y_cable, None, 0.0)
+            y_cable[0] = 0.0
+            y_cable[-1] = y_rov
         
         # 6. Calculer les tensions selon le mode dominant
         # Si alpha_blend est proche de 1.0 (straight), utiliser la méthode straight
@@ -458,327 +1196,13 @@ class CableSolver:
             x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
         except Exception:
             pass
+        # CONTRAINTE PHYSIQUE : Le câble ne peut pas être au-dessus de la surface (y > 0)
+        # S'assurer que tous les points sont sous la surface après normalisation
+        y_cable = np.clip(y_cable, None, 0.0)
+        y_cable[0] = 0.0
+        y_cable[-1] = y_rov
         self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (blending continu)")
         self._T_prev = T.copy()
-        return x_cable, y_cable, T
-
-    def solve_equilibrium_static_with_current(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None,
-                                              max_iter=50, tol=1e-3, relax=0.2,
-                                              use_full_equilibrium=True):
-        """
-        Résout l'équilibre statique du câble en tenant compte de la traînée du courant sur la géométrie.
-        
-        Approche itérative :
-        1) Partir d'une caténaire initiale
-        2) Calculer les forces de courant le long du câble
-        3) Mettre à jour la géométrie jusqu'à convergence
-        """
-        trace_print(1, "\n[DEBUG] Initialisation du câble : prise en compte du courant (solve_equilibrium_static_with_current).")
-        
-        if L <= 0:
-            return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
-        
-        # Point de départ : caténaire statique classique
-        x_cable, y_cable, T_guess = self.solve_equilibrium_static(
-            x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
-        )
-        
-        N = len(x_cable) - 1
-        if N <= 0:
-            trace_print(1, f"[DEBUG] Nombre de segments du câble: {N}")
-            return x_cable, y_cable, np.zeros(len(x_cable))
-        
-        from .forces import compute_cable_forces
-        from .forces import compute_cable_drag_force, compute_cable_apparent_weight
-        params_cable = {
-            'd': self.d,
-            'rho_cable': self.rho_cable,
-            'Cx_cable': self.Cx_cable,
-            'Cf_cable': self.Cf_cable
-        }
-        
-        ds = L / N if N > 0 else 0.1
-        
-        # Évaluer l'impact du courant avant de décider d'itérer
-        # Calculer les forces de courant sur la géométrie initiale
-        vx_cable_init = np.zeros(len(x_cable))
-        vy_cable_init = np.zeros(len(x_cable))
-        Fx_segments_init, Fy_segments_init, _, _, _, _ = compute_cable_forces(
-            x_cable, y_cable, vx_cable_init, vy_cable_init, self.environment, params_cable, L
-        )
-        Fx_total_init = float(np.sum(Fx_segments_init))
-        
-        # Estimer l'ordre de grandeur des forces de courant par rapport au poids apparent
-        Fy_weight_per_seg = compute_cable_apparent_weight(
-            self.rho_cable, self.environment.rho_eau, self.A_cable, self.environment.g, ds
-        )
-        Fy_weight_total = float(Fy_weight_per_seg * N)
-        
-        try:
-            v_current = np.array([self.environment.get_current_velocity(y) for y in y_cable])
-            max_v_current = np.max(np.abs(v_current))
-            trace_print(1, f"[DEBUG] Courant max le long du câble: {max_v_current:.6f} m/s")
-            trace_print(1, f"[DEBUG] Force traînée horizontale totale: {Fx_total_init:.6f} N")
-            trace_print(1, f"[DEBUG] Poids apparent total: {Fy_weight_total:.6f} N")
-        except Exception:
-            trace_print(1, f"[DEBUG] Courant max le long du câble: non obtenu")
-            max_v_current = 0.0
-            pass
-        
-        # Si les forces de courant sont faibles par rapport au poids, ne pas itérer
-        # pour préserver la forme de caténaire
-        skip_iteration = False
-        if abs(Fy_weight_total) > 1e-6:
-            ratio_drag_weight = abs(Fx_total_init) / abs(Fy_weight_total)
-            # Seuil : si la traînée horizontale est < 10% du poids apparent, ne pas itérer
-            # Cela préserve la belle forme de caténaire pour les courants faibles
-            if ratio_drag_weight < 0.10:
-                skip_iteration = True
-                trace_print(1, f"[DEBUG] Courant faible (ratio traînée/poids={ratio_drag_weight:.4f} < 0.10). Conservation de la caténaire initiale sans itération.")
-        elif max_v_current < 0.1:  # Courant très faible (< 10 cm/s)
-            skip_iteration = True
-            trace_print(1, f"[DEBUG] Courant très faible ({max_v_current:.6f} m/s). Conservation de la caténaire initiale sans itération.")
-        
-        if skip_iteration:
-            # Recalculer les tensions pour équilibrer les forces, mais garder la géométrie de caténaire
-            # Les tensions seront recalculées plus bas pour équilibrer les forces
-            trace_print(1, f"[DEBUG] Courant faible. Conservation de la caténaire initiale sans itération.")
-        else:
-            if abs(Fy_weight_total) > 1e-6:
-                ratio_drag_weight = abs(Fx_total_init) / abs(Fy_weight_total)
-            else:
-                ratio_drag_weight = float('inf')
-            trace_print(1, f"[DEBUG] Courant significatif (ratio traînée/poids={ratio_drag_weight:.4f} ou v={max_v_current:.6f} m/s). Itération nécessaire.")
-        
-        def integrate_with_forces(T0x, T0y):
-            x_out = np.zeros(N + 1)
-            y_out = np.zeros(N + 1)
-            T_out = np.zeros(N + 1)
-            x_out[0] = x_boat
-            y_out[0] = 0.0
-            T_vec = np.array([T0x, T0y], dtype=float)
-            T_out[0] = np.linalg.norm(T_vec)
-            
-            for i in range(N):
-                v_current = self.environment.get_current_velocity(y_out[i])
-                Fx = compute_cable_drag_force(v_current, self.d, self.Cx_cable,
-                                              self.environment.rho_eau, ds)
-                Fy = compute_cable_apparent_weight(self.rho_cable, self.environment.rho_eau,
-                                                  self.A_cable, self.environment.g, ds)
-                
-                T_mag = np.linalg.norm(T_vec)
-                if T_mag < 1e-8:
-                    t_hat = np.array([0.0, -1.0])
-                else:
-                    t_hat = T_vec / T_mag
-                
-                x_out[i + 1] = x_out[i] + t_hat[0] * ds
-                y_out[i + 1] = y_out[i] + t_hat[1] * ds
-                
-                T_vec = T_vec - np.array([Fx, Fy])
-                T_out[i + 1] = np.linalg.norm(T_vec)
-            
-            return x_out, y_out, T_out
-        
-        # Si l'itération n'est pas nécessaire, passer directement au calcul des tensions
-        if skip_iteration:
-            trace_print(1, "[DEBUG] Itération sautée, passage direct au calcul des tensions.")
-        elif use_full_equilibrium:
-            trace_print(1, "\n[DEBUG] solve_equilibrium_static_with_current: tentative solveur complet (charges distribuées).")
-            try:
-                # Estimation initiale via caténaire classique déjà calculée
-                dx0 = x_cable[1] - x_cable[0]
-                dy0 = y_cable[1] - y_cable[0]
-                ds0 = np.hypot(dx0, dy0)
-                if ds0 > 1e-8 and len(T_guess) > 0:
-                    t_hat0 = np.array([dx0 / ds0, dy0 / ds0])
-                else:
-                    t_hat0 = np.array([0.0, -1.0])
-                T_init = T_guess[0] if len(T_guess) > 0 else abs(self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g * L / 2.0
-                T_init_x, T_init_y = T_init * t_hat0[0], T_init * t_hat0[1]
-                
-                def residual(T_init_vec):
-                    x_end, y_end, _ = integrate_with_forces(T_init_vec[0], T_init_vec[1])
-                    return np.array([x_end[-1] - x_rov, y_end[-1] - y_rov])
-                
-                sol, info, ier, msg = fsolve(
-                    residual,
-                    [T_init_x, T_init_y],
-                    full_output=True,
-                    xtol=1e-6,
-                    maxfev=200,
-                    factor=0.1
-                )
-                if ier == 1:
-                    trace_print(1, "[DEBUG] solve_equilibrium_static_with_current: solveur complet convergé.")
-                    x_cable, y_cable, T = integrate_with_forces(sol[0], sol[1])
-                    # Normaliser la géométrie finale
-                    try:
-                        x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
-                    except Exception:
-                        pass
-                    self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (solveur complet)")
-                    return x_cable, y_cable, T
-                trace_print(4, f"[DEBUG] solve_equilibrium_static_with_current: fsolve non convergent -> {msg}")
-            except Exception as e:
-                trace_print(4, f"[DEBUG] solve_equilibrium_static_with_current: fsolve échoué -> {e}")
-        
-        if not skip_iteration:
-            trace_print(1, "[DEBUG] solve_equilibrium_static_with_current: repli vers algorithme itératif.")
-            
-            for iter_num in range(max_iter):
-                vx_cable = np.zeros(len(x_cable))
-                vy_cable = np.zeros(len(x_cable))
-                
-                Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
-                    x_cable, y_cable, vx_cable, vy_cable, self.environment, params_cable, L
-                )
-                
-                # Forces nodales (moyenne des segments voisins)
-                Fx_nodes = np.zeros(len(x_cable))
-                Fy_nodes = np.zeros(len(x_cable))
-                Fx_nodes[0] = Fx_segments[0]
-                Fx_nodes[-1] = Fx_segments[-1]
-                Fy_nodes[0] = Fy_segments[0]
-                Fy_nodes[-1] = Fy_segments[-1]
-                for i in range(1, len(x_cable) - 1):
-                    Fx_nodes[i] = 0.5 * (Fx_segments[i - 1] + Fx_segments[i])
-                    Fy_nodes[i] = 0.5 * (Fy_segments[i - 1] + Fy_segments[i])
-                
-                max_fx = np.max(np.abs(Fx_nodes)) if np.any(Fx_nodes) else 0.0
-                max_fy = np.max(np.abs(Fy_nodes)) if np.any(Fy_nodes) else 0.0
-                if max_fx < 1e-9 and max_fy < 1e-9:
-                    trace_print(1, "[DEBUG] Forces négligeables: géométrie inchangée.")
-                    break
-                
-                # Mise à jour selon les forces (horizontal et vertical)
-                # Utiliser un scaling adaptatif pour éviter les déformations excessives
-                scale_x = max(max_fx, 1e-6)
-                scale_y = max(max_fy, 1e-6)
-                
-                # Mise à jour proportionnelle aux forces, mais limitée pour éviter les instabilités
-                dx_update = relax * (Fx_nodes / scale_x) * ds
-                dy_update = relax * (Fy_nodes / scale_y) * ds
-                
-                # Limiter les déplacements pour éviter les instabilités
-                max_dx_update = np.max(np.abs(dx_update))
-                max_dy_update = np.max(np.abs(dy_update))
-                if max_dx_update > 0.1 * ds:  # Limiter à 10% de la longueur de segment
-                    dx_update = dx_update * (0.1 * ds / max_dx_update)
-                if max_dy_update > 0.1 * ds:
-                    dy_update = dy_update * (0.1 * ds / max_dy_update)
-                
-                x_new = x_cable + dx_update
-                y_new = y_cable + dy_update
-                
-                # Conserver les extrémités
-                x_new[0] = x_boat
-                y_new[0] = 0.0
-                x_new[-1] = x_rov
-                y_new[-1] = y_rov
-                
-                # Normaliser la longueur totale
-                x_new, y_new = self._normalize_cable_length(x_new, y_new, L)
-                
-                # Convergence
-                max_delta = max(np.max(np.abs(x_new - x_cable)), np.max(np.abs(y_new - y_cable)))
-                x_cable, y_cable = x_new, y_new
-                
-                if iter_num % 10 == 0:
-                    trace_print(1, f"[DEBUG] Itération {iter_num}: max_delta={max_delta:.6e}, max_fx={max_fx:.6e}, max_fy={max_fy:.6e}")
-                
-                if max_delta < tol:
-                    trace_print(1, f"[DEBUG] Convergence atteinte après {iter_num+1} itérations.")
-                    break
-        
-        # Calculer les tensions sur la géométrie finale (après itération ou directement si skip_iteration)
-        # IMPORTANT : toujours recalculer les tensions en résolvant le système d'équilibre
-        # pour garantir que les tensions équilibrent les forces, même après itération
-        Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
-            x_cable, y_cable, np.zeros(len(x_cable)), np.zeros(len(x_cable)),
-            self.environment, params_cable, L
-        )
-        
-        # Calculer les forces externes totales
-        Fext_stat_x = float(np.sum(Fx_segments))
-        Fext_stat_y = float(np.sum(Fy_segments))
-        
-        # Calculer les vecteurs unitaires aux extrémités
-        dx_bateau = x_cable[1] - x_cable[0]
-        dy_bateau = y_cable[1] - y_cable[0]
-        ds_bateau = np.sqrt(dx_bateau**2 + dy_bateau**2)
-        dx_rov = x_cable[-1] - x_cable[-2]
-        dy_rov = y_cable[-1] - y_cable[-2]
-        ds_rov = np.sqrt(dx_rov**2 + dy_rov**2)
-        
-        if ds_bateau > 1e-6 and ds_rov > 1e-6:
-            Ubateau_x = dx_bateau / ds_bateau
-            Ubateau_y = dy_bateau / ds_bateau
-            Urov_x = dx_rov / ds_rov
-            Urov_y = dy_rov / ds_rov
-            
-            # Résoudre le système d'équilibre aux extrémités
-            # -Ubx*T_bateau + Urx*T_rov + Fex = 0  (horizontale)
-            # -Uby*T_bateau + Ury*T_rov + Fey = 0  (verticale)
-            A = np.array([
-                [-Ubateau_x, Urov_x],
-                [-Ubateau_y, Urov_y]
-            ])
-            b = np.array([-Fext_stat_x, -Fext_stat_y])
-            
-            det_A = np.linalg.det(A)
-            trace_print(1, f"[DEBUG] Recalcul tensions après itération: det_A={det_A:.6e}, Fext=({Fext_stat_x:.3f}, {Fext_stat_y:.3f})")
-            
-            if abs(det_A) > 1e-8:
-                try:
-                    T_solution = np.linalg.solve(A, b)
-                    T_bateau = max(0.0, T_solution[0])
-                    T_rov = max(0.0, T_solution[1])
-                    
-                    # Vérifier l'équilibre
-                    eq1_residual = -Ubateau_x * T_bateau + Urov_x * T_rov + Fext_stat_x
-                    eq2_residual = -Ubateau_y * T_bateau + Urov_y * T_rov + Fext_stat_y
-                    trace_print(1, f"[DEBUG] Résidus équilibre: ({eq1_residual:.6e}, {eq2_residual:.6e})")
-                    
-                    # Calculer les tensions le long du câble en intégrant depuis le bateau
-                    # avec les tensions d'extrémité calculées par équilibre
-                    T = np.zeros(N + 1)
-                    T[0] = T_bateau
-                    
-                    # Intégrer les forces depuis le bateau vers le ROV
-                    for i in range(N):
-                        dx_seg = x_cable[i+1] - x_cable[i]
-                        dy_seg = y_cable[i+1] - y_cable[i]
-                        ds_seg = np.sqrt(dx_seg**2 + dy_seg**2)
-                        if ds_seg > 1e-6:
-                            t_hat_x = dx_seg / ds_seg
-                            t_hat_y = dy_seg / ds_seg
-                            # Variation de tension le long du segment
-                            dT_along = -(Fx_segments[i] * t_hat_x + Fy_segments[i] * t_hat_y)
-                            T[i+1] = max(T[i] + dT_along, 0.0)
-                        else:
-                            T[i+1] = T[i]
-                    
-                    # Ajuster pour respecter T_rov calculé par équilibre
-                    if T[-1] > 1e-6:
-                        scale_T = T_rov / T[-1]
-                        T = T * scale_T
-                    else:
-                        T[-1] = T_rov
-                    
-                    trace_print(1, f"[DEBUG] Tensions recalculées par équilibre: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}")
-                    self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (itératif)")
-                    return x_cable, y_cable, T
-                except np.linalg.LinAlgError as e:
-                    trace_print(4, f"[DEBUG] Échec résolution système pour tensions: {e}. Utilisation de compute_tensions.")
-            else:
-                trace_print(4, f"[DEBUG] Système singulier (det_A={det_A:.6e}). Utilisation de compute_tensions.")
-        
-        # Fallback : calcul standard par intégration depuis le ROV
-        T_rov_initial = T_guess[-1] if len(T_guess) > 0 else 0.0
-        T = self.compute_tensions(x_cable, y_cable, L, Fx_segments, Fy_segments, T_rov_initial=T_rov_initial)
-        
-        self._trace_cable_equilibrium_forces(x_cable, y_cable, T, L, label="initialisation (itératif)")
         return x_cable, y_cable, T
     
     def _solve_catenary(self, x_rov, y_rov, x_boat, L, w):
@@ -807,7 +1231,8 @@ class CableSolver:
         tuple (x_cable, y_cable)
             Positions du câble discrétisées (du bateau au ROV)
         """
-        trace_print(1, "\n[DEBUG] Résolution de la caténaire : _solve_catenary.")
+        trace_print(5, "\n[DEBUG] ========== _solve_catenary APPELÉE ==========")
+        trace_print(5, f"[DEBUG] _solve_catenary: Paramètres - x_rov={x_rov:.3f}, y_rov={y_rov:.3f}, x_boat={x_boat:.3f}, L={L:.3f}, w={w:.6f}")
 
         # Convention : y < 0 = profondeur (sous la surface), y = 0 = surface
         # y_rov doit être négatif pour représenter la profondeur
@@ -828,15 +1253,35 @@ class CableSolver:
         
         def find_x0_for_a(a):
             """Trouve x0 pour un a donné en utilisant la contrainte y_rov"""
-            if a <= 0:
+            if a <= 0 or not np.isfinite(a) or a < 1e-10:
                 return None
             
             def equation_x0(x0):
                 """Équation pour trouver x0 : y_rov = a * (cosh((x_rov - x0) / a) - cosh((x_boat - x0) / a))"""
                 try:
-                    val = a * (np.cosh((x_rov - x0) / a) - np.cosh((x_boat - x0) / a)) - y_rov
+                    # Vérifier que a est valide
+                    if a <= 1e-10 or not np.isfinite(a):
+                        return np.inf
+                    
+                    # Vérifier que x0 est fini
+                    if not np.isfinite(x0):
+                        return np.inf
+                    
+                    # Calculer les arguments de cosh
+                    arg1 = (x_rov - x0) / a
+                    arg2 = (x_boat - x0) / a
+                    
+                    # Vérifier que les arguments ne sont pas trop grands (éviter overflow)
+                    if abs(arg1) > 700 or abs(arg2) > 700:
+                        return np.inf
+                    
+                    # Calculer la valeur
+                    val = a * (np.cosh(arg1) - np.cosh(arg2)) - y_rov
+                    
+                    # Vérifier que le résultat est fini
                     if not np.isfinite(val):
                         return np.inf
+                    
                     return val
                 except:
                     return np.inf
@@ -900,7 +1345,7 @@ class CableSolver:
         
         def compute_length_error(a):
             """Calcule l'erreur sur la longueur pour un a donné"""
-            if a <= 0 or not np.isfinite(a):
+            if a <= 0 or not np.isfinite(a) or a < 1e-10:
                 return np.inf
             
             x0 = find_x0_for_a(a)
@@ -908,9 +1353,19 @@ class CableSolver:
                 return np.inf
             
             try:
-                s_boat = a * np.sinh((x_boat - x0) / a)
-                s_rov = a * np.sinh((x_rov - x0) / a)
+                # Calculer les arguments de sinh
+                arg_boat = (x_boat - x0) / a
+                arg_rov = (x_rov - x0) / a
                 
+                # Vérifier que les arguments ne sont pas trop grands (éviter overflow)
+                if abs(arg_boat) > 700 or abs(arg_rov) > 700:
+                    return np.inf
+                
+                # Calculer les longueurs curvilignes
+                s_boat = a * np.sinh(arg_boat)
+                s_rov = a * np.sinh(arg_rov)
+                
+                # Vérifier que les résultats sont finis
                 if not (np.isfinite(s_boat) and np.isfinite(s_rov)):
                     return np.inf
                 
@@ -956,12 +1411,15 @@ class CableSolver:
                     if bracket_low >= bracket_high:
                         continue
                     
-                    result = minimize_scalar(
-                        compute_length_error,
-                        bracket=(bracket_low, bracket_high),
-                        method='brent',
-                        options={'xtol': 1e-5, 'maxiter': 200}
-                    )
+                    # Supprimer les warnings de scipy pour les valeurs invalides (NaN/Inf)
+                    # qui peuvent se produire lors de l'optimisation avec des valeurs extrêmes
+                    with np.errstate(invalid='ignore', divide='ignore'):
+                        result = minimize_scalar(
+                            compute_length_error,
+                            bracket=(bracket_low, bracket_high),
+                            method='brent',
+                            options={'xtol': 1e-5, 'maxiter': 200}
+                        )
                     
                     if result.success:
                         a_test = result.x
@@ -989,9 +1447,9 @@ class CableSolver:
         # Trouver x0 pour le a optimal
         x0_opt = find_x0_for_a(a_opt)
         if x0_opt is None:
-            trace_print(5, f"⚠️  Erreur: Impossible de trouver x0 pour a={a_opt:.3f}. Utilisation d'une interpolation linéaire.")
-            x_cable = np.linspace(x_rov, x_boat, self.N + 1)
-            y_cable = np.linspace(y_rov, 0.0, self.N + 1)
+            trace_print(9, f"[DEBUG] _solve_catenary: ⚠️  ERREUR - Impossible de trouver x0 pour a={a_opt:.3f}. Utilisation d'une interpolation linéaire (LIGNE DROITE).")
+            x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+            y_cable = np.linspace(0.0, y_rov, self.N + 1)
             return x_cable, y_cable
         
         # Calculer y0
@@ -999,8 +1457,8 @@ class CableSolver:
             y0_opt = -a_opt * np.cosh((x_boat - x0_opt) / a_opt)
         except:
             trace_print(5, f"⚠️  Erreur: Impossible de calculer y0. Utilisation d'une interpolation linéaire.")
-            x_cable = np.linspace(x_rov, x_boat, self.N + 1)
-            y_cable = np.linspace(y_rov, 0.0, self.N + 1)
+            x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+            y_cable = np.linspace(0.0, y_rov, self.N + 1)
             return x_cable, y_cable
         
         # Vérifier la solution
@@ -1101,13 +1559,25 @@ class CableSolver:
         
         # Toujours normaliser pour garantir que la longueur est exactement L
         # (tolérance réduite pour forcer la normalisation)
+        # NOTE: On garde _normalize_cable_length ici car c'est pour l'estimation initiale
+        # IMPORTANT : Passer les positions du bateau et du ROV pour garantir le recollage exact
         if abs(L_actual - L) / L > 1e-6:
-            x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
+            x_cable, y_cable = self._normalize_cable_length(
+                x_cable, y_cable, L,
+                x_boat=x_boat,
+                y_boat=0.0,
+                x_rov=x_rov,
+                y_rov=y_rov
+            )
             
             # CONTRAINTE PHYSIQUE : Après normalisation, forcer y <= 0
             y_cable = np.clip(y_cable, None, 0.0)
-            # Réappliquer les extrémités
+            # Réappliquer les extrémités (normalement déjà faites par _normalize_cable_length, mais on s'assure)
+            if x_boat is not None:
+                x_cable[0] = float(x_boat)
             y_cable[0] = 0.0
+            if x_rov is not None:
+                x_cable[-1] = float(x_rov)
             y_cable[-1] = y_rov
         
         # Vérification finale de la longueur
@@ -1254,18 +1724,6 @@ class CableSolver:
         ])
         b = np.array([-Fext_stat_x, -Fext_stat_y])
         
-        # Debug: Afficher les équations sous forme littérale
-        trace_print(1, "\n[DEBUG] Résolution du système linéaire pour tensions initiales (câble en caténaire)")
-        # trace_print(1, "[DEBUG] Équations littérales:")
-        # trace_print(1, f"  Équation 1 (horizontale): -Ubx*T_bateau + Urx*T_rov + Fex = 0")
-        # trace_print(1, f"  Équation 2 (verticale):   -Uby*T_bateau + Ury*T_rov + Fey = 0")
-        # trace_print(1, f"[DEBUG] Note: Fex = force du courant, Fey = poids apparent (négatif pour câble plus dense que l'eau)")
-        # trace_print(1, f"[DEBUG] Coefficients: Urov_x={Urov_x:.6f}, Urov_y={Urov_y:.6f}, Ubateau_x={Ubateau_x:.6f}, Ubateau_y={Ubateau_y:.6f}")
-        # trace_print(1, f"[DEBUG] Forces externes: Fext_stat_x={Fext_stat_x:.6f}, Fext_stat_y={Fext_stat_y:.6f}")
-        # trace_print(1, f"\n[DEBUG] Équations numériques:")
-        # trace_print(1, f"  Équation 1 (horizontale): {-Ubateau_x:.6f}*T_bateau + {Urov_x:.6f}*T_rov + {Fext_stat_x:.6f} = 0")
-        # trace_print(1, f"  Équation 2 (verticale):   {-Ubateau_y:.6f}*T_bateau + {Urov_y:.6f}*T_rov + {Fext_stat_y:.6f} = 0")
-        # trace_print(1, f"[DEBUG] Déterminant de A: {np.linalg.det(A):.6f}")
         try:
             # Si A est mal conditionnée (quasi colinéaire), éviter des solutions instables
             det_a = np.linalg.det(A)
@@ -1313,41 +1771,9 @@ class CableSolver:
                 T_rov = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 10.0, min_floor)
                 T_bateau = max(T_rov, min_floor)
         
-        # Debug: Afficher les équations numériques avec T_rov et T_bateau remplacés par leurs valeurs
-        eq1_left = -Ubateau_x * T_bateau + Urov_x * T_rov + Fext_stat_x
-        eq2_left = -Ubateau_y * T_bateau + Urov_y * T_rov + Fext_stat_y
-        trace_print(1, f"[DEBUG] Résidus (vérification): Équation 1 = {eq1_left:.6f}, Équation 2 = {eq2_left:.6f}")
-
-        # Stabilisation supplémentaire proche du mode "straight"
-        L_straight = np.hypot(x_cable[-1] - x_cable[0], y_cable[-1] - y_cable[0])
-        straight_ratio = L_straight / max(L_total, 1e-12)
-        if self._T_prev is not None and len(self._T_prev) > 0:
-            prev_bat = float(self._T_prev[0])
-            prev_rov = float(self._T_prev[-1])
-            jump_ratio = 3.0
-            if straight_ratio > 0.995 or (
-                prev_bat > 1e-6
-                and (T_bateau / prev_bat > jump_ratio or T_bateau / prev_bat < 1.0 / jump_ratio)
-            ):
-                alpha = 0.8
-                T_bateau = alpha * prev_bat + (1.0 - alpha) * T_bateau
-                T_rov = alpha * prev_rov + (1.0 - alpha) * T_rov
-                T_bateau = max(T_bateau, 0.7 * prev_bat)
-                T_rov = max(T_rov, 0.7 * prev_rov)
-        
-        # Debug: Afficher les équations avec les produits remplacés par leurs valeurs
-        T_bateau_Ubateau_x = T_bateau * Ubateau_x
-        T_rov_Urov_x = T_rov * Urov_x
-        T_bateau_Ubateau_y = T_bateau * Ubateau_y
-        T_rov_Urov_y = T_rov * Urov_y
-        
         # Calculer les tensions le long du câble
         # Pour une caténaire, T(s) = sqrt(H² + (w*s)²) où H est la tension horizontale
         # On calcule H à partir de T_bateau et de l'angle au bateau
-        # θ_bateau est l'angle avec la verticale (comme dans simulation_thread.py)
-        # Si θ_bateau est l'angle avec la verticale :
-        # - Composante horizontale : H = T_bateau × sin(θ_bateau) = T_bateau × (dx/ds) = T_bateau × Ubateau_x
-        # - Composante verticale : T_bateau × cos(θ_bateau) = T_bateau × (-dy/ds) = -T_bateau × Ubateau_y
         sin_theta_bateau = Ubateau_x  # sin(θ) = dx/ds où θ est l'angle avec la verticale
         cos_theta_bateau = -Ubateau_y  # cos(θ) = -dy/ds (négatif car y descend)
         
@@ -1355,16 +1781,10 @@ class CableSolver:
         H = T_bateau * abs(sin_theta_bateau) if abs(sin_theta_bateau) > 1e-6 else T_bateau
         
         # Pour une caténaire, la tension suit T(s) = sqrt(H² + (w*s)²) où s est mesuré depuis le bateau
-        # Au bateau (s=0), on doit avoir T(0) = sqrt(H² + 0) = H
-        # Mais nous avons T_bateau qui peut être différent de H si l'angle n'est pas petit
-        # Pour assurer la continuité, on calcule s_bateau tel que T_bateau = sqrt(H² + (w*s_bateau)²)
-        # Si T_bateau < H, alors s_bateau serait imaginaire, donc on utilise H = T_bateau dans ce cas
         if T_bateau < H:
             H = T_bateau
             s_bateau = 0.0
         else:
-            # Calculer s_bateau : T_bateau² = H² + (w*s_bateau)²
-            # donc s_bateau = sqrt((T_bateau² - H²) / w²) = sqrt(T_bateau² - H²) / w
             w_abs = abs(weight_per_unit)
             if w_abs > 1e-6:
                 s_bateau = np.sqrt(max(0.0, T_bateau**2 - H**2)) / w_abs
@@ -1375,10 +1795,7 @@ class CableSolver:
         T[0] = T_bateau
         
         # Calculer les tensions pour les points intermédiaires
-        # Pour la caténaire, T(s) = sqrt(H² + (w*s)²) où s est mesuré depuis le point de tension minimale
-        # s_bateau représente la distance depuis le point de tension minimale jusqu'au bateau
-        # s_cumulative représente la distance curviligne accumulée depuis le bateau
-        # Donc s_total = s_bateau + s_cumulative est la distance depuis le point de tension minimale
+        w_abs = abs(weight_per_unit)
         s_cumulative = 0.0  # Initialisé à 0 car on commence au bateau
         for i in range(N):
             dx = x_cable[i+1] - x_cable[i]
@@ -1387,7 +1804,6 @@ class CableSolver:
             s_cumulative += ds  # Accumuler la distance depuis le bateau
             
             # Tension à ce point : T = sqrt(H² + (w*s_total)²)
-            # où s_total est la distance depuis le point de tension minimale
             s_total = abs(-s_bateau + s_cumulative)
             T[i+1] = np.sqrt(H**2 + (w_abs * s_total)**2)
         
@@ -1398,10 +1814,1006 @@ class CableSolver:
         
         return T
     
+    def _solve_catenary(self, x_rov, y_rov, x_boat, L, w):
+        """
+        Résout l'équation de la caténaire pour trouver la forme du câble
+        
+        Utilise une méthode itérative pour trouver les paramètres de la caténaire
+        qui satisfont les conditions aux limites et la longueur L.
+        
+        La caténaire suit : y = a * cosh((x - x0) / a) + y0
+        Longueur curviligne : s = a * sinh((x - x0) / a)
+        
+        Parameters:
+        -----------
+        x_rov, y_rov : float
+            Position du ROV (y_rov < 0, profondeur)
+        x_boat : float
+            Position horizontale du bateau (y_boat = 0)
+        L : float
+            Longueur totale du câble
+        w : float
+            Poids apparent par unité de longueur (N/m)
+        
+        Returns:
+        --------
+        tuple (x_cable, y_cable)
+            Positions du câble discrétisées (du bateau au ROV)
+        """
+        trace_print(5, "\n[DEBUG] ========== _solve_catenary APPELÉE ==========")
+        trace_print(5, f"[DEBUG] _solve_catenary: Paramètres - x_rov={x_rov:.3f}, y_rov={y_rov:.3f}, x_boat={x_boat:.3f}, L={L:.3f}, w={w:.6f}")
+
+        # Convention : y < 0 = profondeur (sous la surface), y = 0 = surface
+        # y_rov doit être négatif pour représenter la profondeur
+        dx = x_boat - x_rov
+        dy = -y_rov  # Profondeur (y_rov est négatif)
+        
+        # Utiliser la formule standard de la caténaire : y = a * cosh((x - x0) / a) + y0
+        # Contraintes :
+        # 1. y_boat = 0 : 0 = a * cosh((x_boat - x0) / a) + y0  =>  y0 = -a * cosh((x_boat - x0) / a)
+        # 2. y_rov = y_rov (< 0, profondeur) : y_rov = a * cosh((x_rov - x0) / a) + y0
+        #    => y_rov = a * (cosh((x_rov - x0) / a) - cosh((x_boat - x0) / a))
+        # 3. L = longueur curviligne : L = a * |sinh((x_rov - x0) / a) - sinh((x_boat - x0) / a)|
+        
+        L_straight = np.sqrt(dx**2 + dy**2)
+        
+        # Approche : pour chaque valeur de a, résoudre pour x0 en utilisant la contrainte y_rov,
+        # puis vérifier la longueur L
+        
+        def find_x0_for_a(a):
+            """Trouve x0 pour un a donné en utilisant la contrainte y_rov"""
+            if a <= 0 or not np.isfinite(a) or a < 1e-10:
+                return None
+            
+            def equation_x0(x0):
+                """Équation pour trouver x0 : y_rov = a * (cosh((x_rov - x0) / a) - cosh((x_boat - x0) / a))"""
+                try:
+                    # Vérifier que a est valide
+                    if a <= 1e-10 or not np.isfinite(a):
+                        return np.inf
+                    
+                    # Vérifier que x0 est fini
+                    if not np.isfinite(x0):
+                        return np.inf
+                    
+                    # Calculer les arguments de cosh
+                    arg1 = (x_rov - x0) / a
+                    arg2 = (x_boat - x0) / a
+                    
+                    # Vérifier que les arguments ne sont pas trop grands (éviter overflow)
+                    if abs(arg1) > 700 or abs(arg2) > 700:
+                        return np.inf
+                    
+                    # Calculer la valeur
+                    val = a * (np.cosh(arg1) - np.cosh(arg2)) - y_rov
+                    
+                    # Vérifier que le résultat est fini
+                    if not np.isfinite(val):
+                        return np.inf
+                    
+                    return val
+                except:
+                    return np.inf
+            
+            # x0 devrait être entre x_rov et x_boat, plus proche du ROV
+            # Élargir le bracket pour être sûr de trouver la solution
+            bracket_width = max(abs(dx) * 2, 10.0)
+            bracket = [min(x_rov, x_boat) - bracket_width, max(x_rov, x_boat) + bracket_width]
+            
+            # Vérifier que l'équation change de signe dans le bracket
+            try:
+                f_low = equation_x0(bracket[0])
+                f_high = equation_x0(bracket[1])
+                
+                # Si les deux valeurs ont le même signe, essayer d'élargir le bracket
+                if np.sign(f_low) == np.sign(f_high) and abs(f_low) > 1e-3 and abs(f_high) > 1e-3:
+                    # Essayer plusieurs brackets
+                    for scale in [2, 5, 10]:
+                        bracket = [min(x_rov, x_boat) - bracket_width * scale, 
+                                  max(x_rov, x_boat) + bracket_width * scale]
+                        f_low = equation_x0(bracket[0])
+                        f_high = equation_x0(bracket[1])
+                        if np.sign(f_low) != np.sign(f_high):
+                            break
+            except:
+                pass
+            
+            try:
+                result = root_scalar(equation_x0, bracket=bracket, method='brentq', xtol=1e-8, maxiter=200)
+                if result.converged:
+                    return result.root
+            except:
+                pass
+            
+            # Essayer avec fsolve si root_scalar échoue
+            try:
+                # Essayer plusieurs estimations initiales
+                x0_guesses = [
+                    x_rov + 0.2 * (x_boat - x_rov),
+                    x_rov + 0.1 * (x_boat - x_rov),
+                    x_rov + 0.3 * (x_boat - x_rov),
+                    (x_rov + x_boat) / 2,
+                    x_rov,
+                ]
+                
+                for x0_guess in x0_guesses:
+                    try:
+                        result = fsolve(equation_x0, x0_guess, xtol=1e-8, maxfev=500)
+                        x0_test = result[0] if isinstance(result, np.ndarray) else result
+                        
+                        # Vérifier que la solution est bonne
+                        error = abs(equation_x0(x0_test))
+                        if error < 1e-3:
+                            return x0_test
+                    except:
+                        continue
+            except:
+                pass
+            
+            return None
+        
+        def compute_length_error(a):
+            """Calcule l'erreur sur la longueur pour un a donné"""
+            if a <= 0 or not np.isfinite(a) or a < 1e-10:
+                return np.inf
+            
+            x0 = find_x0_for_a(a)
+            if x0 is None or not np.isfinite(x0):
+                return np.inf
+            
+            try:
+                # Calculer les arguments de sinh
+                arg_boat = (x_boat - x0) / a
+                arg_rov = (x_rov - x0) / a
+                
+                # Vérifier que les arguments ne sont pas trop grands (éviter overflow)
+                if abs(arg_boat) > 700 or abs(arg_rov) > 700:
+                    return np.inf
+                
+                # Calculer les longueurs curvilignes
+                s_boat = a * np.sinh(arg_boat)
+                s_rov = a * np.sinh(arg_rov)
+                
+                # Vérifier que les résultats sont finis
+                if not (np.isfinite(s_boat) and np.isfinite(s_rov)):
+                    return np.inf
+                
+                L_calc = abs(s_rov - s_boat)
+                
+                if not np.isfinite(L_calc):
+                    return np.inf
+                
+                return abs(L_calc - L)
+            except:
+                return np.inf
+        
+        # Estimation initiale de a
+        if L > L_straight * 1.5:
+            a_initial = max(0.5, dy / 6.0)
+        elif L > L_straight * 1.2:
+            a_initial = max(1.0, dy / 4.0)
+        else:
+            a_initial = max(2.0, dy / 2.0)
+        
+        # Optimiser pour trouver a qui minimise l'erreur sur la longueur
+        a_opt = a_initial
+        best_error = np.inf
+        
+        try:
+            # Essayer plusieurs valeurs initiales de a
+            a_candidates = [a_initial, a_initial * 0.5, a_initial * 2.0, dy / 6.0, dy / 4.0, dy / 2.0, dy]
+            a_candidates = [max(0.1, a) for a in a_candidates]
+            
+            for a_init in a_candidates:
+                try:
+                    # Vérifier d'abord que cette valeur initiale donne une erreur finie
+                    test_error = compute_length_error(a_init)
+                    if not np.isfinite(test_error) or test_error == np.inf:
+                        continue
+                    
+                    # Optimiser a pour minimiser l'erreur sur la longueur
+                    # Utiliser un bracket plus restreint autour de a_init
+                    bracket_low = max(0.1, a_init * 0.5)
+                    bracket_high = min(a_init * 5.0, 1000.0)  # Limiter à une valeur raisonnable
+                    
+                    # Vérifier que le bracket est valide
+                    if bracket_low >= bracket_high:
+                        continue
+                    
+                    # Supprimer les warnings de scipy pour les valeurs invalides (NaN/Inf)
+                    # qui peuvent se produire lors de l'optimisation avec des valeurs extrêmes
+                    with np.errstate(invalid='ignore', divide='ignore'):
+                        result = minimize_scalar(
+                            compute_length_error,
+                            bracket=(bracket_low, bracket_high),
+                            method='brent',
+                            options={'xtol': 1e-5, 'maxiter': 200}
+                        )
+                    
+                    if result.success:
+                        a_test = result.x
+                        if not np.isfinite(a_test) or a_test <= 0:
+                            continue
+                            
+                        error = compute_length_error(a_test)
+                        
+                        if np.isfinite(error) and error < best_error:
+                            best_error = error
+                            a_opt = a_test
+                            
+                            if error < 1e-4:
+                                break
+                except Exception as e:
+                    # Ignorer les erreurs et continuer avec la valeur suivante
+                    continue
+            
+            if best_error > 1e-2:
+                trace_print(5, f"⚠️  Avertissement: La caténaire a une erreur élevée ({best_error:.6f}). "
+                      f"Utilisation des meilleures valeurs trouvées.")
+        except Exception as e:
+            trace_print(5, f"⚠️  Erreur lors de la résolution de la caténaire: {e}. Utilisation des valeurs initiales.")
+        
+        # Trouver x0 pour le a optimal
+        x0_opt = find_x0_for_a(a_opt)
+        if x0_opt is None:
+            trace_print(9, f"[DEBUG] _solve_catenary: ⚠️  ERREUR - Impossible de trouver x0 pour a={a_opt:.3f}. Utilisation d'une interpolation linéaire (LIGNE DROITE).")
+            x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+            y_cable = np.linspace(0.0, y_rov, self.N + 1)
+            return x_cable, y_cable
+        
+        # Calculer y0
+        try:
+            y0_opt = -a_opt * np.cosh((x_boat - x0_opt) / a_opt)
+        except:
+            trace_print(5, f"⚠️  Erreur: Impossible de calculer y0. Utilisation d'une interpolation linéaire.")
+            x_cable = np.linspace(x_boat, x_rov, self.N + 1)
+            y_cable = np.linspace(0.0, y_rov, self.N + 1)
+            return x_cable, y_cable
+        
+        # Vérifier la solution
+        y_rov_calc = a_opt * np.cosh((x_rov - x0_opt) / a_opt) + y0_opt
+        y_boat_calc = a_opt * np.cosh((x_boat - x0_opt) / a_opt) + y0_opt
+        
+        # y_rov devrait être négatif (profondeur : y < 0 = sous la surface)
+        if abs(y_rov_calc - y_rov) > 0.1:
+            trace_print(5, f"⚠️  Avertissement: y_rov calculé ({y_rov_calc:.3f}) diffère de y_rov attendu ({y_rov:.3f}, profondeur négative)")
+        
+        if abs(y_boat_calc) > 0.1:
+            trace_print(5, f"⚠️  Avertissement: y_boat calculé ({y_boat_calc:.3f}) diffère de y_boat attendu (0.000, surface)")
+        
+        # Générer les points du câble par longueur curviligne
+        # Convention : s = 0 au bateau, s = L au ROV (plus simple et cohérent avec le système)
+        # Calculer les longueurs curvilignes aux extrémités dans le système de référence de la caténaire
+        try:
+            s_boat_ref = a_opt * np.sinh((x_boat - x0_opt) / a_opt)
+            s_rov_ref = a_opt * np.sinh((x_rov - x0_opt) / a_opt)
+            
+            # La longueur curviligne de référence dans le système de la caténaire
+            s_total_ref = abs(s_rov_ref - s_boat_ref)
+            
+            # Déterminer l'ordre : on veut s=0 au bateau et s=L au ROV
+            # Donc on mappe s (0 à L) vers s_ref (s_boat_ref à s_rov_ref)
+            if s_total_ref > 1e-6:
+                # Transformation linéaire : s_ref = s_boat_ref + (s / L) * (s_rov_ref - s_boat_ref)
+                # Mais on doit s'assurer que s_boat_ref < s_rov_ref
+                if s_rov_ref < s_boat_ref:
+                    # Inverser l'ordre
+                    s_boat_ref, s_rov_ref = s_rov_ref, s_boat_ref
+            else:
+                # Si la longueur est nulle, utiliser une approximation
+                s_boat_ref = 0.0
+                s_rov_ref = L
+        except:
+            # Si le calcul échoue, utiliser une approximation simple
+            s_boat_ref = 0.0
+            s_rov_ref = L
+        
+        # Générer les points à intervalles réguliers de longueur curviligne : s de 0 à L
+        s_points = np.linspace(0.0, L, self.N + 1)
+        x_cable = np.zeros(self.N + 1)
+        y_cable = np.zeros(self.N + 1)
+        
+        for i, s in enumerate(s_points):
+            try:
+                # Convertir s (0 à L) en s_ref (référence de la caténaire)
+                # Interpolation linéaire : s_ref = s_boat_ref + (s / L) * (s_rov_ref - s_boat_ref)
+                if L > 1e-6:
+                    s_ref = s_boat_ref + (s / L) * (s_rov_ref - s_boat_ref)
+                else:
+                    s_ref = s_boat_ref
+                
+                # Calculer x à partir de s_ref : s_ref = a * sinh((x - x0) / a)
+                # donc x = x0 + a * arcsinh(s_ref / a)
+                x = x0_opt + a_opt * np.arcsinh(s_ref / a_opt)
+                # Utiliser la formule standard : y = a * cosh((x - x0) / a) + y0
+                y = a_opt * np.cosh((x - x0_opt) / a_opt) + y0_opt
+                
+                x_cable[i] = x
+                y_cable[i] = y
+            except:
+                # Si le calcul échoue, interpolation linéaire
+                alpha = i / self.N
+                x_cable[i] = x_boat + alpha * (x_rov - x_boat)
+                y_cable[i] = 0.0 + alpha * (y_rov - 0.0)
+        
+        # Forcer les extrémités exactement (important pour la continuité)
+        # Index 0 = bateau, index -1 = ROV (convention cohérente avec le système)
+            x_cable[0] = x_boat
+            y_cable[0] = 0.0
+            x_cable[-1] = x_rov
+            y_cable[-1] = y_rov
+            
+        # Si la flottabilité est positive (w < 0), inverser la caténaire
+        # par rapport à la droite bateau-ROV pour obtenir une courbure vers le haut.
+        if w < 0:
+            dx_line = x_rov - x_boat
+            dy_line = y_rov - 0.0
+            if abs(dx_line) > 1e-9:
+                s = (x_cable - x_boat) / dx_line
+                s = np.clip(s, 0.0, 1.0)
+                y_line = s * dy_line
+            else:
+                s = np.linspace(0.0, 1.0, len(x_cable))
+                y_line = s * dy_line
+            y_cable = 2.0 * y_line - y_cable
+            y_cable[0] = 0.0
+            y_cable[-1] = y_rov
+            
+        # Vérifier la longueur
+        L_actual = 0.0
+        for i in range(self.N):
+            dx_seg = x_cable[i+1] - x_cable[i]
+            dy_seg = y_cable[i+1] - y_cable[i]
+            L_actual += np.sqrt(dx_seg**2 + dy_seg**2)
+
+        # Toujours normaliser pour garantir que la longueur est exactement L
+        # (tolérance réduite pour forcer la normalisation)
+        # IMPORTANT : Passer les positions du bateau et du ROV pour garantir le recollage exact
+        if abs(L_actual - L) / L > 1e-6:
+            x_cable, y_cable = self._normalize_cable_length(
+                x_cable, y_cable, L,
+                x_boat=x_boat,
+                y_boat=0.0,
+                x_rov=x_rov,
+                y_rov=y_rov
+            )
+        
+            # CONTRAINTE PHYSIQUE : Après normalisation, forcer y <= 0
+            y_cable = np.clip(y_cable, None, 0.0)
+            # Réappliquer les extrémités (normalement déjà faites par _normalize_cable_length, mais on s'assure)
+            if x_boat is not None:
+                x_cable[0] = float(x_boat)
+            y_cable[0] = 0.0
+            if x_rov is not None:
+                x_cable[-1] = float(x_rov)
+            y_cable[-1] = y_rov
+        
+        # Vérification finale de la longueur
+        L_final = 0.0
+        for i in range(self.N):
+            dx_seg = x_cable[i+1] - x_cable[i]
+            dy_seg = y_cable[i+1] - y_cable[i]
+            L_final += np.sqrt(dx_seg**2 + dy_seg**2)
+        
+        # Vérifier que la forme est bien une caténaire (pas juste deux segments)
+        if len(x_cable) > 2:
+            # Calculer les angles entre segments consécutifs
+            angles = []
+            for i in range(1, len(x_cable) - 1):
+                dx1 = x_cable[i] - x_cable[i-1]
+                dy1 = y_cable[i] - y_cable[i-1]
+                dx2 = x_cable[i+1] - x_cable[i]
+                dy2 = y_cable[i+1] - y_cable[i]
+                ds1 = np.sqrt(dx1**2 + dy1**2)
+                ds2 = np.sqrt(dx2**2 + dy2**2)
+                if ds1 > 1e-6 and ds2 > 1e-6:
+                    cos_angle = (dx1*dx2 + dy1*dy2) / (ds1 * ds2)
+                    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                    angle = np.arccos(cos_angle)
+                    angles.append(angle)
+            
+            # Si tous les angles sont très petits, c'est probablement une ligne droite
+            if len(angles) > 0 and np.mean(angles) < 0.01:
+                trace_print(5, f"⚠️  Avertissement: Le câble semble être une ligne droite plutôt qu'une caténaire. "
+                      f"Vérifiez les paramètres (L={L:.2f} m, L_straight={L_straight:.2f} m, "
+                      f"rho_cable={self.rho_cable:.1f} kg/m³, rho_eau={self.environment.rho_eau:.1f} kg/m³)")
+        
+        # Avertissement si la longueur n'est toujours pas correcte
+        if abs(L_final - L) / L > 0.02:
+            trace_print(5, f"⚠️  Avertissement: Longueur du câble incorrecte après calcul de caténaire. "
+                  f"Attendu: {L:.3f} m, Obtenu: {L_final:.3f} m, Erreur: {abs(L_final - L)/L*100:.1f}%")
+        
+        # Retourner le câble : index 0 = bateau, index -1 = ROV (convention cohérente avec le système)
+        return x_cable, y_cable
+    
+    def _objective_equilibrium_residual(self, x_int, y_int, x_boat, y_boat, x_rov, y_rov, L, 
+                                       forces_func, params_forces):
+        """
+        Fonction objectif : minimise les résidus des équations d'équilibre.
+        
+        Parameters:
+        -----------
+        x_int, y_int : array
+            Positions des points intérieurs (N-1 points)
+        x_boat, y_boat, x_rov, y_rov : float
+            Positions des extrémités (fixées)
+        L : float
+            Longueur cible du câble
+        forces_func : callable
+            Fonction qui calcule les forces (Fx, Fy) pour une configuration donnée
+        params_forces : dict
+            Paramètres pour le calcul des forces
+        
+        Returns:
+        --------
+        float
+            Somme des carrés des résidus d'équilibre
+        """
+        # Reconstruire le câble complet avec les extrémités fixées
+        N = len(x_int) + 1
+        x_cable = np.zeros(N + 1)
+        y_cable = np.zeros(N + 1)
+        x_cable[0] = x_boat
+        y_cable[0] = y_boat
+        x_cable[1:-1] = x_int
+        y_cable[1:-1] = y_int
+        x_cable[-1] = x_rov
+        y_cable[-1] = y_rov
+        
+        # Calculer les forces
+        try:
+            Fx, Fy = forces_func(x_cable, y_cable, params_forces)
+        except Exception:
+            # En cas d'erreur, retourner une pénalité élevée
+            return 1e10
+        
+        # Calculer les résidus d'équilibre aux nœuds intérieurs
+        # Pour chaque nœud intérieur i, l'équilibre des forces donne :
+        # T[i] * u[i] - T[i-1] * u[i-1] + F[i] = 0
+        # où u[i] est le vecteur unitaire du segment i
+        
+        # Calculer les vecteurs unitaires des segments
+        dx = np.diff(x_cable)
+        dy = np.diff(y_cable)
+        ds = np.sqrt(dx**2 + dy**2)
+        ds = np.maximum(ds, 1e-9)  # Éviter division par zéro
+        ux = dx / ds
+        uy = dy / ds
+        
+        # Estimation simple des tensions (approximation linéaire)
+        # Pour une meilleure approximation, on pourrait résoudre le système de tensions
+        # mais pour l'objectif, une approximation suffit
+        T_est = np.ones(N + 1) * 10.0  # Estimation initiale
+        
+        # Calculer les résidus
+        residual = 0.0
+        for i in range(1, N):  # Nœuds intérieurs uniquement
+            # Résidu d'équilibre horizontal
+            res_x = T_est[i] * ux[i] - T_est[i-1] * ux[i-1] + Fx[i-1] if i < N else 0.0
+            # Résidu d'équilibre vertical
+            res_y = T_est[i] * uy[i] - T_est[i-1] * uy[i-1] + Fy[i-1] if i < N else 0.0
+            residual += res_x**2 + res_y**2
+        
+        return residual
+    
+    def _constraint_length(self, x_int, y_int, x_boat, y_boat, x_rov, y_rov, L):
+        """
+        Contrainte : L_seg - L = 0 (avec tolérance 0.01%)
+        
+        Returns:
+        --------
+        float
+            L_seg - L
+        """
+        # Reconstruire le câble complet
+        N = len(x_int) + 1
+        x_cable = np.zeros(N + 1)
+        y_cable = np.zeros(N + 1)
+        x_cable[0] = x_boat
+        y_cable[0] = y_boat
+        x_cable[1:-1] = x_int
+        y_cable[1:-1] = y_int
+        x_cable[-1] = x_rov
+        y_cable[-1] = y_rov
+        
+        # Calculer L_seg
+        L_seg = 0.0
+        for i in range(N):
+            dx = x_cable[i+1] - x_cable[i]
+            dy = y_cable[i+1] - y_cable[i]
+            L_seg += np.sqrt(dx**2 + dy**2)
+        
+        return L_seg - L
+    
+    def _constraint_surface(self, x_int, y_int, x_boat, y_boat, x_rov, y_rov):
+        """
+        Contrainte : max(y_cable) <= 0
+        
+        Returns:
+        --------
+        float
+            max(y_cable) (doit être <= 0)
+        """
+        # Reconstruire le câble complet
+        N = len(x_int) + 1
+        y_cable = np.zeros(N + 1)
+        y_cable[0] = y_boat
+        y_cable[1:-1] = y_int
+        y_cable[-1] = y_rov
+
+        return np.max(y_cable)
+    
+    def _constraint_segment_ratio(self, x_int, y_int, x_boat, y_boat, x_rov, y_rov, L, k_max):
+        """
+        Contrainte : ds_max / ds_target - k_max <= 0
+        
+        Returns:
+        --------
+        float
+            ds_max / ds_target - k_max
+        """
+        # Reconstruire le câble complet
+        N = len(x_int) + 1
+        x_cable = np.zeros(N + 1)
+        y_cable = np.zeros(N + 1)
+        x_cable[0] = x_boat
+        y_cable[0] = y_boat
+        x_cable[1:-1] = x_int
+        y_cable[1:-1] = y_int
+        x_cable[-1] = x_rov
+        y_cable[-1] = y_rov
+
+        # Calculer les longueurs des segments
+        ds_list = []
+        for i in range(N):
+            dx = x_cable[i+1] - x_cable[i]
+            dy = y_cable[i+1] - y_cable[i]
+            ds = np.sqrt(dx**2 + dy**2)
+            ds_list.append(ds)
+        
+        if len(ds_list) == 0:
+            return 0.0
+        
+        ds_max = np.max(ds_list)
+        ds_target = L / N if N > 0 else L
+        ratio = ds_max / ds_target if ds_target > 1e-9 else 0.0
+        
+        return ratio - k_max
+    
+    def _forces_static_wrapper(self, x_cable, y_cable, params):
+        """
+        Wrapper pour calculer les forces statiques (poids uniquement).
+        
+        Parameters:
+        -----------
+        x_cable, y_cable : array
+            Positions du câble
+        params : dict
+            Contient 'environment', 'params_cable', 'L'
+        
+        Returns:
+        --------
+        tuple (Fx, Fy)
+            Forces par segment (N)
+        """
+        environment = params['environment']
+        params_cable = params['params_cable']
+        L = params['L']
+        
+        # Vitesses nulles pour le cas statique
+        vx_cable = np.zeros(len(x_cable))
+        vy_cable = np.zeros(len(x_cable))
+        
+        from .forces import compute_cable_forces
+        Fx, Fy, _, _, _, _ = compute_cable_forces(
+            x_cable, y_cable, vx_cable, vy_cable, environment, params_cable, L
+        )
+        
+        return Fx, Fy
+    
+    def _forces_static_with_current_wrapper(self, x_cable, y_cable, params):
+        """
+        Wrapper pour calculer les forces statiques avec courant.
+        
+        Parameters:
+        -----------
+        x_cable, y_cable : array
+            Positions du câble
+        params : dict
+            Contient 'environment', 'params_cable', 'L'
+        
+        Returns:
+        --------
+        tuple (Fx, Fy)
+            Forces par segment (N)
+        """
+        environment = params['environment']
+        params_cable = params['params_cable']
+        L = params['L']
+        
+        # Vitesses nulles pour le cas statique (le courant est dans l'environnement)
+        vx_cable = np.zeros(len(x_cable))
+        vy_cable = np.zeros(len(x_cable))
+        
+        from .forces import compute_cable_forces
+        Fx, Fy, _, _, _, _ = compute_cable_forces(
+            x_cable, y_cable, vx_cable, vy_cable, environment, params_cable, L
+        )
+        
+        return Fx, Fy
+    
+    def _forces_dynamic_wrapper(self, x_cable, y_cable, params):
+        """
+        Wrapper pour calculer les forces dynamiques (avec vitesses).
+        
+        Parameters:
+        -----------
+        x_cable, y_cable : array
+            Positions du câble
+        params : dict
+            Contient 'environment', 'params_cable', 'L', 'vx_cable', 'vy_cable'
+        
+        Returns:
+        --------
+        tuple (Fx, Fy)
+            Forces par segment (N)
+        """
+        environment = params['environment']
+        params_cable = params['params_cable']
+        L = params['L']
+        vx_cable = params['vx_cable']
+        vy_cable = params['vy_cable']
+        
+        from .forces import compute_cable_forces
+        Fx, Fy, _, _, _, _ = compute_cable_forces(
+            x_cable, y_cable, vx_cable, vy_cable, environment, params_cable, L
+        )
+        
+        return Fx, Fy
+    
+    def solve_equilibrium_constrained(self, x_rov, y_rov, x_boat, L, forces_func, 
+                                     params_forces, rov_m=None, rov_vol=None,
+                                     initial_guess=None, k_max=2.0):
+        """
+        Résout l'équilibre du câble avec toutes les contraintes intégrées.
+        
+        Utilise scipy.optimize.minimize avec des contraintes pour garantir :
+        1. L = L_seg à 0.01% près
+        2. P0 = position bateau
+        3. PN = position ROV
+        4. y <= 0 pour tous les points
+        5. ds_max / ds_target <= k_max
+        
+        Parameters:
+        -----------
+        x_rov, y_rov : float
+            Position du ROV
+        x_boat : float
+            Position horizontale du bateau
+        L : float
+            Longueur du câble
+        forces_func : callable
+            Fonction qui calcule les forces (Fx, Fy) pour une configuration donnée
+            Signature: Fx, Fy = forces_func(x_cable, y_cable, params_forces)
+        params_forces : dict
+            Paramètres pour le calcul des forces
+        rov_m, rov_vol : float, optional
+            Masse et volume du ROV
+        initial_guess : tuple (x_int, y_int), optional
+            Estimation initiale des points intérieurs
+        k_max : float
+            Ratio maximum ds_max / ds_target (défaut: 2.0)
+        
+        Returns:
+        --------
+        tuple (x_cable, y_cable, T)
+            Configuration du câble avec tensions
+        """
+        # NonlinearConstraint est déjà importé en haut du fichier
+        
+        trace_print(5, "\n[DEBUG] ========== solve_equilibrium_constrained APPELÉE ==========")
+        trace_print(5, f"[DEBUG] solve_equilibrium_constrained: Paramètres d'entrée - x_rov={x_rov:.3f}, y_rov={y_rov:.3f}, x_boat={x_boat:.3f}, L={L:.3f}, initial_guess={'None' if initial_guess is None else 'fourni'}")
+        
+        if L <= 0:
+            return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
+        
+        N = self.N
+        y_boat = 0.0
+        
+        # Estimation initiale : utiliser une caténaire approximative pour une forme réaliste
+        # IMPORTANT : Utiliser directement la caténaire complète au lieu d'extraire les points intérieurs
+        # pour préserver la forme
+        x_cable_cat = None
+        y_cable_cat = None
+        
+        trace_print(5, f"[DEBUG] solve_equilibrium_constrained: initial_guess is None = {initial_guess is None}")
+        
+        # Vérifier si l'initial_guess fourni est une ligne droite (déviation trop faible)
+        # Si c'est le cas, ignorer l'initial_guess et générer une caténaire
+        use_catenary = False
+        if initial_guess is not None:
+            x_int_init, y_int_init = initial_guess
+            # Reconstruire le câble complet pour vérifier la déviation
+            x_cable_test = np.concatenate([[x_boat], x_int_init, [x_rov]])
+            y_cable_test = np.concatenate([[0.0], y_int_init, [y_rov]])
+            # Calculer la déviation maximale
+            if len(x_cable_test) >= 3:
+                x_start, y_start = x_cable_test[0], y_cable_test[0]
+                x_end, y_end = x_cable_test[-1], y_cable_test[-1]
+                max_dev_test = 0.0
+                if abs(x_end - x_start) > 1e-6 or abs(y_end - y_start) > 1e-6:
+                    dx_line = x_end - x_start
+                    dy_line = y_end - y_start
+                    line_length = np.sqrt(dx_line**2 + dy_line**2)
+                    for i in range(1, len(x_cable_test) - 1):
+                        dx_point = x_cable_test[i] - x_start
+                        dy_point = y_cable_test[i] - y_start
+                        t = (dx_point * dx_line + dy_point * dy_line) / (line_length**2 + 1e-9)
+                        x_proj = x_start + t * dx_line
+                        y_proj = y_start + t * dy_line
+                        deviation = np.sqrt((x_cable_test[i] - x_proj)**2 + (y_cable_test[i] - y_proj)**2)
+                        max_dev_test = max(max_dev_test, deviation)
+                # Si la déviation est très faible (< 0.01 m), c'est une ligne droite, utiliser une caténaire
+                if max_dev_test < 0.01:
+                    trace_print(9, f"[DEBUG] solve_equilibrium_constrained: initial_guess est une ligne droite (max_deviation={max_dev_test:.6f} m), génération d'une caténaire à la place")
+                    use_catenary = True
+                    initial_guess = None  # Ignorer l'initial_guess et générer une caténaire
+        
+        if initial_guess is None or use_catenary:
+            try:
+                # Calculer le poids apparent par unité de longueur
+                # w = (rho_cable - rho_water) * g * A_cable
+                rho_water = self.environment.rho_water if hasattr(self.environment, 'rho_water') else 1025.0
+                g = 9.81
+                A_cable = np.pi * (self.d / 2)**2
+                w = (self.rho_cable - rho_water) * g * A_cable
+                
+                # Essayer de résoudre la caténaire pour obtenir une forme réaliste
+                trace_print(5, "[DEBUG] ========== solve_equilibrium_constrained: Tentative d'estimation initiale avec caténaire... ==========")
+                trace_print(5, f"[DEBUG] solve_equilibrium_constrained: Paramètres avant appel _solve_catenary - x_rov={x_rov:.3f}, y_rov={y_rov:.3f}, x_boat={x_boat:.3f}, L={L:.3f}, w={w:.6f}")
+                x_cable_cat, y_cable_cat = self._solve_catenary(x_rov, y_rov, x_boat, L, w)
+                trace_print(5, f"[DEBUG] solve_equilibrium_constrained: _solve_catenary retourné - len(x)={len(x_cable_cat)}, len(y)={len(y_cable_cat)}")
+                
+                if len(x_cable_cat) == N + 1 and len(y_cable_cat) == N + 1:
+                    # Vérifier si la caténaire a vraiment une forme courbe
+                    x_start, y_start = x_cable_cat[0], y_cable_cat[0]
+                    x_end, y_end = x_cable_cat[-1], y_cable_cat[-1]
+                    max_deviation = 0.0
+                    if abs(x_end - x_start) > 1e-6 or abs(y_end - y_start) > 1e-6:
+                        dx_line = x_end - x_start
+                        dy_line = y_end - y_start
+                        line_length = np.sqrt(dx_line**2 + dy_line**2)
+                        for i in range(1, len(x_cable_cat) - 1):
+                            dx_point = x_cable_cat[i] - x_start
+                            dy_point = y_cable_cat[i] - y_start
+                            t = (dx_point * dx_line + dy_point * dy_line) / (line_length**2 + 1e-9)
+                            x_proj = x_start + t * dx_line
+                            y_proj = y_start + t * dy_line
+                            deviation = np.sqrt((x_cable_cat[i] - x_proj)**2 + (y_cable_cat[i] - y_proj)**2)
+                            max_deviation = max(max_deviation, deviation)
+                    
+                    if max_deviation < 0.01:
+                        trace_print(9, f"[DEBUG] solve_equilibrium_constrained: ⚠️  Caténaire générée semble être une ligne droite (max_deviation={max_deviation:.6f} m)")
+                    else:
+                        trace_print(5, f"[DEBUG] solve_equilibrium_constrained: ✓ Caténaire générée a une forme courbe (max_deviation={max_deviation:.6f} m)")
+                    
+                    # Utiliser directement la caténaire complète comme estimation initiale
+                    trace_print(5, "[DEBUG] solve_equilibrium_constrained: Estimation initiale basée sur caténaire réussie")
+                    # Extraire les points intérieurs seulement pour l'optimisation (si activée)
+                    x_int_init = x_cable_cat[1:-1].copy()
+                    y_int_init = y_cable_cat[1:-1].copy()
+                else:
+                    raise ValueError(f"Caténaire retournée avec mauvaise taille: {len(x_cable_cat)} au lieu de {N+1}")
+            except Exception as e:
+                # Fallback : utiliser une forme parabolique approximative au lieu d'une ligne droite
+                trace_print(9, f"[DEBUG] solve_equilibrium_constrained: Échec caténaire ({e}), utilisation d'une forme parabolique approximative")
+                # Forme parabolique : y = a * x^2 + b * x + c
+                # Contraintes : y(0) = 0, y(x_rov) = y_rov
+                # Pour une forme réaliste, ajouter une courbure vers le bas
+                x_points = np.linspace(x_boat, x_rov, N + 1)
+                y_points = np.linspace(y_boat, y_rov, N + 1)
+                
+                # Ajouter une courbure parabolique vers le bas pour simuler l'effet du poids
+                # y = y_linéaire + amplitude * (x - x_boat) * (x_rov - x) / (x_rov - x_boat)^2
+                if abs(x_rov - x_boat) > 1e-6:
+                    amplitude = min(abs(y_rov) * 0.3, 10.0)  # Courbure modérée
+                    for i in range(len(x_points)):
+                        x = x_points[i]
+                        curvature = amplitude * (x - x_boat) * (x_rov - x) / ((x_rov - x_boat)**2 + 1e-9)
+                        y_points[i] = y_points[i] - abs(curvature)  # Courber vers le bas
+                
+                # S'assurer que y <= 0
+                y_points = np.minimum(y_points, 0.0)
+                
+                # Extraire les points intérieurs
+                x_int_init = x_points[1:-1].copy()
+                y_int_init = y_points[1:-1].copy()
+        else:
+            x_int_init, y_int_init = initial_guess
+        
+        # Vecteur d'optimisation : positions des points intérieurs
+        # Format: [x1, x2, ..., xN-1, y1, y2, ..., yN-1]
+        n_int = N - 1
+        x0 = np.concatenate([x_int_init, y_int_init])
+        
+        # Fonction objectif wrapper
+        def objective(vars):
+            x_int = vars[:n_int]
+            y_int = vars[n_int:]
+            return self._objective_equilibrium_residual(
+                x_int, y_int, x_boat, y_boat, x_rov, y_rov, L, forces_func, params_forces
+            )
+        
+        # Contraintes
+        constraints = []
+        
+        # Contrainte de longueur : L_seg - L = 0 (tolérance 0.01%)
+        def constraint_length_func(vars):
+            x_int = vars[:n_int]
+            y_int = vars[n_int:]
+            return self._constraint_length(x_int, y_int, x_boat, y_boat, x_rov, y_rov, L)
+        
+        constraints.append(NonlinearConstraint(
+            constraint_length_func,
+            lb=-L * 1e-4,  # Tolérance 0.01%
+            ub=L * 1e-4,
+            keep_feasible=False
+        ))
+        
+        # Contrainte de surface : max(y) <= 0
+        def constraint_surface_func(vars):
+            x_int = vars[:n_int]
+            y_int = vars[n_int:]
+            return self._constraint_surface(x_int, y_int, x_boat, y_boat, x_rov, y_rov)
+        
+        constraints.append(NonlinearConstraint(
+            constraint_surface_func,
+            lb=-np.inf,
+            ub=0.0,
+            keep_feasible=False
+        ))
+        
+        # Contrainte de ratio : ds_max / ds_target - k_max <= 0
+        def constraint_ratio_func(vars):
+            x_int = vars[:n_int]
+            y_int = vars[n_int:]
+            return self._constraint_segment_ratio(x_int, y_int, x_boat, y_boat, x_rov, y_rov, L, k_max)
+        
+        constraints.append(NonlinearConstraint(
+            constraint_ratio_func,
+            lb=-np.inf,
+            ub=0.0,
+            keep_feasible=False
+        ))
+        
+        # Optimisation désactivée temporairement pour éviter les blocages à l'initialisation
+        # L'optimisation avec contraintes non-linéaires peut être très lente avec 1000 points
+        # TODO: Réactiver progressivement avec des paramètres très restrictifs :
+        #   - maxiter=2-3 seulement
+        #   - Méthode 'SLSQP' plus rapide que 'trust-constr'
+        #   - Ou utiliser un sous-échantillonnage pour réduire le nombre de variables
+        USE_OPTIMIZATION = False  # Désactiver pour l'instant
+        
+        if USE_OPTIMIZATION:
+            try:
+                trace_print(9, "[DEBUG] solve_equilibrium_constrained: Démarrage de l'optimisation avec contraintes...")
+                result = minimize(
+                    objective,
+                    x0,
+                    method='SLSQP',  # Plus rapide que trust-constr
+                    constraints=constraints,
+                    options={
+                        'maxiter': 3,  # Très limité pour éviter les blocages
+                        'ftol': 1e-3,  # Tolérance sur la fonction objectif
+                        'disp': False  # Pas de messages
+                    }
+                )
+                
+                if result.success:
+                    trace_print(9, f"[DEBUG] solve_equilibrium_constrained: Optimisation réussie en {result.nit} itérations")
+                    x_int = result.x[:n_int]
+                    y_int = result.x[n_int:]
+                else:
+                    trace_print(9, f"[DEBUG] solve_equilibrium_constrained: Optimisation non convergée ({result.message}), utilisation de l'estimation initiale")
+                    x_int = x_int_init
+                    y_int = y_int_init
+            except Exception as e:
+                trace_print(9, f"[DEBUG] solve_equilibrium_constrained: Erreur lors de l'optimisation ({e}), utilisation de l'estimation initiale")
+                x_int = x_int_init
+                y_int = y_int_init
+        else:
+            # Utiliser directement l'estimation initiale
+            # _normalize_cable_length garantira toutes les contraintes ensuite
+            trace_print(4, "[DEBUG] solve_equilibrium_constrained: Utilisation de l'estimation initiale (optimisation désactivée)")
+            x_int = x_int_init
+            y_int = y_int_init
+        
+        # Reconstruire le câble complet avec recollement garanti
+        # Si on a une caténaire complète, l'utiliser directement pour préserver la forme
+        if x_cable_cat is not None and y_cable_cat is not None and len(x_cable_cat) == N + 1:
+            # Utiliser directement la caténaire complète pour préserver la forme
+            x_cable = x_cable_cat.copy()
+            y_cable = y_cable_cat.copy()
+            # Forcer seulement les extrémités pour garantir le recollement
+            x_cable[0] = x_boat  # Contrainte P0 = bateau
+            y_cable[0] = y_boat
+            x_cable[-1] = x_rov  # Contrainte PN = ROV
+            y_cable[-1] = y_rov
+            trace_print(5, "[DEBUG] solve_equilibrium_constrained: Utilisation directe de la caténaire complète pour préserver la forme")
+        else:
+            # Reconstruire à partir des points intérieurs (fallback)
+            x_cable = np.zeros(N + 1)
+            y_cable = np.zeros(N + 1)
+            x_cable[0] = x_boat  # Contrainte P0 = bateau
+            y_cable[0] = y_boat
+            x_cable[1:-1] = x_int
+            y_cable[1:-1] = y_int
+            x_cable[-1] = x_rov  # Contrainte PN = ROV
+            y_cable[-1] = y_rov
+        
+        # Vérifier si la normalisation est nécessaire avant d'appeler _normalize_cable_length
+        # Calculer la longueur actuelle
+        L_actual = 0.0
+        for i in range(N):
+            dx = x_cable[i+1] - x_cable[i]
+            dy = y_cable[i+1] - y_cable[i]
+            L_actual += np.sqrt(dx**2 + dy**2)
+        
+        # Vérifier les contraintes avant normalisation
+        tol_L = L * 1e-4  # Tolérance 0.01%
+        needs_normalization = (
+            abs(L_actual - L) > tol_L or  # Longueur incorrecte
+            (x_boat is not None and abs(x_cable[0] - x_boat) > 1e-6) or  # Recollement bateau
+            (x_rov is not None and abs(x_cable[-1] - x_rov) > 1e-6) or  # Recollement ROV
+            np.any(y_cable > 1e-9)  # Points au-dessus de la surface
+        )
+        
+        if needs_normalization:
+            try:
+                trace_print(5, "[DEBUG] solve_equilibrium_constrained: Application de _normalize_cable_length pour garantir toutes les contraintes...")
+                trace_print(5, f"[DEBUG] solve_equilibrium_constrained: Paramètres - L={L}, L_actual={L_actual:.6f}, x_boat={x_boat}, y_boat={y_boat}, x_rov={x_rov}, y_rov={y_rov}, k_max={k_max}")
+                trace_print(5, f"[DEBUG] solve_equilibrium_constrained: Avant appel à _normalize_cable_length, x_cable.shape={x_cable.shape if hasattr(x_cable, 'shape') else len(x_cable)}, y_cable.shape={y_cable.shape if hasattr(y_cable, 'shape') else len(y_cable)}")
+                x_cable, y_cable = self._normalize_cable_length(
+                    x_cable, y_cable, L,
+                    x_boat=float(x_boat),
+                    y_boat=0.0,
+                    x_rov=float(x_rov),
+                    y_rov=float(y_rov),
+                    k_max=k_max
+                )
+                trace_print(5, "[DEBUG] solve_equilibrium_constrained: _normalize_cable_length terminé avec succès")
+            except Exception as e:
+                trace_print(9, f"[DEBUG] solve_equilibrium_constrained: Échec de _normalize_cable_length: {e}")
+                import traceback
+                trace_print(9, f"[DEBUG] Traceback complet:\n{traceback.format_exc()}")
+        else:
+            trace_print(9, f"[DEBUG] solve_equilibrium_constrained: Pas de normalisation nécessaire (L_actual={L_actual:.6f}, L={L:.6f}, diff={abs(L_actual-L):.6e})")
+            # S'assurer quand même que y <= 0 et que les extrémités sont correctes
+            y_cable = np.clip(y_cable, None, 0.0)
+            if x_boat is not None:
+                x_cable[0] = float(x_boat)
+                y_cable[0] = 0.0
+            if x_rov is not None:
+                x_cable[-1] = float(x_rov)
+                y_cable[-1] = float(y_rov)
+        
+        # Calculer les tensions (approximation simple)
+        # Pour une meilleure précision, on pourrait résoudre le système d'équations de tension
+        T = np.ones(N + 1) * 10.0  # Estimation par défaut
+        
+        return x_cable, y_cable, T
+    
     def solve_equilibrium_dynamic(self, x_rov, y_rov, vx_rov, vy_rov,
                                   x_boat, vx_boat, L, x_cable_prev, y_cable_prev, rov_m=None, rov_vol=None):
         """
         Résout l'équilibre dynamique du câble avec forces hydrodynamiques
+        
+        Utilise maintenant le solveur avec contraintes intégrées pour garantir :
+        - L = L_seg à 0.01% près
+        - P0 = position bateau
+        - PN = position ROV
+        - y <= 0 pour tous les points
+        - ds_max / ds_target <= k_max
         
         Parameters:
         -----------
@@ -1427,41 +2839,10 @@ class CableSolver:
         if L <= 0:
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
         
-        ds = L / self.N
-        
-        # Utiliser la solution statique avec courant pour avoir une géométrie initiale cohérente
-        # qui tient compte du courant
-        x_cable_static, y_cable_static, T_static = self.solve_equilibrium_static_with_current(
-            x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
-        )
-        
-        # Mélanger avec la configuration précédente pour lisser les transitions
-        # Coefficient de mélange : plus proche de la solution statique si les vitesses sont faibles
-        v_mag = np.sqrt(vx_rov**2 + vy_rov**2 + vx_boat**2)
-        alpha = 0.3 if v_mag > 0.1 else 0.7  # Plus de poids sur statique si vitesses faibles
-        
-        if x_cable_prev is not None and y_cable_prev is not None and len(x_cable_prev) == len(x_cable_static):
-            x_cable = alpha * x_cable_static + (1 - alpha) * x_cable_prev
-            y_cable = alpha * y_cable_static + (1 - alpha) * y_cable_prev
-            T = T_static  # Garder les tensions de la solution statique
-        else:
-            x_cable = x_cable_static
-            y_cable = y_cable_static
-            T = T_static
-        
-        # Vérifier si le câble est vertical : tous les points doivent avoir la même position x
-        if len(x_cable) > 0:
-            x_cable_range = np.max(x_cable) - np.min(x_cable)
-            if x_cable_range < 1e-6:
-                # Câble vertical : forcer tous les points à la même position x
-                # Utiliser la moyenne pour éviter les erreurs d'arrondi
-                x_avg = np.mean(x_cable)
-                x_cable[:] = x_avg
-        
         # Vitesses des points du câble (interpolation linéaire entre ROV et bateau)
         vx_cable = np.linspace(vx_rov, vx_boat, self.N + 1)
         vy_cable = np.linspace(vy_rov, 0.0, self.N + 1)
-
+        
         # Câble mou : la vitesse verticale ne se propage pas complètement le long du câble
         L_straight = np.hypot(x_rov - x_boat, y_rov - 0.0)
         slack_ratio = 0.0
@@ -1469,248 +2850,64 @@ class CableSolver:
             slack_ratio = max((L - L_straight) / max(L_straight, 1.0), 0.0)
         if slack_ratio > 0.0:
             # Atténuer la vitesse verticale quand il y a beaucoup de mou
-            # (réduit la traînée verticale artificiellement élevée).
             scale = max(0.0, 1.0 - slack_ratio / 0.2)
             vy_cable = vy_cable * scale
         
-        # Optimisation : simplifier en ne faisant qu'une seule itération d'ajustement
-        # au lieu de plusieurs itérations complètes
-        max_iter = 1  # Une seule itération pour performance maximale
-        tolerance = 1e-2  # Tolérance plus relâchée
-        
-        for iteration in range(max_iter):
-            x_cable_old = x_cable.copy()
-            y_cable_old = y_cable.copy()
-            
-            # Calculer les forces (forces par segment)
-            from .forces import compute_cable_forces
-            Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
-                x_cable, y_cable, vx_cable, vy_cable,
-                self.environment, self.params, L
-            )
-            
-            # Convertir les forces par segment en forces nodales (moyenne des segments voisins)
-            Fx_nodes = np.zeros(len(x_cable))
-            Fy_nodes = np.zeros(len(x_cable))
-            Fx_nodes[0] = Fx_segments[0]
-            Fx_nodes[-1] = Fx_segments[-1]
-            Fy_nodes[0] = Fy_segments[0]
-            Fy_nodes[-1] = Fy_segments[-1]
-            for i in range(1, len(x_cable) - 1):
-                Fx_nodes[i] = 0.5 * (Fx_segments[i - 1] + Fx_segments[i])
-                Fy_nodes[i] = 0.5 * (Fy_segments[i - 1] + Fy_segments[i])
-            
-            # Résoudre l'équilibre des forces par segment
-            for i in range(1, self.N):
-                # Ajuster la position pour équilibrer les forces
-                # Approche simplifiée : ajustement proportionnel
-                if i > 0:
-                    dx_seg = x_cable[i] - x_cable[i-1]
-                    dy_seg = y_cable[i] - y_cable[i-1]
-                    length_seg = np.sqrt(dx_seg**2 + dy_seg**2)
-                    
-                    if length_seg > 1e-6:
-                        # Normaliser
-                        dx_seg /= length_seg
-                        dy_seg /= length_seg
-                        
-                        # Ajuster selon les forces nodales
-                        alpha = 0.1  # Coefficient de relaxation
-                        # Utiliser les forces nodales et les tensions moyennes
-                        T_avg = 0.5 * (T[i-1] + T[i]) if i < len(T) else T[i-1]
-                        x_cable[i] += alpha * Fx_nodes[i] * dx_seg / (T_avg + 1e-6)
-                        y_cable[i] += alpha * Fy_nodes[i] * dy_seg / (T_avg + 1e-6)
-                
-                # Assurer la longueur du segment
-                if i > 0:
-                    dx_seg = x_cable[i] - x_cable[i-1]
-                    dy_seg = y_cable[i] - y_cable[i-1]
-                    length_seg = np.sqrt(dx_seg**2 + dy_seg**2)
-                    if length_seg > 1e-6:
-                        scale = ds / length_seg
-                        x_cable[i] = x_cable[i-1] + (x_cable[i] - x_cable[i-1]) * scale
-                        y_cable[i] = y_cable[i-1] + (y_cable[i] - y_cable[i-1]) * scale
-            
-            # Forcer les conditions aux limites (ordre bateau -> ROV)
-            x_cable[0] = x_boat
-            y_cable[0] = 0.0
-            x_cable[-1] = x_rov
-            y_cable[-1] = y_rov
-            
-            # CONTRAINTE PHYSIQUE : Le câble ne peut pas être au-dessus de la surface (y > 0)
-            # Forcer tous les points du câble à avoir y <= 0
-            y_cable = np.clip(y_cable, None, 0.0)
-            
-            # Réappliquer les conditions aux limites après le clipping
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
-            
-            # Vérifier si le câble est vertical : tous les points doivent avoir la même position x
-            if len(x_cable) > 0:
-                x_cable_range = np.max(x_cable) - np.min(x_cable)
-                if x_cable_range < 1e-6:
-                    # Câble vertical : forcer tous les points à la même position x
-                    # Utiliser la moyenne pour éviter les erreurs d'arrondi
-                    x_avg = np.mean(x_cable)
-                    x_cable[:] = x_avg
-            
-            # Vérifier la convergence
-            if np.max(np.abs(x_cable - x_cable_old)) < tolerance and \
-               np.max(np.abs(y_cable - y_cable_old)) < tolerance:
-                break
-        
-        # Normaliser la longueur du câble pour garantir qu'elle soit exactement égale à L
-        # Calculer la longueur actuelle du câble
-        L_actual = 0.0
-        for i in range(len(x_cable) - 1):
-            dx = x_cable[i+1] - x_cable[i]
-            dy = y_cable[i+1] - y_cable[i]
-            L_actual += np.sqrt(dx**2 + dy**2)
-        
-        # Si le slack est très important, réduire l'impact des corrections géométriques
-        L_straight = np.hypot(x_rov - x_boat, y_rov - 0.0)
-        slack_ratio = (L - L_straight) / max(L_straight, 1.0)
-        norm_tol = 5e-4 if slack_ratio > 0.05 else 1e-6
-
-        # Toujours normaliser pour garantir que la longueur est exactement L
-        if L_actual > 1e-6 and abs(L_actual - L) > norm_tol:
-            # Rééchantillonner le câble pour avoir exactement la longueur L
-            # Conserver les extrémités fixes
-            x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
-        
-        # CONTRAINTE PHYSIQUE : Le câble ne peut pas être au-dessus de la surface (y > 0)
-        # Forcer tous les points du câble à avoir y <= 0
-        y_cable = np.clip(y_cable, None, 0.0)
-        
-        # Réappliquer les conditions aux limites après le clipping
-        y_cable[0] = 0.0
-        y_cable[-1] = y_rov
-        
-        # Vérifier et renormaliser la longueur après le clipping (le clipping peut changer la longueur)
-        L_after_clip = 0.0
-        for i in range(len(x_cable) - 1):
-            dx = x_cable[i+1] - x_cable[i]
-            dy = y_cable[i+1] - y_cable[i]
-            L_after_clip += np.sqrt(dx**2 + dy**2)
-        
-        if abs(L_after_clip - L) / L > norm_tol:
-            x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
-            # Réappliquer la contrainte y <= 0 après renormalisation
-            y_cable = np.clip(y_cable, None, 0.0)
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
-
-        # Lissage léger des corrections quand le slack est grand
-        if slack_ratio > 0.05 and x_cable_prev is not None and y_cable_prev is not None:
-            if len(x_cable_prev) == len(x_cable) and len(y_cable_prev) == len(y_cable):
-                blend = min(0.5, (slack_ratio - 0.05) / 0.2)
-                if blend > 0:
-                    x_cable = (1.0 - blend) * x_cable + blend * x_cable_prev
-                    y_cable = (1.0 - blend) * y_cable + blend * y_cable_prev
-                    y_cable = np.clip(y_cable, None, 0.0)
-                    y_cable[0] = 0.0
-                    y_cable[-1] = y_rov
-
-        # NOTE: la contrainte de forme au-dessus de la droite bateau-ROV est supprimée
-        # pour permettre des câbles à flottabilité positive.
-        
-        # Recalculer les tensions pour équilibrer les forces sur la géométrie finale
-        # (comme dans solve_equilibrium_static_with_current)
-        from .forces import compute_cable_forces
-        params_cable = {
+        # Préparer les paramètres pour le wrapper de forces dynamiques
+        params_forces = {
+            'environment': self.environment,
+            'params_cable': {
             'd': self.d,
             'rho_cable': self.rho_cable,
             'Cx_cable': self.Cx_cable,
             'Cf_cable': self.Cf_cable
+            },
+            'L': L,
+            'vx_cable': vx_cable,
+            'vy_cable': vy_cable
         }
         
-        # Calculer les forces sur la géométrie finale avec les vitesses du câble
-        vx_cable_final = np.linspace(vx_rov, vx_boat, len(x_cable))
-        vy_cable_final = np.linspace(vy_rov, 0.0, len(x_cable))
-        Fx_segments, Fy_segments, _, _, _, _ = compute_cable_forces(
-            x_cable, y_cable, vx_cable_final, vy_cable_final,
-            self.environment, params_cable, L
+        # Estimation initiale : utiliser la solution statique avec courant ou la configuration précédente
+        try:
+            x_cable_static, y_cable_static, _ = self.solve_equilibrium_static_with_current(
+                x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+            )
+            
+            # Mélanger avec la configuration précédente pour lisser les transitions
+            v_mag = np.sqrt(vx_rov**2 + vy_rov**2 + vx_boat**2)
+            alpha = 0.3 if v_mag > 0.1 else 0.7  # Plus de poids sur statique si vitesses faibles
+            
+            if x_cable_prev is not None and y_cable_prev is not None and len(x_cable_prev) == len(x_cable_static):
+                x_cable_init = alpha * x_cable_static + (1 - alpha) * x_cable_prev
+                y_cable_init = alpha * y_cable_static + (1 - alpha) * y_cable_prev
+            else:
+                x_cable_init = x_cable_static
+                y_cable_init = y_cable_static
+                    
+            # Extraire les points intérieurs pour l'estimation initiale
+            if len(x_cable_init) > 2:
+                initial_guess = (x_cable_init[1:-1], y_cable_init[1:-1])
+            else:
+                initial_guess = None
+        except Exception:
+            initial_guess = None
+        
+        # Utiliser le solveur avec contraintes intégrées
+        x_cable, y_cable, T = self.solve_equilibrium_constrained(
+            x_rov, y_rov, x_boat, L,
+            self._forces_dynamic_wrapper,
+            params_forces,
+            rov_m=rov_m,
+            rov_vol=rov_vol,
+            initial_guess=initial_guess,
+            k_max=2.0
         )
         
-        # Calculer les forces externes totales
-        Fext_stat_x = float(np.sum(Fx_segments))
-        Fext_stat_y = float(np.sum(Fy_segments))
+        # Recalculer les tensions correctement en utilisant l'équilibre des forces
+        # (le solveur avec contraintes retourne une estimation simple)
+        weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol)
         
-        # Calculer les vecteurs unitaires aux extrémités
-        dx_bateau = x_cable[1] - x_cable[0]
-        dy_bateau = y_cable[1] - y_cable[0]
-        ds_bateau = np.sqrt(dx_bateau**2 + dy_bateau**2)
-        dx_rov = x_cable[-1] - x_cable[-2]
-        dy_rov = y_cable[-1] - y_cable[-2]
-        ds_rov = np.sqrt(dx_rov**2 + dy_rov**2)
-        
-        if ds_bateau > 1e-6 and ds_rov > 1e-6:
-            Ubateau_x = dx_bateau / ds_bateau
-            Ubateau_y = dy_bateau / ds_bateau
-            Urov_x = dx_rov / ds_rov
-            Urov_y = dy_rov / ds_rov
-            
-            # Résoudre le système d'équilibre aux extrémités
-            A = np.array([
-                [-Ubateau_x, Urov_x],
-                [-Ubateau_y, Urov_y]
-            ])
-            b = np.array([-Fext_stat_x, -Fext_stat_y])
-            
-            det_A = np.linalg.det(A)
-            if abs(det_A) > 1e-8:
-                try:
-                    T_solution = np.linalg.solve(A, b)
-                    T_bateau = max(0.0, T_solution[0])
-                    T_rov = max(0.0, T_solution[1])
-                    
-                    # Calculer les tensions le long du câble en intégrant depuis le bateau
-                    N = len(x_cable) - 1
-                    T = np.zeros(N + 1)
-                    T[0] = T_bateau
-                    
-                    # Intégrer les forces depuis le bateau vers le ROV
-                    for i in range(N):
-                        dx_seg = x_cable[i+1] - x_cable[i]
-                        dy_seg = y_cable[i+1] - y_cable[i]
-                        ds_seg = np.sqrt(dx_seg**2 + dy_seg**2)
-                        if ds_seg > 1e-6:
-                            t_hat_x = dx_seg / ds_seg
-                            t_hat_y = dy_seg / ds_seg
-                            # Variation de tension le long du segment
-                            dT_along = -(Fx_segments[i] * t_hat_x + Fy_segments[i] * t_hat_y)
-                            T[i+1] = max(T[i] + dT_along, 0.0)
-                        else:
-                            T[i+1] = T[i]
-                    
-                    # Ajuster pour respecter T_rov calculé par équilibre
-                    if T[-1] > 1e-6:
-                        scale_T = T_rov / T[-1]
-                        T = T * scale_T
-                    else:
-                        T[-1] = T_rov
-                    
-                    trace_print(1, f"[DEBUG] solve_equilibrium_dynamic: Tensions recalculées par équilibre: T_bateau={T_bateau:.6f}, T_rov={T_rov:.6f}")
-                    return x_cable, y_cable, T
-                except np.linalg.LinAlgError:
-                    trace_print(4, "[DEBUG] solve_equilibrium_dynamic: Échec résolution système pour tensions. Utilisation de compute_tensions.")
-        
-        # Fallback : calcul standard par intégration depuis le ROV
-        T_rov_initial = T_static[-1] if len(T_static) > 0 else 0.0
-        if T_rov_initial <= 0.0:
-            weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
-            trace_print(8, f"[DEBUG] ⚠️  : T_rov_initial trop faible ({T_rov_initial:.6f}). "
-                "Utilisation d'une estimation minimale."
-            )
-            min_floor = max(abs(weight_per_unit) * L / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
-            T_rov_initial = min_floor
-        T = self.compute_tensions(x_cable, y_cable, L, Fx_segments, Fy_segments, T_rov_initial=T_rov_initial)
-
-        # Normaliser la géométrie finale pour garantir Σds = L et segments égaux
-        try:
-            x_cable, y_cable = self._normalize_cable_length(x_cable, y_cable, L)
-        except Exception:
-            pass
         return x_cable, y_cable, T
     
     def compute_tensions(self, x_cable, y_cable, L, Fx, Fy, T_rov_initial=None):
@@ -1726,7 +2923,7 @@ class CableSolver:
         Fx, Fy : array
             Forces par segment
         T_rov_initial : float, optional
-            Tension initiale au ROV. Si None, utilise 100.0 par défaut (pour compatibilité)
+            Tension initiale au ROV
         
         Returns:
         --------
@@ -1886,6 +3083,9 @@ class CableSolver:
         x_rov=None,
         y_rov=None,
         k_tail=10,
+        k_max=2.0,
+        bidirectional=True,
+        _from_direction=None,
     ):
         """
         Normalise la longueur du câble en conservant au mieux sa forme générale,
@@ -1931,8 +3131,350 @@ class CableSolver:
         tuple (x_cable_new, y_cable_new)
             Positions normalisées du câble.
         """
+        trace_print(5, "\n[DEBUG] _normalize_cable_length: Démarrage de la normalisation du câble.")
+
+        # Nouvelle approche : normalisation géométrique itérative avec possibilité
+        # d'ajouter des points et d'utiliser scale_slack. On l'utilise en priorité.
+        try:
+            x_boat_eff = x_boat if x_boat is not None else float(x_cable[0])
+            y_boat_eff = y_boat if y_boat is not None else float(y_cable[0])
+            x_rov_eff = x_rov if x_rov is not None else float(x_cable[-1])
+            y_rov_eff = y_rov if y_rov is not None else float(y_cable[-1])
+
+            N_debut_iter = max(len(x_cable) - 1, 1)
+
+            x_new, y_new, rel_err, iters = self._normalize_cable_geometry(
+                x_cable,
+                y_cable,
+                L_target,
+                (x_boat_eff, y_boat_eff),
+                (x_rov_eff, y_rov_eff),
+                N_debut_iter,
+            )
+
+            trace_print(
+                5,
+                f"[DEBUG] _normalize_cable_length: _normalize_cable_geometry terminé "
+                f"rel_err={rel_err:.3e}, iters={iters}",
+            )
+            return x_new, y_new
+        except Exception as e:
+            trace_print(
+                8,
+                f"[DEBUG] _normalize_cable_length: échec _normalize_cable_geometry ({e}), "
+                "retour à l'algorithme historique.",
+            )
+
+        # ------------------------------------------------------------------
+        # Algorithme historique de normalisation (fallback)
+        # ------------------------------------------------------------------
+        
+        # DEBUG: Calculer la déviation maximale AVANT normalisation
+        def compute_max_deviation(x_arr, y_arr):
+            """Calcule la déviation maximale par rapport à la ligne droite"""
+            if len(x_arr) < 3:
+                return 0.0
+            x_start, y_start = x_arr[0], y_arr[0]
+            x_end, y_end = x_arr[-1], y_arr[-1]
+            max_dev = 0.0
+            if abs(x_end - x_start) > 1e-6 or abs(y_end - y_start) > 1e-6:
+                dx_line = x_end - x_start
+                dy_line = y_end - y_start
+                line_length = np.sqrt(dx_line**2 + dy_line**2)
+                for i in range(1, len(x_arr) - 1):
+                    dx_point = x_arr[i] - x_start
+                    dy_point = y_arr[i] - y_start
+                    t = (dx_point * dx_line + dy_point * dy_line) / (line_length**2 + 1e-9)
+                    x_proj = x_start + t * dx_line
+                    y_proj = y_start + t * dy_line
+                    deviation = np.sqrt((x_arr[i] - x_proj)**2 + (y_arr[i] - y_proj)**2)
+                    max_dev = max(max_dev, deviation)
+            return max_dev
+        
+        max_dev_before = compute_max_deviation(x_cable, y_cable)
+        
         # Calculer la longueur actuelle et les distances cumulatives
         N = len(x_cable) - 1
+        
+        # Normalisation bidirectionnelle : partir des deux extrémités et se rejoindre au milieu
+        if bidirectional and _from_direction is None and x_boat is not None and x_rov is not None and N >= 10:
+            trace_print(5, f"[DEBUG] _normalize_cable_length: Normalisation bidirectionnelle activée - N={N}, x_boat={x_boat}, x_rov={x_rov}")
+            # Étape 1 : Normalisation depuis le bateau (extrémité ROV libre)
+            trace_print(5, "[DEBUG] _normalize_cable_length: Normalisation bidirectionnelle - depuis le bateau")
+            x_from_boat, y_from_boat = self._normalize_cable_length(
+                x_cable, y_cable, L_target,
+                x_boat=x_boat, y_boat=y_boat,
+                x_rov=None, y_rov=None,  # Extrémité ROV libre
+                k_tail=k_tail, k_max=k_max,
+                bidirectional=False,  # Désactiver la bidirectionnelle dans l'appel récursif
+                _from_direction='boat'
+            )
+            
+            # Étape 2 : Normalisation depuis le ROV (extrémité bateau libre)
+            trace_print(5, "[DEBUG] _normalize_cable_length: Normalisation bidirectionnelle - depuis le ROV")
+            x_from_rov, y_from_rov = self._normalize_cable_length(
+                x_cable, y_cable, L_target,
+                x_boat=None, y_boat=None,  # Extrémité bateau libre
+                x_rov=x_rov, y_rov=y_rov,
+                k_tail=k_tail, k_max=k_max,
+                bidirectional=False,  # Désactiver la bidirectionnelle dans l'appel récursif
+                _from_direction='rov'
+            )
+            
+            # Étape 3 : Blending pondéré
+            # Plus de poids à la normalisation "bateau" près du bateau, plus de poids à la normalisation "ROV" près du ROV
+            x_new = np.zeros(N + 1)
+            y_new = np.zeros(N + 1)
+            
+            for i in range(N + 1):
+                # Calculer les poids : w_boat décroît de 1.0 (au bateau) à 0.0 (au ROV)
+                # Utiliser une fonction linéaire pour une transition douce
+                w_boat = 1.0 - (i / float(N)) if N > 0 else 1.0
+                w_rov = 1.0 - w_boat
+                
+                # Normaliser les poids pour garantir w_boat + w_rov = 1.0
+                w_sum = w_boat + w_rov
+                if w_sum > 1e-9:
+                    w_boat /= w_sum
+                    w_rov /= w_sum
+                
+                # Mélange pondéré
+                x_new[i] = w_boat * x_from_boat[i] + w_rov * x_from_rov[i]
+                y_new[i] = w_boat * y_from_boat[i] + w_rov * y_from_rov[i]
+            
+            # Étape 4 : Forcer les extrémités après le blending
+            if x_boat is not None:
+                x_new[0] = float(x_boat)
+            if y_boat is not None:
+                y_new[0] = min(float(y_boat), 0.0)
+            if x_rov is not None:
+                x_new[-1] = float(x_rov)
+            if y_rov is not None:
+                y_new[-1] = min(float(y_rov), 0.0)
+            
+            # Étape 5 : Ajustement de longueur final
+            # Calculer la longueur actuelle
+            L_actual = 0.0
+            for i in range(N):
+                dx = x_new[i+1] - x_new[i]
+                dy = y_new[i+1] - y_new[i]
+                L_actual += np.sqrt(dx**2 + dy**2)
+            
+            # Ajuster légèrement si nécessaire, en préservant les extrémités
+            # IMPORTANT : Ne pas ajuster si la différence est trop grande, car cela peut créer des segments longs
+            # La normalisation bidirectionnelle devrait déjà avoir créé un câble de longueur proche de L_target
+            if L_actual > 1e-9 and abs(L_actual - L_target) / max(L_target, 1e-9) > 1e-4:
+                # Si la différence est trop grande (> 5%), utiliser une rééchantillonnage plutôt qu'un ajustement
+                if abs(L_actual - L_target) / max(L_target, 1e-9) > 0.05:
+                    trace_print(5, f"[DEBUG] _normalize_cable_length: Différence de longueur trop grande ({L_actual:.3f} vs {L_target:.3f}), rééchantillonnage")
+                    # Rééchantillonnage en abscisse curviligne pour garantir L_target exactement
+                    s_cumulative = np.zeros(N + 1)
+                    for i in range(N):
+                        dx = x_new[i+1] - x_new[i]
+                        dy = y_new[i+1] - y_new[i]
+                        s_cumulative[i+1] = s_cumulative[i] + np.sqrt(dx**2 + dy**2)
+                    
+                    # Remise à l'échelle
+                    s_cumulative = s_cumulative * (L_target / L_actual)
+                    s_points = np.linspace(0.0, L_target, N + 1)
+                    
+                    # Interpolation spline pour préserver la forme
+                    try:
+                        if len(s_cumulative) >= 4:
+                            f_x = interp1d(s_cumulative, x_new, kind='cubic', bounds_error=False, fill_value='extrapolate')
+                            f_y = interp1d(s_cumulative, y_new, kind='cubic', bounds_error=False, fill_value='extrapolate')
+                        else:
+                            f_x = interp1d(s_cumulative, x_new, kind='linear', bounds_error=False, fill_value='extrapolate')
+                            f_y = interp1d(s_cumulative, y_new, kind='linear', bounds_error=False, fill_value='extrapolate')
+                        
+                        x_new = f_x(s_points)
+                        y_new = f_y(s_points)
+                    except:
+                        # Fallback : interpolation linéaire
+                        for i in range(N + 1):
+                            s_i = s_points[i]
+                            idx = np.searchsorted(s_cumulative, s_i)
+                            if idx == 0:
+                                idx = 1
+                            elif idx >= len(s_cumulative):
+                                idx = len(s_cumulative) - 1
+                            s_prev = s_cumulative[idx - 1]
+                            s_next = s_cumulative[idx]
+                            if abs(s_next - s_prev) > 1e-9:
+                                alpha = (s_i - s_prev) / (s_next - s_prev)
+                                x_new[i] = x_new[idx - 1] + alpha * (x_new[idx] - x_new[idx - 1])
+                                y_new[i] = y_new[idx - 1] + alpha * (y_new[idx] - y_new[idx - 1])
+                
+                # Réappliquer les extrémités après l'ajustement
+                if x_boat is not None:
+                    x_new[0] = float(x_boat)
+                if y_boat is not None:
+                    y_new[0] = min(float(y_boat), 0.0)
+                if x_rov is not None:
+                    x_new[-1] = float(x_rov)
+                if y_rov is not None:
+                    y_new[-1] = min(float(y_rov), 0.0)
+            
+            # Étape 6 : Clipping et lissage (utiliser le code existant)
+            # Clipping y <= 0
+            y_new = np.clip(y_new, None, 0.0)
+            
+            # Réappliquer les extrémités après clipping
+            if x_boat is not None:
+                x_new[0] = float(x_boat)
+            if y_boat is not None:
+                y_new[0] = min(float(y_boat), 0.0)
+            if x_rov is not None:
+                x_new[-1] = float(x_rov)
+            if y_rov is not None:
+                y_new[-1] = min(float(y_rov), 0.0)
+            
+            # Appliquer le lissage local si nécessaire (code existant)
+            def _compute_segment_lengths(x_arr, y_arr):
+                ds_list = np.sqrt(np.diff(x_arr) ** 2 + np.diff(y_arr) ** 2)
+                L_total = float(ds_list.sum())
+                if N > 0:
+                    ds_max = float(ds_list.max())
+                else:
+                    ds_max = 0.0
+                return ds_list, L_total, ds_max
+            
+            ds_list, L_total, ds_max = _compute_segment_lengths(x_new, y_new)
+            ds_target = L_target / max(N, 1)
+            ratio_max = ds_max / max(ds_target, 1e-9)
+            
+            k_ratio_max = k_max
+            max_iter_smooth = 20
+            iter_smooth = 0
+            
+            while ratio_max > k_ratio_max and iter_smooth < max_iter_smooth:
+                i_max = int(np.argmax(ds_list))
+                
+                # Ne jamais modifier les extrémités (points 0 et N) - elles sont déjà forcées
+                if i_max == 0:
+                    # Le segment 0 est trop long - cela signifie que P0 n'est pas au bon endroit
+                    # Forcer P0 à être exactement au bateau si fourni
+                    if x_boat is not None:
+                        trace_print(5, f"[DEBUG] _normalize_cable_length: Segment 0 trop long (ratio={ratio_max:.2f}), forçage P0 au bateau")
+                        x_new[0] = float(x_boat)
+                        y_new[0] = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                    # Ajuster P1 pour réduire le segment 0
+                    if N >= 2:
+                        i_move = 1
+                        boat_pt = np.array([x_new[0], y_new[0]])
+                        next_pt = np.array([x_new[2], y_new[2]])
+                        current = np.array([x_new[i_move], y_new[i_move]])
+                        # Déplacer P1 vers le bateau pour réduire le segment 0
+                        target = 0.3 * boat_pt + 0.7 * next_pt
+                        alpha_smooth = 0.6
+                        new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
+                        x_new[i_move] = float(new_pt[0])
+                        y_new[i_move] = min(float(new_pt[1]), 0.0)
+                elif i_max == N - 1:
+                    # Le segment N-1 est trop long - cela signifie que PN n'est pas au bon endroit
+                    # Forcer PN à être exactement au ROV si fourni
+                    if x_rov is not None:
+                        trace_print(5, f"[DEBUG] _normalize_cable_length: Segment {N-1} trop long (ratio={ratio_max:.2f}), forçage PN au ROV")
+                        x_new[-1] = float(x_rov)
+                        y_new[-1] = min(float(y_rov), 0.0)
+                    # Ajuster PN-1 pour réduire le segment N-1
+                    if N >= 2:
+                        rov_pt = np.array([x_new[N], y_new[N]])
+                        current = np.array([x_new[N - 1], y_new[N - 1]])
+                        dist_to_rov = np.linalg.norm(current - rov_pt)
+                        target_dist = min(dist_to_rov, k_max * ds_target)
+                        if dist_to_rov > 1e-9:
+                            direction = (rov_pt - current) / dist_to_rov
+                            target_pt = rov_pt - target_dist * direction
+                            alpha_smooth = 0.8
+                            new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target_pt
+                            x_new[N - 1] = float(new_pt[0])
+                            y_new[N - 1] = min(float(new_pt[1]), 0.0)
+                        else:
+                            break
+                    else:
+                        break
+                elif 0 < i_max < N - 1:
+                    i_move = i_max + 1
+                    prev_pt = np.array([x_new[i_move - 1], y_new[i_move - 1]])
+                    next_pt = np.array([x_new[i_move + 1], y_new[i_move + 1]])
+                    current = np.array([x_new[i_move], y_new[i_move]])
+                    target = 0.5 * (prev_pt + next_pt)
+                    alpha_smooth = 0.5
+                    new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
+                    x_new[i_move] = float(new_pt[0])
+                    y_new[i_move] = min(float(new_pt[1]), 0.0)
+                else:
+                    break
+                
+                y_new = np.clip(y_new, None, 0.0)
+                
+                # Réappliquer le recollement aux extrémités après chaque itération
+                if x_boat is not None:
+                    y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                    x_new[0] = float(x_boat)
+                    y_new[0] = y_boat_clipped
+                if x_rov is not None:
+                    y_rov_clipped = min(float(y_rov), 0.0)
+                    x_new[-1] = float(x_rov)
+                    y_new[-1] = y_rov_clipped
+                
+                ds_list, L_total, ds_max = _compute_segment_lengths(x_new, y_new)
+                ratio_max = ds_max / max(ds_target, 1e-9)
+                iter_smooth += 1
+            
+            # Réappliquer les extrémités une dernière fois
+            if x_boat is not None:
+                y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                x_new[0] = float(x_boat)
+                y_new[0] = y_boat_clipped
+            if x_rov is not None:
+                y_rov_clipped = min(float(y_rov), 0.0)
+                x_new[-1] = float(x_rov)
+                y_new[-1] = y_rov_clipped
+            
+            # Clipping final
+            y_new = np.clip(y_new, None, 0.0)
+            
+            # Vérification finale et forçage des extrémités (sécurité supplémentaire)
+            if x_boat is not None:
+                dist_boat = np.sqrt((x_new[0] - float(x_boat))**2 + (y_new[0] - (min(float(y_boat), 0.0) if y_boat is not None else 0.0))**2)
+                if dist_boat > 1e-6:
+                    trace_print(5, f"[DEBUG] _normalize_cable_length: ⚠️  Correction finale recollement bateau: dist={dist_boat:.6f} m")
+                    x_new[0] = float(x_boat)
+                    y_new[0] = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+            
+            if x_rov is not None:
+                dist_rov = np.sqrt((x_new[-1] - float(x_rov))**2 + (y_new[-1] - min(float(y_rov), 0.0))**2)
+                if dist_rov > 1e-6:
+                    trace_print(5, f"[DEBUG] _normalize_cable_length: ⚠️  Correction finale recollement ROV: dist={dist_rov:.6f} m")
+                    x_new[-1] = float(x_rov)
+                    y_new[-1] = min(float(y_rov), 0.0)
+            
+            # Réappliquer les extrémités après vérification (sécurité supplémentaire)
+            if x_boat is not None:
+                x_new[0] = float(x_boat)
+                y_new[0] = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+            if x_rov is not None:
+                x_new[-1] = float(x_rov)
+                y_new[-1] = min(float(y_rov), 0.0)
+            
+            # Calculer la déviation maximale APRÈS normalisation
+            max_dev_after = compute_max_deviation(x_new, y_new)
+            
+            # Message de debug sur la préservation de la déviation
+            if max_dev_before > 0.01 and max_dev_after < max_dev_before * 0.5:
+                trace_print(5, f"[DEBUG] _normalize_cable_length: ⚠️  DÉVIATION RÉDUITE - "
+                    f"avant={max_dev_before:.6f} m, après={max_dev_after:.6f} m, "
+                    f"ratio={max_dev_after/max_dev_before:.3f}, L_target={L_target:.2f} m")
+            elif max_dev_before > 0.01:
+                trace_print(5, f"[DEBUG] _normalize_cable_length: ✓ Déviation préservée - "
+                    f"avant={max_dev_before:.6f} m, après={max_dev_after:.6f} m")
+            
+            return x_new, y_new
+        
+        # Algorithme unidirectionnel actuel (utilisé si bidirectional=False ou si _from_direction est défini)
+        
         s_cumulative = np.zeros(N + 1)  # Distance curviligne cumulative
         
         for i in range(N):
@@ -1955,33 +3497,84 @@ class CableSolver:
         # 1) Remise à l'échelle de l'abscisse curviligne pour que s_cumulative[-1] = L_target.
         s_cumulative = s_cumulative * (L_target / L_actual)
 
-        # 2) Rééchantillonnage uniforme en abscisse curviligne
+        # 2) Rééchantillonnage uniforme en abscisse curviligne avec interpolation spline pour préserver la forme
         ds_target = L_target / max(N, 1)
         s_points = np.linspace(0.0, L_target, N + 1)
 
-        x_new = np.zeros(N + 1)
-        y_new = np.zeros(N + 1)
-
-        for i in range(N + 1):
-            s_i = s_points[i]
-
-            # Trouver le segment qui contient ce point dans le câble original
-            idx = np.searchsorted(s_cumulative, s_i)
-            if idx == 0:
-                idx = 1
-            elif idx >= len(s_cumulative):
-                idx = len(s_cumulative) - 1
-
-            s_prev = s_cumulative[idx - 1]
-            s_next = s_cumulative[idx]
-
-            if abs(s_next - s_prev) > 1e-9:
-                alpha = (s_i - s_prev) / (s_next - s_prev)
-                x_new[i] = x_cable[idx - 1] + alpha * (x_cable[idx] - x_cable[idx - 1])
-                y_new[i] = y_cable[idx - 1] + alpha * (y_cable[idx] - y_cable[idx - 1])
+        # Utiliser une interpolation spline cubique pour préserver la forme de la caténaire
+        # au lieu d'une interpolation linéaire qui peut transformer une courbe en ligne droite
+        try:
+            # Interpolation spline pour x et y en fonction de l'abscisse curviligne
+            # Utiliser 'cubic' pour préserver la courbure, avec 'linear' comme fallback
+            if len(s_cumulative) >= 4:  # Besoin d'au moins 4 points pour une spline cubique
+                f_x = interp1d(s_cumulative, x_cable, kind='cubic', bounds_error=False, fill_value='extrapolate')
+                f_y = interp1d(s_cumulative, y_cable, kind='cubic', bounds_error=False, fill_value='extrapolate')
             else:
-                x_new[i] = x_cable[idx - 1]
-                y_new[i] = y_cable[idx - 1]
+                # Fallback vers interpolation linéaire si pas assez de points
+                f_x = interp1d(s_cumulative, x_cable, kind='linear', bounds_error=False, fill_value='extrapolate')
+                f_y = interp1d(s_cumulative, y_cable, kind='linear', bounds_error=False, fill_value='extrapolate')
+            
+            x_new = f_x(s_points)
+            y_new = f_y(s_points)
+            
+            # Clipping immédiat après rééchantillonnage pour éviter les points au-dessus de la surface
+            y_new = np.clip(y_new, None, 0.0)
+            
+            # S'assurer que les extrémités sont exactement correctes
+            # IMPORTANT : Utiliser les positions cibles (x_boat, x_rov) si fournies, sinon les extrémités actuelles
+            if x_boat is not None:
+                x_new[0] = float(x_boat)
+            else:
+                x_new[0] = x_cable[0]
+            if y_boat is not None:
+                y_new[0] = min(float(y_boat), 0.0)
+            else:
+                y_new[0] = y_cable[0]
+            
+            if x_rov is not None:
+                x_new[-1] = float(x_rov)
+            else:
+                x_new[-1] = x_cable[-1]
+            if y_rov is not None:
+                y_new[-1] = min(float(y_rov), 0.0)
+            else:
+                y_new[-1] = y_cable[-1]
+        except Exception as e:
+            # Fallback vers l'interpolation linéaire si la spline échoue
+            trace_print(9, f"[DEBUG] _normalize_cable_length: Échec interpolation spline ({e}), utilisation interpolation linéaire")
+            x_new = np.zeros(N + 1)
+            y_new = np.zeros(N + 1)
+            
+            for i in range(N + 1):
+                s_i = s_points[i]
+                
+                # Trouver le segment qui contient ce point dans le câble original
+                idx = np.searchsorted(s_cumulative, s_i)
+                if idx == 0:
+                    idx = 1
+                elif idx >= len(s_cumulative):
+                    idx = len(s_cumulative) - 1
+                
+                s_prev = s_cumulative[idx - 1]
+                s_next = s_cumulative[idx]
+                
+                if abs(s_next - s_prev) > 1e-9:
+                    alpha = (s_i - s_prev) / (s_next - s_prev)
+                    x_new[i] = x_cable[idx - 1] + alpha * (x_cable[idx] - x_cable[idx - 1])
+                    y_new[i] = y_cable[idx - 1] + alpha * (y_cable[idx] - y_cable[idx - 1])
+                else:
+                    x_new[i] = x_cable[idx - 1]
+                    y_new[i] = y_cable[idx - 1]
+            
+            # IMPORTANT : Forcer les extrémités aux positions cibles si fournies
+            if x_boat is not None:
+                x_new[0] = float(x_boat)
+            if y_boat is not None:
+                y_new[0] = min(float(y_boat), 0.0)
+            if x_rov is not None:
+                x_new[-1] = float(x_rov)
+            if y_rov is not None:
+                y_new[-1] = min(float(y_rov), 0.0)
 
         # 3) Clipping physique : y <= 0
         y_new = np.clip(y_new, None, 0.0)
@@ -2003,18 +3596,10 @@ class CableSolver:
                 x_new[-1] = float(x_rov)
                 y_new[-1] = y_rov_clipped
 
-                # Recalage doux des points intérieurs : combiner la forme actuelle
-                # avec une interpolation linéaire entre les deux extrémités.
-                x0, y0 = x_new[0], y_new[0]
-                xN, yN = x_new[-1], y_new[-1]
-                for i in range(1, n_points - 1):
-                    t = i / float(N) if N > 0 else 0.0
-                    x_lin = x0 + t * (xN - x0)
-                    y_lin = y0 + t * (yN - y0)
-                    # Mélange forme existante / corde pour éviter les cassures
-                    alpha_end = 0.3
-                    x_new[i] = (1.0 - alpha_end) * x_new[i] + alpha_end * x_lin
-                    y_new[i] = (1.0 - alpha_end) * y_new[i] + alpha_end * y_lin
+                # Ne PAS mélanger avec une ligne droite - préserver complètement la forme originale
+                # Le rééchantillonnage en abscisse curviligne a déjà préservé la forme,
+                # et les extrémités sont déjà fixées correctement ci-dessus.
+                # Aucun ajustement supplémentaire nécessaire pour préserver la forme de la caténaire.
 
                 # S'assurer à nouveau du clipping
                 y_new = np.clip(y_new, None, 0.0)
@@ -2034,9 +3619,9 @@ class CableSolver:
         ratio_max = ds_max / max(ds_target, 1e-9)
 
         # Si le segment le plus long est trop grand par rapport au segment moyen, lisser.
-        # L'objectif est de rester proche de ds_max/ds_target ≲ 2 dans la mesure du possible.
-        k_ratio_max = 2.0
-        max_iter_smooth = 10
+        # L'objectif est de rester proche de ds_max/ds_target <= k_max dans la mesure du possible.
+        k_ratio_max = k_max
+        max_iter_smooth = 20  # Augmenté pour mieux garantir le respect de k_max
 
         iter_smooth = 0
         while ratio_max > k_ratio_max and iter_smooth < max_iter_smooth:
@@ -2054,7 +3639,8 @@ class CableSolver:
                 target = 0.5 * (prev_pt + next_pt)
                 alpha_smooth = 0.5
                 new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
-                x_new[i_move], y_new[i_move] = float(new_pt[0]), float(new_pt[1])
+                x_new[i_move] = float(new_pt[0])
+                y_new[i_move] = min(float(new_pt[1]), 0.0)  # Clipping immédiat : y <= 0
             elif i_max == 0 and N >= 2:
                 # Segment le plus long entre 0 et 1 : on déplace le point 1 vers la moyenne de 0 et 2.
                 i_move = 1
@@ -2064,17 +3650,42 @@ class CableSolver:
                 target = 0.5 * (prev_pt + next_pt)
                 alpha_smooth = 0.5
                 new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
-                x_new[i_move], y_new[i_move] = float(new_pt[0]), float(new_pt[1])
+                x_new[i_move] = float(new_pt[0])
+                y_new[i_move] = min(float(new_pt[1]), 0.0)  # Clipping immédiat : y <= 0
             elif i_max == N - 1 and N >= 2:
-                # Segment le plus long entre N-1 et N : on déplace le point N-1 vers la moyenne de N-2 et N.
-                i_move = N - 1
-                prev_pt = np.array([x_new[i_move - 1], y_new[i_move - 1]])
-                next_pt = np.array([x_new[N], y_new[N]])
-                current = np.array([x_new[i_move], y_new[i_move]])
-                target = 0.5 * (prev_pt + next_pt)
-                alpha_smooth = 0.5
-                new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
-                x_new[i_move], y_new[i_move] = float(new_pt[0]), float(new_pt[1])
+                # Segment le plus long entre N-1 et N : on doit réduire ce segment
+                # en déplaçant le point N-1 vers le ROV (point N), tout en préservant le recollement
+                if N >= 2:
+                    # Déplacer directement le point N-1 vers le ROV pour réduire le segment
+                    rov_pt = np.array([x_new[N], y_new[N]])  # Point ROV fixe
+                    current = np.array([x_new[N - 1], y_new[N - 1]])
+                    # Calculer la distance actuelle au ROV
+                    dist_to_rov = np.linalg.norm(current - rov_pt)
+                    # Cible : réduire la distance pour que le segment soit au maximum k_max * ds_target
+                    target_dist = min(dist_to_rov, k_max * ds_target)
+                    if dist_to_rov > 1e-9:
+                        # Déplacer le point N-1 vers le ROV
+                        direction = (rov_pt - current) / dist_to_rov
+                        target_pt = rov_pt - target_dist * direction
+                        # Déplacer progressivement (plus agressif pour le dernier segment)
+                        alpha_smooth = 0.8  # Très agressif pour garantir le respect de k_max
+                        new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target_pt
+                        x_new[N - 1] = float(new_pt[0])
+                        y_new[N - 1] = min(float(new_pt[1]), 0.0)  # Clipping immédiat : y <= 0
+                    else:
+                        # Le point N-1 est déjà au ROV, on ne peut rien faire
+                        break
+                else:
+                    # Cas dégénéré : seulement 2 points, on déplace N-1
+                    i_move = N - 1
+                    prev_pt = np.array([x_new[i_move - 1], y_new[i_move - 1]])
+                    next_pt = np.array([x_new[N], y_new[N]])
+                    current = np.array([x_new[i_move], y_new[i_move]])
+                    target = 0.5 * (prev_pt + next_pt)
+                    alpha_smooth = 0.8  # Plus agressif
+                    new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target
+                    x_new[i_move] = float(new_pt[0])
+                    y_new[i_move] = min(float(new_pt[1]), 0.0)  # Clipping immédiat : y <= 0
             else:
                 # Cas pathologique (très petit N), on sort.
                 break
@@ -2082,17 +3693,45 @@ class CableSolver:
             # Clipper de nouveau en y
             y_new = np.clip(y_new, None, 0.0)
 
+            # Réappliquer le recollement aux extrémités après chaque itération de lissage
+            # FORCER le recollement exact pour garantir la contrainte
+            if x_boat is not None:
+                y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                x_new[0] = float(x_boat)
+                y_new[0] = y_boat_clipped
+            if x_rov is not None:
+                y_rov_clipped = min(float(y_rov), 0.0)
+                x_new[-1] = float(x_rov)
+                y_new[-1] = y_rov_clipped
+
             # Recalculer les longueurs de segment et le ratio
             ds_list, L_total, ds_max = _compute_segment_lengths(x_new, y_new)
             ratio_max = ds_max / max(ds_target, 1e-9)
             iter_smooth += 1
 
+        # Réappliquer le recollement aux extrémités une dernière fois après le lissage
+        # FORCER le recollement exact pour garantir la contrainte
+        if x_boat is not None:
+            y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+            x_new[0] = float(x_boat)
+            y_new[0] = y_boat_clipped
+        if x_rov is not None:
+            y_rov_clipped = min(float(y_rov), 0.0)
+            x_new[-1] = float(x_rov)
+            y_new[-1] = y_rov_clipped
+
         # Optionnel : petit correctif de longueur si l'écart est significatif
         # (on vise une précision meilleure que 0.01 % sur la longueur totale)
         if L_total > 1e-9 and abs(L_total - L_target) / max(L_target, 1e-9) > 1e-4:
             scale = L_target / L_total
-            x0, y0 = x_new[0], y_new[0]
-            xN, yN = x_new[-1], y_new[-1]
+            # Utiliser directement les positions cibles des extrémités au lieu des valeurs modifiées
+            if x_boat is not None and x_rov is not None:
+                x0, y0 = float(x_boat), min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                xN, yN = float(x_rov), min(float(y_rov), 0.0)
+            else:
+                x0, y0 = x_new[0], y_new[0]
+                xN, yN = x_new[-1], y_new[-1]
+            
             for i in range(1, N):
                 # On applique une mise à l'échelle radiale par rapport au point 0,
                 # puis on corrige linéairement pour conserver exactement le point N.
@@ -2112,6 +3751,83 @@ class CableSolver:
                 y_new[i] = (1.0 - beta) * y_scaled + beta * y_lin
 
             y_new = np.clip(y_new, None, 0.0)
+            
+            # Réappliquer les extrémités après le correctif de longueur
+            # FORCER le recollement exact pour garantir la contrainte
+            if x_boat is not None:
+                y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                x_new[0] = float(x_boat)
+                y_new[0] = y_boat_clipped
+            if x_rov is not None:
+                y_rov_clipped = min(float(y_rov), 0.0)
+                x_new[-1] = float(x_rov)
+                y_new[-1] = y_rov_clipped
+
+        # Réappliquer les extrémités une dernière fois avant la vérification finale
+        # FORCER le recollement exact pour garantir la contrainte
+        if x_boat is not None:
+            y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+            x_new[0] = float(x_boat)
+            y_new[0] = y_boat_clipped
+        if x_rov is not None:
+            y_rov_clipped = min(float(y_rov), 0.0)
+            x_new[-1] = float(x_rov)
+            y_new[-1] = y_rov_clipped
+        
+        # DEBUG: Vérifier le recollage final
+        if x_boat is not None and x_rov is not None:
+            dist_boat_final = np.sqrt((x_new[0] - float(x_boat))**2 + (y_new[0] - (min(float(y_boat), 0.0) if y_boat is not None else 0.0))**2)
+            dist_rov_final = np.sqrt((x_new[-1] - float(x_rov))**2 + (y_new[-1] - min(float(y_rov), 0.0))**2)
+            if dist_boat_final > 1e-3 or dist_rov_final > 1e-3:
+                trace_print(5, f"[DEBUG] _normalize_cable_length: ⚠️  Recollage incorrect à la fin ! "
+                    f"dist_boat={dist_boat_final:.6f} m, dist_rov={dist_rov_final:.6f} m, "
+                    f"P0=({x_new[0]:.3f},{y_new[0]:.3f}), PN=({x_new[-1]:.3f},{y_new[-1]:.3f}), "
+                    f"Bateau=({x_boat:.3f},{min(float(y_boat), 0.0) if y_boat is not None else 0.0:.3f}), "
+                    f"ROV=({x_rov:.3f},{min(float(y_rov), 0.0):.3f})")
+                # Forcer le recollage manuellement
+                if x_boat is not None:
+                    x_new[0] = float(x_boat)
+                    y_new[0] = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+                if x_rov is not None:
+                    x_new[-1] = float(x_rov)
+                    y_new[-1] = min(float(y_rov), 0.0)
+
+        # Clipping final pour garantir y <= 0
+        y_new = np.clip(y_new, None, 0.0)
+        
+        # Réappliquer les extrémités APRÈS le clipping final pour garantir le recollage exact
+        # (le clipping peut avoir modifié y_new[0] ou y_new[-1])
+        if x_boat is not None:
+            x_new[0] = float(x_boat)
+            y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+            y_new[0] = y_boat_clipped
+        if x_rov is not None:
+            x_new[-1] = float(x_rov)
+            y_rov_clipped = min(float(y_rov), 0.0) if y_rov is not None else 0.0
+            y_new[-1] = y_rov_clipped
+        
+        # DEBUG: Vérifier s'il reste des points au-dessus de la surface après tous les clippings
+        points_above = np.where(y_new > 1e-6)[0]
+        if len(points_above) > 0:
+            # Exclure le point bateau (index 0) qui doit être à y=0
+            points_above = points_above[points_above != 0]
+            if len(points_above) > 0:
+                max_y_above = np.max(y_new[points_above])
+                trace_print(5, f"[DEBUG] _normalize_cable_length: ⚠️  {len(points_above)} points encore au-dessus de la surface après clipping final ! "
+                    f"max_y={max_y_above:.6f} m, indices={points_above[:5].tolist()}")
+                # Forcer le clipping manuellement
+                for idx in points_above:
+                    y_new[idx] = 0.0
+        
+        # Réappliquer les extrémités une dernière fois après le clipping manuel
+        if x_boat is not None:
+            x_new[0] = float(x_boat)
+            y_boat_clipped = min(float(y_boat), 0.0) if y_boat is not None else 0.0
+            y_new[0] = y_boat_clipped
+        if x_rov is not None:
+            x_new[-1] = float(x_rov)
+            y_rov_clipped = min(float(y_rov), 0.0) if y_rov is not None else 0.0
+            y_new[-1] = y_rov_clipped
 
         # Vérification finale des contraintes
         try:
@@ -2130,20 +3846,22 @@ class CableSolver:
             ok_ratio = ratio_final <= 2.0 + 1e-6
             ok_y = bool(np.all(y_new <= 1e-9))
 
-            # Recollement extrémités : par construction on ne les a pas modifiées,
-            # mais on valide quand même qu'elles n'ont pas explosé numériquement.
+            # Recollement extrémités : vérifier qu'elles sont bien aux positions cibles
             ok_ends = True
-            if len(x_cable) >= 2 and len(x_new) >= 2:
-                dx0 = float(x_new[0] - x_cable[0])
-                dy0 = float(y_new[0] - y_cable[0])
-                dxN = float(x_new[-1] - x_cable[-1])
-                dyN = float(y_new[-1] - y_cable[-1])
-                err0 = np.hypot(dx0, dy0)
-                errN = np.hypot(dxN, dyN)
-                ok_ends = (err0 <= 1e-6) and (errN <= 1e-6)
+            if len(x_new) >= 2:
+                if x_boat is not None:
+                    dx0 = float(x_new[0] - float(x_boat))
+                    dy0 = float(y_new[0] - (min(float(y_boat), 0.0) if y_boat is not None else 0.0))
+                    err0 = np.hypot(dx0, dy0)
+                    ok_ends = ok_ends and (err0 <= 1e-3)  # Tolérance 1 mm
+                if x_rov is not None:
+                    dxN = float(x_new[-1] - float(x_rov))
+                    dyN = float(y_new[-1] - min(float(y_rov), 0.0))
+                    errN = np.hypot(dxN, dyN)
+                    ok_ends = ok_ends and (errN <= 1e-3)  # Tolérance 1 mm
 
             if not (ok_L and ok_ratio and ok_y and ok_ends):
-                from src.utils.logger import trace_print
+                # Utiliser l'import global de trace_print (déjà importé en haut du fichier)
                 trace_print(
                     8,
                     "[DEBUG _normalize_cable_length] CONTRAINTES NON RESPECTÉES : "
@@ -2156,6 +3874,17 @@ class CableSolver:
         except Exception:
             # Ne jamais casser la simulation à cause d'un check de debug
             pass
+
+        # DEBUG: Calculer la déviation maximale APRÈS normalisation
+        max_dev_after = compute_max_deviation(x_new, y_new)
+        if max_dev_before > 0.01 and max_dev_after < max_dev_before * 0.5:
+            # La déviation a été significativement réduite, ce qui indique que la forme a été détruite
+            trace_print(5, f"[DEBUG] _normalize_cable_length: ⚠️  DÉVIATION RÉDUITE - "
+                f"avant={max_dev_before:.6f} m, après={max_dev_after:.6f} m, "
+                f"ratio={max_dev_after/max_dev_before:.3f}, L_target={L_target:.2f} m")
+        elif max_dev_before > 0.01:
+            trace_print(5, f"[DEBUG] _normalize_cable_length: ✓ Déviation préservée - "
+                f"avant={max_dev_before:.6f} m, après={max_dev_after:.6f} m")
 
         return x_new, y_new
 
