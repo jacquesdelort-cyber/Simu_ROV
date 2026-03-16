@@ -72,32 +72,23 @@ def create_system_plot(
             T_cable_arr = np.asarray(T_cable)
             T_cable_complete = T_cable_arr.copy()
         
-        # Vérifier quelle extrémité est la plus proche du bateau et du ROV
-        dist_first_to_boat = np.sqrt((x_cable_arr[0] - x_bateau)**2 + (y_cable_arr[0] - 0.0)**2)
-        dist_first_to_rov = np.sqrt((x_cable_arr[0] - x_rov)**2 + (y_cable_arr[0] - y_rov)**2)
-        dist_last_to_boat = np.sqrt((x_cable_arr[-1] - x_bateau)**2 + (y_cable_arr[-1] - 0.0)**2)
-        dist_last_to_rov = np.sqrt((x_cable_arr[-1] - x_rov)**2 + (y_cable_arr[-1] - y_rov)**2)
+        # Les données du câble arrivent déjà dans l'ordre bateau -> ROV depuis simulation_thread.py
+        # Ne pas inverser l'ordre ici pour garantir la cohérence avec les messages d'invariants
         
-        # Si le premier point est plus proche du ROV, inverser l'ordre
-        if dist_first_to_rov < dist_first_to_boat:
-            x_cable_complete = np.flip(x_cable_complete)
-            y_cable_complete = np.flip(y_cable_complete)
-            if T_cable_complete is not None:
-                T_cable_complete = np.flip(T_cable_complete)
-            if point_ids_complete is not None:
-                point_ids_complete = np.flip(point_ids_complete)
-        
-        # S'assurer que le premier point est exactement au bateau et le dernier au ROV
-        x_cable_complete[0] = x_bateau
-        y_cable_complete[0] = 0.0
-        x_cable_complete[-1] = x_rov
-        y_cable_complete[-1] = y_rov
+        # Ne pas modifier les coordonnées du câble pour forcer la connexion au bateau/ROV
+        # On trace exactement les points du câble tels qu'ils sont
+        # Vérifier si P0 coïncide avec le bateau et PN avec le ROV (avec tolérance)
+        tol = 1e-6  # Tolérance pour la coïncidence
+        P0_coincide_bateau = (np.abs(x_cable_complete[0] - x_bateau) < tol and 
+                              np.abs(y_cable_complete[0] - 0.0) < tol)
+        PN_coincide_rov = (np.abs(x_cable_complete[-1] - x_rov) < tol and 
+                           np.abs(y_cable_complete[-1] - y_rov) < tol)
         
         # Préparer le template de hover en fonction de la disponibilité des tensions
         if T_cable_complete is not None and len(T_cable_complete) > 0:
             
             # Calculer l'abscisse curviligne s (distance cumulative le long du câble)
-            # s=0 au bateau, s=L au ROV
+            # s=0 au premier point du câble (P0), s=L_seg au dernier point (PN)
             dx = np.diff(x_cable_complete)
             dy = np.diff(y_cable_complete)
             ds = np.sqrt(dx**2 + dy**2)  # Distance entre chaque paire de points consécutifs

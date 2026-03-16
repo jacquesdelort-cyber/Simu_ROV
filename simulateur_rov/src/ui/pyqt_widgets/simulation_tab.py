@@ -285,8 +285,8 @@ class SimulationTab(QWidget):
         self.trace_level_input = QSpinBox()
         self.trace_level_input.setRange(0, 10)
         self.trace_level_input.setSingleStep(1)
-        self.trace_level_input.setValue(10)
-        set_trace_level(10)
+        self.trace_level_input.setValue(9)
+        set_trace_level(9)
         self.trace_level_input.valueChanged.connect(lambda v: set_trace_level(int(v)))
         trace_row.addWidget(trace_label)
         trace_row.addWidget(self.trace_level_input)
@@ -1617,7 +1617,24 @@ class SimulationTab(QWidget):
     def on_simulation_updated(self, data):
         """Appelé quand la simulation met à jour les données"""
         state = self.main_window.get_simulation_state()
-        state['data'].update(data)
+        # Créer des copies indépendantes des listes pour éviter les problèmes de référence
+        data_copy = {}
+        for key, value in data.items():
+            if key in ['x_cable_curr', 'y_cable_curr', 'T_cable_curr']:
+                # Créer une copie indépendante des données du câble
+                if value is not None:
+                    if isinstance(value, list):
+                        data_copy[key] = list(value)  # Copie de la liste
+                    else:
+                        data_copy[key] = value
+                else:
+                    data_copy[key] = None
+            elif isinstance(value, list):
+                # Pour les autres listes, créer une copie si nécessaire
+                data_copy[key] = list(value) if value else []
+            else:
+                data_copy[key] = value
+        state['data'].update(data_copy)
         state['current_time'] = data.get('current_time', state.get('current_time', 0.0))
         self.main_window.update_simulation_state(state)
         if state.get('fx_rov_source') == "scenario":
@@ -2575,6 +2592,12 @@ class SimulationTab(QWidget):
                         x_cable = list(x_cable_raw) if not isinstance(x_cable_raw, list) else x_cable_raw
                         if len(x_cable) == 0:
                             x_cable = []
+                        # Debug: vérifier les données juste après récupération
+                        if abs(current_time - 7.7) < 0.1 and len(x_cable) > 0:
+                            trace_print(9, f"[DEBUG AFTER RETRIEVAL] t={current_time:.3f} "
+                                f"P0=({x_cable[0]:.3f},{y_cable_raw[0] if y_cable_raw is not None else 0:.3f}) "
+                                f"PN=({x_cable[-1]:.3f},{y_cable_raw[-1] if y_cable_raw is not None and len(y_cable_raw) > 0 else 0:.3f}) "
+                                f"len={len(x_cable)}")
                     else:
                         x_cable = []
                     
@@ -2603,6 +2626,13 @@ class SimulationTab(QWidget):
                     if len(x_cable) > 0 and len(y_cable) > 0:
                         t_final = self.main_window.calc_params.get('t_final', 60.0)
                         title = f"Système ROV - t = {current_time:.2f} s / {t_final:.2f} s"
+                        
+                        # Debug: vérifier les coordonnées utilisées pour le graphique
+                        if abs(current_time - 7.7) < 0.1 and len(x_cable) > 0:
+                            trace_print(9, f"[DEBUG PLOT DATA] t={current_time:.3f} "
+                                f"P0=({x_cable[0]:.3f},{y_cable[0]:.3f}) "
+                                f"PN=({x_cable[-1]:.3f},{y_cable[-1]:.3f}) "
+                                f"len={len(x_cable)}")
                         
                         # Debug: vérifier les longueurs de segments réellement utilisées par le plot
                         if len(x_cable) > 1:

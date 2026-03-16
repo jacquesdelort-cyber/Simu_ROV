@@ -1,7 +1,7 @@
 """Gestion simple du niveau de trace global."""
 import sys
 
-TRACE_LEVEL = 0
+TRACE_LEVEL = 9
 TRACE_FILE_HANDLE = None
 
 

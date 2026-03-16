@@ -1829,12 +1829,16 @@ def auto_L_7(
             return f"({val[0]: 3.2f}, {val[1]: 3.2f})"
         return "None"
 
+    # Utiliser t (qui est t_current) pour afficher le temps de l'itération en cours
+    # t_current est le même pour auto_L_7, intégration et vérification invariants
+    t_display = curr.get('t') if curr.get('t') is not None else t
+
     # Priorité 1: éviter Trupt
     t_soft = 0.80 * Trupt
     t_hard = 0.90 * Trupt
     if curr["T"] is None or Tcible in (None, 0):
         trace_print(8, "IC_L_7: "
-            f"t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
+            f"t={_fmt(t_display)}, "
             f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
             f"L_straight={L_straight: 6.2f}, "
             f"slack={slack: 6.2f}, "
@@ -2046,7 +2050,7 @@ def auto_L_7(
     cable_drag_display = _last_val('cable_drag')
     
     trace_print(9, "\nIC_L_7: "
-        f"t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
+        f"t={_fmt(t_display)}, "
         f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
         f"L_straight={L_straight: 6.2f}, "
         f"slack={slack: 6.2f}, "
@@ -2057,7 +2061,7 @@ def auto_L_7(
         f"desired={desired: 6.2f}, ret={ret: 6.2f}, exp={exp}"
     )
     # DEBUG: Traçage supplémentaire pour diagnostic
-    trace_print(8, f"[DEBUG L] IC_L_7: t={_fmt(curr.get('t') if curr.get('t') is not None else t)}, "
+    trace_print(8, f"[DEBUG L] IC_L_7: t={_fmt(t_display)}, "
         f"L_param={L_param:.6f} m, curr['L']={_fmt(L_curr)}, "
         f"L_last_data={_fmt(_last_val('L'))} m"
     )

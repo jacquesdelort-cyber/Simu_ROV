@@ -197,24 +197,28 @@ class ROVSystem:
                 raise ValueError(f"Résultats invalides du solveur de câble à t={t:.2f} s")
 
         # CONTRAINTE CRITIQUE : Forcer les extrémités du câble à correspondre exactement au bateau et au ROV
-        # La longueur L est déterminée par la somme des dL/dt, et doit être strictement respectée
+        # Le solveur avec contraintes (_normalize_cable_length) garantit déjà toutes les contraintes :
+        # - L = L_seg (à 0.01% près)
+        # - P0 = bateau, PN = ROV
+        # - y <= 0 pour tous les points
+        # - ds_max/ds_target <= k_max
+        # On ne fait donc que forcer les extrémités comme sécurité supplémentaire
         if len(x_cable_new) > 0 and len(y_cable_new) > 0:
             x_cable_new[0] = x_boat
             y_cable_new[0] = 0.0
             x_cable_new[-1] = x_rov
             y_cable_new[-1] = y_rov
         
-        # CONTRAINTE CRITIQUE : Normaliser la longueur du câble pour qu'elle soit exactement égale à L
-        # et garantir que tous les segments aient la même longueur
-        # Cette normalisation doit préserver les extrémités (bateau et ROV)
-        # et garantir que le dernier point a s = L (correspond au ROV)
-        if len(x_cable_new) > 1 and len(y_cable_new) > 1:
-            # Calculer la longueur actuelle
-            L_actual = 0.0
-            for i in range(len(x_cable_new) - 1):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                L_actual += np.sqrt(dx**2 + dy**2)
+        # NOTE: La normalisation redondante a été supprimée car _normalize_cable_length garantit déjà toutes les contraintes
+        # Le solveur avec contraintes (_normalize_cable_length) garantit :
+        # - L = L_seg (à 0.01% près)
+        # - P0 = bateau, PN = ROV
+        # - y <= 0 pour tous les points
+        # - ds_max/ds_target <= k_max
+        # On ne fait donc que forcer les extrémités comme sécurité supplémentaire (déjà fait ci-dessus)
+        # et s'assurer que y <= 0 (fait ci-dessous)
+        
+        # Ancien code de normalisation supprimé pour éviter les violations de contraintes
             
             # CONTRAINTE CRITIQUE : Normaliser avec les extrémités fixées pour garantir toutes les contraintes
             # L'ordre des opérations est crucial :
@@ -404,72 +408,10 @@ class ROVSystem:
             y_cable_new[0] = 0.0  # Bateau à la surface
             y_cable_new[-1] = y_rov  # ROV à sa position
             
-            # Vérifier et renormaliser la longueur après le clipping (le clipping peut changer la longueur)
-            # IMPORTANT : Renormaliser avec les extrémités déjà forcées pour garantir des segments égaux
-            L_after_clip = 0.0
-            for i in range(len(x_cable_new) - 1):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                L_after_clip += np.sqrt(dx**2 + dy**2)
-            
-            # Renormaliser avec extrémités fixées pour garantir toutes les contraintes
-            # Utiliser directement le rééchantillonnage avec interpolation plutôt que _normalize_cable_length
-            # pour garantir que les extrémités restent fixées
-            N_seg = len(x_cable_new) - 1
-            ds_target = L / max(N_seg, 1)
-            s_points = np.linspace(0.0, L, N_seg + 1)  # Points à s = 0, ds, 2*ds, ..., L
-            
-            # Calculer l'abscisse curviligne cumulative
-            s_cum = np.zeros(N_seg + 1)
-            for i in range(N_seg):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
-            
-            # Rééchantillonner avec interpolation, en préservant les extrémités
-            x_cable_renorm = np.zeros(N_seg + 1)
-            y_cable_renorm = np.zeros(N_seg + 1)
-            x_cable_renorm[0] = x_boat
-            y_cable_renorm[0] = 0.0
-            x_cable_renorm[-1] = x_rov
-            y_cable_renorm[-1] = y_rov
-            
-            # Interpoler les points intermédiaires à intervalles réguliers
-            for i in range(1, N_seg):
-                s_i = s_points[i]  # s_i = i * ds_target
-                idx = np.searchsorted(s_cum, s_i)
-                if idx == 0:
-                    idx = 1
-                elif idx >= len(s_cum):
-                    idx = len(s_cum) - 1
-                
-                s_prev = s_cum[idx - 1]
-                s_next = s_cum[idx]
-                
-                if abs(s_next - s_prev) > 1e-6:
-                    alpha = (s_i - s_prev) / (s_next - s_prev)
-                    x_cable_renorm[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
-                    y_cable_renorm[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
-                else:
-                    x_cable_renorm[i] = x_cable_new[idx - 1]
-                    y_cable_renorm[i] = y_cable_new[idx - 1]
-            
-            x_cable_new = x_cable_renorm
-            y_cable_new = y_cable_renorm
-            
-            # Vérification finale : s'assurer que les contraintes sont respectées
-            L_final_check = 0.0
-            segments_ok = True
-            for i in range(N_seg):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                ds = np.sqrt(dx**2 + dy**2)
-                L_final_check += ds
-                # Vérifier que chaque segment a la longueur cible (tolérance 1e-2 m comme dans contrôle_câble)
-                if abs(ds - ds_target) > 1e-2:
-                    segments_ok = False
-            
-            # Si la longueur totale n'est pas correcte, ajuster proportionnellement
+            # NOTE: La renormalisation après clipping a été supprimée car elle peut violer les contraintes
+            # Le solveur (_normalize_cable_length) garantit déjà toutes les contraintes.
+            # Si le clipping modifie la longueur, cela sera corrigé au prochain appel du solveur.
+            # Ancien code de renormalisation supprimé (lignes 411-476) pour éviter les violations de contraintes
             if abs(L_final_check - L) / max(L, 1e-9) > 1e-2:
                 # Ajuster proportionnellement depuis le bateau vers le ROV
                 if L_final_check > 1e-9:
