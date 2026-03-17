@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from .pyqt_widgets.simulation_tab import SimulationTab
 from .pyqt_widgets.all_parameters_tab import AllParametersTab
+from .test_tab import TestTab
 
 
 class ROVSimulatorApp(QMainWindow):
@@ -117,6 +118,10 @@ class ROVSimulatorApp(QMainWindow):
         self.help_browser.setOpenExternalLinks(True)
         help_layout.addWidget(self.help_browser)
         self.help_tab_index = self.tabs.addTab(self.help_tab, "❓ Aide")
+
+        # Onglet Tests (gestion et lancement des tests)
+        self.test_tab = TestTab(self)
+        self.tabs.addTab(self.test_tab, "🧪 Tests")
 
         # Charger la table des matières une première fois
         self._load_help_toc()

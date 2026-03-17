@@ -1,0 +1,44 @@
+{
+  "visual_deplacer_point": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:29",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "visual_enforce_cable_segments_nb": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:30",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "visual_scale_slack": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:31",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "visual_supprimer_point": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:32",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "utils_scale_slack_unit": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:33",
+    "status": "FAIL",
+    "comment": "1 failed, 5 passed in 0.51s"
+  },
+  "utils_supprimer_point_unit": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:34",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "visual_cable_normalization": {
+    "checked": true,
+    "last_run": "2026-03-17T23:38:35",
+    "status": "PASS",
+    "comment": "Succès."
+  }
+}
