@@ -197,12 +197,30 @@ def _build_cases() -> list[CableNormalizationCase]:
         ),
         CableNormalizationCase(
             name="Cas simple 1",
-            x_cable=np.array([0.2, 1.5, 2, 2.6, 2.8, 3.2], dtype=float),
+            x_cable=np.array([0.2, 1.9, 2, 2.6, 2.8, 3.2], dtype=float),
             y_cable=np.array([-0.2, -1.8, -3.9, -5.9, -7.9, -9.9],dtype=float),
             l_target=10.8,
             n_segments=10,
             boat=(0.0, 0.0),
-            rov=(3.0, -10.3),
+            rov=(3.0, -10.0),
+        ),
+                CableNormalizationCase(
+            name="Cas simple 2",
+            x_cable=np.array([-0.2, 1.9, 2, 2.6, 2.8, 3.2], dtype=float),
+            y_cable=np.array([-0.2, -1.8, -3.9, -5.9, -7.9, -9.9],dtype=float),
+            l_target=10.8,
+            n_segments=10,
+            boat=(0.0, 0.0),
+            rov=(3.0, -10.0),
+        ),
+                        CableNormalizationCase(
+            name="Cas simple 3",
+            x_cable=np.array([0.3, 1.9, 2, 2.6, 2.8, 2.8], dtype=float),
+            y_cable=np.array([-0.2, -1.8, -3.9, -5.9, -7.9, -9.6],dtype=float),
+            l_target=10.8,
+            n_segments=10,
+            boat=(0.0, 0.0),
+            rov=(3.0, -10.0),
         ),
         CableNormalizationCase(
             name="Cas réaliste 1",
@@ -215,7 +233,7 @@ def _build_cases() -> list[CableNormalizationCase]:
         ),
     ]
 
-    ret = cases[-2:-1]
+    ret = cases[-4:]
 
     return ret
 

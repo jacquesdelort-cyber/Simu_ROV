@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint
 from scipy.interpolate import interp1d
 from src.utils.logger import trace_print
-from src.utils.utils import scale_slack
+from src.utils.utils import enforce_cable_segments_nb, scale_slack
 
 
 class CableSolver:
@@ -166,19 +166,35 @@ class CableSolver:
         total_slack = L_target - L_straight_cable
 
         if total_slack <= 0.0:
-            # Impossible, on va juste passer en mode straight line
-            pass
-            return x_cable, y_cable, 0.0, 0
+            # Impossible : pas de slack disponible, on passe en mode « droite tendue »
+            trace_print(
+                10,
+                "[ERROR] _normalize_cable_geometry: total_slack <= 0, "
+                "passage en mode câble droit entre bateau et ROV.",
+            )
+            N0 = max(int(N_debut_iter), 1)
+            # Câble droit entre bateau et ROV, discrétisé en N0 segments
+            x_line = np.linspace(x_boat, x_rov, N0 + 1)
+            y_line = np.linspace(y_boat, y_rov, N0 + 1)
+            # Clipping y <= 0 par sécurité
+            y_line = np.minimum(y_line, 0.0)
+            return x_line, y_line, 0.0, 0
 
         total_slack_ratio = total_slack / L_straight_cable
 
-        trace_print(9, f"[DEBUG] Initial P: {_str_cable_format(P, ds_max_allowed)}")
+        trace_print(8, f"[DEBUG] Initial P: {_str_cable_format(P, ds_max_allowed)}")
         while iters < max_iters:
             P = enforce_max_segment_length(P)
-            trace_print(9, f"[DEBUG] max_seg_l: {_str_cable_format(P, ds_max_allowed)}")
+            trace_print(8, f"[DEBUG] max_seg_l: {_str_cable_format(P, ds_max_allowed)}")
             lengths = segment_lengths(P)
             L_seg = float(lengths.sum())
             if L_seg <= 0.0 or L_target <= 0.0:
+                break
+
+            # Erreur relative actuelle sur la longueur totale du câble
+            rel_err = abs(L_target - L_seg) / max(L_target, 1e-9)
+            if rel_err <= tol_rel:
+                # Longueur déjà suffisament proche de la cible
                 break
 
             scale = L_target / L_seg
@@ -200,18 +216,32 @@ class CableSolver:
                 Bp = scale_slack(A, B, C, sc=scale)
                 Bp[1] = min(Bp[1], 0.0)
                 P_new[k] = Bp
-            trace_print(9, f"[DEBUG] scl_slack: {_str_cable_format(P_new, ds_max_allowed)}")
+            trace_print(8, f"[DEBUG] scl_slack: {_str_cable_format(P_new, ds_max_allowed)}")
             P = P_new
 
             iters += 1
-            if rel_err <= tol_rel:
-                break
 
+        # Dernier ajustement des longueurs de segments
         P = enforce_max_segment_length(P)
-        trace_print(9, f"[DEBUG] last max l. : {_str_cable_format(P, ds_max_allowed)}")
+        # Mettre à jour rel_err avec la géométrie finale
+        lengths = segment_lengths(P)
+        L_seg = float(lengths.sum())
+        if L_seg > 0.0 and L_target > 0.0:
+            rel_err = abs(L_target - L_seg) / max(L_target, 1e-9)
+        trace_print(8, f"[DEBUG] last max l. : {_str_cable_format(P, ds_max_allowed)}")
+        # Supprimer les points du câble en surnombre
+        trace_print(9, f"[DEBUG] Suppression des points en surnombre")
+        P, ok_reduction = enforce_cable_segments_nb(P, N_target_seg=N0)
+        if not ok_reduction:
+            trace_print(
+                10,
+                f"[DEBUG] enforce_cable_segments_nb n'a pas pu atteindre N0={N0} segments "
+                f"(N_final={P.shape[0] - 1})"
+            )
         x_new = P[:, 0]
         y_new = P[:, 1]
-        trace_print(9, f"[DEBUG] x_new: {x_new}, y_new: {y_new}")
+        trace_print(8, f"[DEBUG] x_new: {x_new}, y_new: {y_new}")
+        trace_print(9, f"[DEBUG] L_target={L_target:.4f}, L_seg={L_seg:.4f}, rel_err={rel_err:.3e}, iters={iters}")
         return x_new, y_new, rel_err, iters
 
     def solve_equilibrium_static(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None):
