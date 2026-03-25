@@ -110,8 +110,14 @@ Tests disponibles :
 
 - `test_rov_model.py` : Modèle ROV (traînée, flottabilité)
 - `test_cable_solver.py` : Solveur de câble
+- `test_cable_normalization_edge_cases.py` : Cas limites de normalisation du câble
 - `test_scenario_utils.py` : Utilitaires de scénarios
+- `test_utils_scale_slack.py` : Tests unitaires de `scale_slack`
+- `test_utils_supprimer_point.py` : Tests unitaires de `supprimer_point`
+- `test_utils_enforce_cable_segments_nb.py` : Tests unitaires de `enforce_cable_segments_nb`
+- `test_utils_deplacer_point.py` : Tests unitaires de `deplacer_point`
 - `test_environment_current_velocity.py` : Profil de courant
+- Scripts visuels (rapports HTML) : `test_cable_normalization_visual.py`, `test_scale_slack_visual.py`, `test_deplacer_point_visual.py`, `test_supprimer_point_visual.py`, `test_enforce_cable_segments_nb_visual.py`
 
 ---
 
@@ -137,19 +143,21 @@ lancer_pyqt.bat
 python -m src.ui.pyqt_app
 ```
 
-**Vérification** : Si l'application se lance correctement, une fenêtre s'ouvre avec le titre « 🌊 Simulateur ROV - Application Windows » et 3 onglets visibles : Simulation, Paramètres, Performances.
+**Vérification** : Si l'application se lance correctement, une fenêtre s'ouvre avec le titre « 🌊 Simulateur ROV - Application Windows » et 5 onglets visibles : Simulation, Paramètres, Performances, Aide, Tests.
 
 ---
 
 ## 4. Interface principale
 
-L'application comporte **3 onglets** :
+L'application comporte **5 onglets** :
 
 | Onglet | Description |
 |--------|-------------|
 | **🎮 Simulation** | Contrôles de simulation, visualisation temps réel, métriques |
 | **⚙️ Paramètres** | Configuration des missions, paramètres physiques, conditions initiales |
 | **📈 Performances** | (À venir) Analyses de performances |
+| **❓ Aide** | Table des matières et documentation intégrée |
+| **🧪 Tests** | Gestion et lancement des tests, avec persistance des résultats |
 
 ---
 

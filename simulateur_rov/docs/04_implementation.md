@@ -98,17 +98,28 @@ Autres répertoires :
 - normalisation de la longueur par rééchantillonnage curviligne avec segments de longueur égale
 - garantie que le dernier point a `s = L(t)` et correspond au ROV
 
-La normalisation de la géométrie est assurée par `_normalize_cable_length(x_cable, y_cable, L_target)`. Cette fonction :
+La normalisation de la géométrie est assurée par `_normalize_cable_geometry(x_cable, y_cable, L_target, bateau, rov, N_debut_iter)` dans `cable_solver.py`.
 
-1. calcule la longueur curviligne actuelle ;
-2. construit l'abscisse curviligne cumulée ;
-3. remet cette abscisse à l'échelle pour atteindre exactement `L_target` ;
-4. interpole les nœuds sur une discrétisation uniforme `s = 0, ds, 2ds, ..., L_target` ;
-5. corrige explicitement les segments pour obtenir `ds = L_target / N` ;
-6. réapplique les contraintes physiques simples comme `y <= 0` ;
-7. effectue un ajustement final si nécessaire pour supprimer les écarts résiduels de longueur.
+Cette fonction travaille directement sur la polyligne du câble et applique les contraintes suivantes en sortie :
 
-Point important sur les tensions : `_normalize_cable_length` ne recalcule pas les tensions. Elle modifie uniquement la géométrie du câble. Les tensions sont recalculées ensuite sur la géométrie finale retenue par le solveur, via le calcul des forces réparties puis la reconstruction d'un champ de tension cohérent. Dans `ROVSystem`, ces tensions recalculées deviennent ensuite des tensions cibles ; l'état dynamique des tensions est mis à jour par relaxation, et non par remplacement instantané, sauf adaptation beaucoup plus rapide au niveau du ROV en cas de slack négatif.
+1. `P[0]` est **strictement collé** au bateau (extrémité du câble à l’ancre bateau),
+2. `P[-1]` est **strictement collé** au ROV (extrémité du câble à l’ancre ROV),
+3. la somme des longueurs des segments est réglée pour être **aussi proche que possible de** `L_target`, avec un critère de convergence :
+   - `rel_err <= 1e-4` ou
+   - `max_iters = 10`,
+4. chaque segment a une longueur bornée entre :
+   - `L_target / N_debut_iter` et
+   - `2 * L_target / N_debut_iter`,
+5. la géométrie respecte la contrainte physique simple `y <= 0` (clipping en sortie).
+
+Concrètement, l’algorithme :
+1. recolle les extrémités (`P[0]`/`P[-1]`) à la géométrie (bateau/ROV) et clippe `y`,
+2. ajoute/reconfigure localement des points si des segments deviennent trop longs (garde-fou sur `ds_max_allowed`),
+3. ajuste itérativement la position des points intermédiaires via `scale_slack(...)` pour corriger le slack et réduire l’erreur de longueur,
+4. effectue un dernier ajustement de longueur,
+5. force ensuite le nombre de segments avec `enforce_cable_segments_nb(P, N_target_seg=N0)` afin que la géométrie soit compatible avec l’état du simulateur (évite notamment les erreurs de tailles lors de l’empaquetage par `system_model.pack_state`).
+
+Point important sur les tensions : `_normalize_cable_geometry` ne recalcule pas les tensions. Elle modifie uniquement la géométrie du câble. Les tensions sont recalculées ensuite sur la géométrie finale retenue par le solveur, via le calcul des forces réparties puis la reconstruction d'un champ de tension cohérent. Dans `ROVSystem`, ces tensions recalculées deviennent ensuite des tensions cibles ; l'état dynamique des tensions est mis à jour par relaxation, et non par remplacement instantané, sauf adaptation beaucoup plus rapide au niveau du ROV en cas de slack négatif.
 
 ### 4.3 Forces sur le câble
 

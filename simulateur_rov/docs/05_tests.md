@@ -34,6 +34,10 @@ Le répertoire `tests/` contient les tests unitaires automatisables :
 
 - `tests/test_cable_solver.py`
 - `tests/test_cable_normalization_edge_cases.py`
+- `tests/test_utils_scale_slack.py`
+- `tests/test_utils_supprimer_point.py`
+- `tests/test_utils_enforce_cable_segments_nb.py`
+- `tests/test_utils_deplacer_point.py`
 - `tests/test_environment_current_velocity.py`
 - `tests/test_rov_model.py`
 - `tests/test_scenario_utils.py`
@@ -48,9 +52,14 @@ Des scripts complémentaires existent à la racine du projet :
 - `test_pyqt.py`
 - `test_pyqt_simple.py`
 
-Le répertoire `tests/` contient aussi un script visuel dédié :
+Le répertoire `tests/` contient aussi plusieurs scripts visuels Plotly, utiles
+pour inspecter visuellement les écarts numériques :
 
 - `tests/test_cable_normalization_visual.py`
+- `tests/test_scale_slack_visual.py`
+- `tests/test_deplacer_point_visual.py`
+- `tests/test_supprimer_point_visual.py`
+- `tests/test_enforce_cable_segments_nb_visual.py`
 
 Ces scripts ne sont pas tous conçus comme des tests unitaires `pytest`. Certains
 ouvrent l'application, lancent une simulation courte ou affichent un diagnostic
@@ -61,17 +70,17 @@ détaillé destiné à une analyse manuelle.
 ### 3.1 `tests/test_cable_solver.py`
 
 Ce fichier couvre principalement le solveur de câble et la fonction de
-normalisation `_normalize_cable_length`.
+normalisation `_normalize_cable_geometry`.
 
 Les cas testés incluent :
 
 - l'initialisation du modèle de câble ;
-- la production d'une solution statique numériquement exploitable ;
-- le cas où la géométrie est déjà correctement normalisée ;
-- l'imposition d'une longueur totale cible ;
-- l'égalité des longueurs de segments ;
+- la normalisation en imposant :
+  - `P[0]` collé au bateau et `P[-1]` collé au ROV,
+  - une longueur totale finale proche de `L_target` (critère `rel_err <= 1e-4` ou `max_iters = 10`) ;
+- le respect de bornes locales sur la longueur des segments (entre `L_target/N_debut_iter` et `2*L_target/N_debut_iter`) ;
 - le respect de la contrainte `y <= 0` ;
-- le maintien d'un nombre de nœuds cohérent avec `N + 1`.
+- l'ajout temporaire de points puis la réduction finale du nombre de segments avec `enforce_cable_segments_nb` (compatibilité avec l'état empaqueté par `system_model.pack_state`).
 
 Les tests de normalisation utilisent volontairement des câbles synthétiques de
 petite taille, avec une dizaine de segments au maximum, afin de faciliter le
@@ -93,8 +102,8 @@ Les cas testés incluent :
 Ces tests vérifient notamment :
 
 - l'absence de `NaN` ou de valeurs infinies ;
-- la longueur totale finale ;
-- l'égalité des segments ;
+- la longueur totale finale (tolérance relative) ;
+- les bornes de segments après réduction au nombre cible ;
 - le respect de `y <= 0`.
 
 ### 3.3 `tests/test_environment_current_velocity.py`
@@ -131,6 +140,29 @@ Les cas couverts incluent :
 - la progression et le réarmement de `commande_scenario()` ;
 - le traitement des paramètres de commande ;
 - un test de comportement de `auto_L_1`.
+
+### 3.6 `tests/test_utils_scale_slack.py`
+
+Tests unitaires de la fonction géométrique `scale_slack` (cas triangulaires,
+cas avec slack > 1, slack < 1 et cas alignés).
+
+### 3.7 `tests/test_utils_supprimer_point.py`
+
+Tests unitaires de `supprimer_point`, notamment sur les cas de micro-géométrie
+et les cas où les points deviennent quasi alignés (pour éviter les retours
+`None` dans des configurations réalistes).
+
+### 3.8 `tests/test_utils_enforce_cable_segments_nb.py`
+
+Tests unitaires de la réduction du nombre de segments (`enforce_cable_segments_nb`)
+à une valeur cible, avec vérification que la géométrie et la longueur restent
+compatibles.
+
+### 3.9 `tests/test_utils_deplacer_point.py`
+
+Tests unitaires de `deplacer_point`, avec vérification de la construction
+géométrique (milieu/perpendiculaire) et des longueurs (condition sur la somme
+des distances).
 
 ## 4. Assertions de contrôle en fin d'itération
 
@@ -254,10 +286,12 @@ Pour chaque cas, il affiche :
 
 - le profil du câble avant normalisation ;
 - le profil du câble après normalisation ;
+- les positions bateau/ROV utilisées dans le calcul ;
 - la longueur totale du câble avant normalisation ;
 - la longueur minimale et maximale des segments avant normalisation ;
 - la longueur totale du câble après normalisation ;
 - la longueur minimale et maximale des segments après normalisation ;
+- le `rel_err` final et le nombre de segments avant/après ;
 - la longueur cible `L_target`.
 
 Le rapport est généré par défaut dans :
@@ -347,6 +381,19 @@ python tests/test_cable_normalization_visual.py
 Le script génère ensuite le fichier :
 
 `results/cable_normalization_visual_tests.html`
+
+### 6.5 Lancement via l'onglet `🧪 Tests`
+
+L'application PyQt inclut un onglet **🧪 Tests** qui :
+
+- charge le catalogue des tests depuis `src/tests/test_catalog.py`,
+- affiche les tests avec une case à cocher par entrée,
+- exécute les tests cochés en séquence (via `subprocess`),
+- sauvegarde l'état et le résultat dans `tests/test_status.json` (cases cochées,
+  date/heure, `PASS`/`FAIL`, commentaires) ;
+
+Les rapports HTML produits par les scripts visuels sont listés dans la colonne
+"Commentaires / Rapport" lorsque disponibles.
 
 ## 7. Remarques pratiques
 
