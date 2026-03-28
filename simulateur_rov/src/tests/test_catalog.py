@@ -49,6 +49,20 @@ def _tests_utils() -> Iterable[TestEntry]:
             description="Tests numériques de la fonction supprimer_point.",
             command="python -m pytest -q tests/test_utils_supprimer_point.py",
         ),
+        TestEntry(
+            id="utils_create_point_with_target_length_unit",
+            group="Géométrie câble – unitaires",
+            name="create_point_with_target_length (numérique)",
+            description="Tests numériques de la fonction create_point_with_target_length.",
+            command="python -m pytest -q tests/test_utils_create_point_with_target_length.py",
+        ),
+        TestEntry(
+            id="cable_normalize_segments_unit",
+            group="Normalisation du câble – unitaires",
+            name="_normalize_cable_segments (structure)",
+            description="Tests de structure pour CableSolver._normalize_cable_segments (taille, extrémités, fallback).",
+            command="python -m pytest -q tests/test_cable_normalize_segments.py",
+        ),
     ]
 
 
@@ -70,6 +84,29 @@ def _tests_visual() -> Iterable[TestEntry]:
             description="Génère un rapport HTML illustrant la fonction deplacer_point.",
             command="python tests/test_deplacer_point_visual.py",
             html_report="results/test_deplacer_point_visual_report.html",
+        ),
+        TestEntry(
+            id="visual_create_point_with_target_length",
+            group="Géométrie câble – rapports graphiques",
+            name="create_point_with_target_length – rapport graphique",
+            description="Génère un rapport HTML illustrant la fonction create_point_with_target_length.",
+            command="python tests/test_create_point_with_target_length_visual.py",
+            html_report="results/create_point_with_target_length_visual_tests.html",
+        ),
+        TestEntry(
+            id="utils_next_point_unit",
+            group="Géométrie câble – unitaires",
+            name="next_point (numérique)",
+            description="Tests numériques de la fonction next_point.",
+            command="python -m pytest -q tests/test_utils_next_point.py",
+        ),
+        TestEntry(
+            id="visual_next_point",
+            group="Géométrie câble – rapports graphiques",
+            name="next_point – rapport graphique",
+            description="Génère un rapport HTML illustrant la fonction next_point.",
+            command="python tests/test_next_point_visual.py",
+            html_report="results/next_point_visual_tests.html",
         ),
         TestEntry(
             id="visual_supprimer_point",
@@ -94,6 +131,14 @@ def _tests_visual() -> Iterable[TestEntry]:
             description="Génère le rapport HTML des tests de normalisation du câble (_normalize_cable_geometry).",
             command="python tests/test_cable_normalization_visual.py",
             html_report="results/test_cable_normalization_visual_report.html",
+        ),
+        TestEntry(
+            id="visual_cable_normalize_segments",
+            group="Normalisation du câble – rapports graphiques",
+            name="_normalize_cable_segments – rapport graphique",
+            description="Génère un rapport HTML illustrant CableSolver._normalize_cable_segments.",
+            command="python tests/test_cable_normalize_segments_visual.py",
+            html_report="results/cable_normalize_segments_visual_tests.html",
         ),
     ]
 

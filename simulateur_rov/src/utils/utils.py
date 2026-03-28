@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from math import e
 from typing import Sequence
 
 import numpy as np
+from numpy.testing import print_assert_equal
 
 from src.utils.logger import trace_print
 
@@ -206,6 +208,129 @@ def deplacer_point(
     return D2
 
 
+def create_point_with_target_length(
+    _P: Sequence[Sequence[float]],
+    l_seg_target: float,
+) -> tuple[bool, np.ndarray]:
+    """
+    Construit un point C tel que |AC| = |BC| = l_seg_target.
+
+    Notations :
+    - A = premier point de _P
+    - B = dernier point de _P
+    - H = milieu de AB
+    - G = barycentre des milieux des segments de _P (après clipping y<=0)
+
+    Règles métier appliquées :
+    - Tous les points de _P sont clippés à y <= 0 avant calcul.
+    - Si AB > 2*l_seg_target  -> (False, H)
+    - Si AB == 2*l_seg_target -> (True, H)
+    - Si A == B               -> (True, A + (l_seg_target, 0))
+    - Sinon, C est sur la perpendiculaire à AB passant par H, du côté de G.
+      Si C est au-dessus de la surface (y > 0), on le réfléchit par rapport à AB.
+    """
+    
+    def _is_on_line_ab(U: np.ndarray) -> bool:
+        return abs(AB_vec[0] * (U[1] - A[1]) - AB_vec[1] * (U[0] - A[0])) <= tol
+    
+    P = np.asarray(_P, dtype=float)
+    if P.ndim != 2 or P.shape[0] < 2 or P.shape[1] < 2:
+        raise ValueError("_P doit contenir au moins 2 points 2D.")
+    if l_seg_target < 0:
+        raise ValueError("l_seg_target doit etre >= 0.")
+
+    P2 = P[:, :2].copy()
+    # Clip physique : tous les points au-dessus de la surface sont projetés sur y=0.
+    P2[:, 1] = np.minimum(P2[:, 1], 0.0)
+
+    A = P2[0]
+    B = P2[-1]
+    H = 0.5 * (A + B)
+
+    AB_vec = B - A
+    AB = float(np.linalg.norm(AB_vec))
+    tol = 1e-12 * max(1.0, abs(AB), abs(l_seg_target))
+
+    seg_midpoints = 0.5 * (P2[:-1] + P2[1:])
+    G = np.mean(seg_midpoints, axis=0)
+    
+    # section :Cas dégénérés 
+    if AB > 2.0 * l_seg_target + tol:
+        Q = H
+        res = False
+        expliction = "AB ({AB:6.2f})> 2*l_seg_target ({2.0 * l_seg_target:6.2f}))"
+
+    elif abs(AB - 2.0 * l_seg_target) <= tol:
+        Q=H
+        res = True
+        expliction = "AB ({AB:6.2f}) - 2*l_seg_target ({2.0 * l_seg_target:6.2f}) <= tol ({tol:6.2f}))"
+
+    elif np.linalg.norm(A - B) <= tol:
+        expliction = "A == B"
+        res = True
+        Q = A + np.array([float(l_seg_target), 0.0], dtype=float)
+    else:
+    # end section : Cas dégénérés 
+    # section cas standard : on cherche Q sur la perpendiculaire à AB passant par H, du côté de G.
+        if _is_on_line_ab(G):
+            G = G + np.array([0.0, -1.0], dtype=float)
+            if _is_on_line_ab(G):
+                G = G + np.array([1.0, 0.0], dtype=float)
+
+        # Direction unitaire de la perpendiculaire a AB. On sait que l'on est pas dans le cas "A == B" donc AB_vec n'est pas nul.
+        n = np.array([-AB_vec[1], AB_vec[0]], dtype=float)
+        n_norm = float(np.linalg.norm(n))
+        n /= n_norm
+
+        # HQ tel que AQ = l_seg_target (triangle isocèle de base AB).
+        rad = max(l_seg_target * l_seg_target - (0.5 * AB) * (0.5 * AB), 0.0)
+        hq = float(np.sqrt(rad))
+
+        side_g = AB_vec[0] * (G[1] - H[1]) - AB_vec[1] * (G[0] - H[0])
+        sign = 1.0 if side_g >= 0.0 else -1.0
+        Q = H + sign * hq * n
+
+        # Si Q est au-dessus de la surface, réfléchir Q par rapport à la droite AB.
+        if Q[1] > 0.0:
+            u = AB_vec / AB  # AB non nul ici
+            AH = Q - A
+            proj = np.dot(AH, u) * u
+            perp = AH - proj
+            Q = A + proj - perp
+            expliction = "Cas standard - miroir" 
+        else:
+            expliction = "Cas standard"
+        # On est dzns le cas standard, donc on doit doit avoir AQ == BQ == l_seg_target
+        if abs(np.linalg.norm(Q - A) - l_seg_target) > tol or abs(np.linalg.norm(Q - B) - l_seg_target) > tol:
+            raise ValueError("AQ or BQ != l_seg_target")
+
+    # end section : cas standard
+    L_AQ = float(np.linalg.norm(Q - A))
+    L_BQ = float(np.linalg.norm(Q - B))
+    _ANSI_RED = "\033[91m"
+    _ANSI_RESET = "\033[0m"
+    if abs(L_AQ - l_seg_target) > tol:
+        L_seg_A = (f"AQ ( {_ANSI_RED}{L_AQ:4.2f}{_ANSI_RESET}) != l_seg_target ( {l_seg_target:4.2f})")
+    else:
+        L_seg_A = (f"AQ ( {L_AQ:4.2f}) == l_seg_target ( {l_seg_target:4.2f})")
+    if abs(L_BQ - l_seg_target) > tol:
+        L_segB = f"BQ ( {_ANSI_RED}{L_BQ:4.2f}{_ANSI_RESET}) != l_seg_target ( {l_seg_target:4.2f})"
+    else:
+        L_segB = f"BQ ( {L_BQ:4.2f}) == l_seg_target ( {l_seg_target:4.2f})"
+        
+    trace_print(9, "[create_pnt_with_tgt_length] : "
+        f"A=({A[0]:6.2f}, {A[1]:6.2f}) "
+        f"B=({B[0]:6.2f}, {B[1]:6.2f}) "
+        f"H=({H[0]:6.2f}, {H[1]:6.2f}) "
+        f"G=({G[0]:6.2f}, {G[1]:6.2f}) "
+        f"--> Q=({Q[0]:6.2f}, {Q[1]:6.2f})  "
+        f"  {L_seg_A}"
+        f"  {L_segB}"
+        f"  {expliction}"
+    )
+    return True, Q
+
+
 def supprimer_point(
     A: Sequence[float],
     B: Sequence[float],
@@ -258,23 +383,30 @@ def supprimer_point(
     M = 0.5 * (A2 + D2)
     Mp = 0.5 * (B2 + C2)
 
-    # Si M' confondu avec M, géométrie trop dégénérée
-    if np.allclose(M, Mp):
-        return None
+    # Échelle de longueur locale pour détecter les cas de micro-géométrie
+    L_AD = _dist(A2, D2)
+    L_ref = max(L_AD, L_local, 1e-9)
+    eps_L = 1e-6 * max(L_ref, 1.0)
+
+    # Si la longueur locale est extrêmement petite, on simplifie :
+    # on place E au milieu de AD et on accepte une petite erreur de longueur.
+    if L_local < eps_L:
+        return 0.5 * (A2 + D2)
 
     # Test d'alignement A, M, M'
     AM = M - A2
     AMp = Mp - A2
     cross = AM[0] * AMp[1] - AM[1] * AMp[0]
-    if abs(cross) < 1e-12:
-        # Cas dégénéré : on ne sait pas construire E de façon fiable
-        return None
 
-    # Direction unitaire le long de la droite (M, M'), orientée vers M'
+    # Direction le long de la droite (M, M'), orientée vers M'
     d = Mp - M
     d_norm = float(np.linalg.norm(d))
-    if d_norm == 0.0:
-        return None
+
+    # Si la géométrie est trop dégénérée (M≈Mp, alignement fort, d_norm≈0),
+    # on utilise un fallback simple : E ≈ Mp.
+    if np.allclose(M, Mp) or abs(cross) < 1e-12 or d_norm == 0.0:
+        return Mp
+
     u = d / d_norm
 
     # On cherche E(t) = M + t * u, t > 0 tel que |AE| + |DE| = L_local
@@ -299,8 +431,8 @@ def supprimer_point(
         it += 1
 
     if f_lo * f_hi > 0:
-        # Pas de changement de signe trouvé : pas de solution évidente
-        return None
+        # Pas de changement de signe trouvé : on revient au fallback géométrique
+        return Mp
 
     # Bisection pour trouver t tel que f(t) ≈ 0
     for _ in range(80):
@@ -318,7 +450,7 @@ def supprimer_point(
 
     t_final = 0.5 * (t_lo + t_hi)
     if t_final <= 0.0:
-        return None
+        return Mp
 
     E2 = M + t_final * u
     return E2
@@ -353,10 +485,20 @@ def enforce_cable_segments_nb(
     def seg_lengths(arr: np.ndarray) -> np.ndarray:
         return np.linalg.norm(arr[1:] - arr[:-1], axis=1)
 
+    # Garde-fou sur le nombre d'itérations : on ne doit pas boucler indéfiniment
+    initial_N = P_xy.shape[0] - 1
+    max_iter = max(10 * initial_N, 50)
+    iter_count = 0
+
     changed = True
     while True:
+        iter_count += 1
+        if iter_count > max_iter:
+            trace_print(9, f"[DEBUG] enforce_cable_segments_nb: nombre max d'itérations atteint "
+                        f"(max_iter={max_iter}, N_actuel={P_xy.shape[0] - 1})")
+            break
         N = P_xy.shape[0] - 1  # nombre de segments
-        trace_print(9, f"[DEBUG]     N={N}, N_target_seg={N_target_seg}")
+        trace_print(8, f"[DEBUG] enforce_cable_segments_nb: N={N}, N_target_seg={N_target_seg}")
         if N <= N_target_seg or N < 3:
             break
 
@@ -383,7 +525,7 @@ def enforce_cable_segments_nb(
                 D = P_xy[j + 1]
                 E = supprimer_point(A, B, C, D)
                 if E is None:
-                    trace_print(9, f"[DEBUG] CAS INTERNE supprimer_point(A, B, C, D) is None")
+                    trace_print(9, f"[DEBUG] CAS INTERNE supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
                     continue
                 # Construire le nouveau tableau : ... A, E, D ...
                 new_pts = []
@@ -403,7 +545,7 @@ def enforce_cable_segments_nb(
                 D = P_xy[3]
                 E = supprimer_point(A, B, C, D)
                 if E is None:
-                    trace_print(9, f"[DEBUG] CAS BATEAU supprimer_point(A, B, C, D) is None")
+                    trace_print(9, f"[DEBUG] CAS BATEAU supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
                     continue    
                 new_pts = [A, E]
                 new_pts.extend(P_xy[3:])
@@ -419,7 +561,7 @@ def enforce_cable_segments_nb(
                 D = P_xy[-1]
                 E = supprimer_point(A, B, C, D)
                 if E is None:
-                    trace_print(9, f"[DEBUG] CAS ROV supprimer_point(A, B, C, D) is None")
+                    trace_print(9, f"[DEBUG] CAS ROV supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
                     continue
                 # ... , A, E, D
                 new_pts = []
@@ -436,3 +578,86 @@ def enforce_cable_segments_nb(
 
     ok = (P_xy.shape[0] - 1) == N_target_seg
     return P_xy, ok
+
+
+def next_point(
+    _Q: Sequence[Sequence[float]],
+    _ls: Sequence[float],
+    Lseg_total: float,
+    R: Sequence[float],
+    num_seg_R: int,
+    s_R: float,
+    step: float,
+) -> tuple[int | None, np.ndarray | None]:
+    """
+    Renvoie le point T situé à l'abscisse curviligne s_R + step sur la polyline _Q.
+
+    Paramètres
+    ----------
+    _Q : liste de points (x, y), longueur = N_points.
+    _ls : liste des abscisses curvilignes des points de _Q (même longueur que _Q).
+          En pratique, _ls[i] correspond au cumul de longueur du sommet _Q[i].
+    Lseg_total : somme des longueurs des segments de _Q, soit _ls[-1].
+    R : point courant, situé sur le segment num_seg_R.
+    num_seg_R : numéro du segment sur lequel R est situé.
+    s_R : abscisse curviligne de R.
+    step : incrément d'abscisse curviligne.
+
+    Retour
+    ------
+    (ns, T)
+    - Si s_R + step > Lseg_total : (None, None)
+    - Sinon : ns est le numéro du segment contenant T et T est le point interpolé.
+    """
+    Q = np.asarray(_Q, dtype=float)
+    if Q.ndim != 2 or Q.shape[1] < 2 or Q.shape[0] < 2:
+        raise ValueError("_Q doit contenir au moins 2 points en 2D (x, y).")
+    Q = Q[:, :2]
+
+    ls = np.asarray(_ls, dtype=float).reshape(-1)
+    if ls.size != Q.shape[0]:
+        raise ValueError("_ls doit avoir une taille égale à len(_Q).")
+
+    L_total = float(Lseg_total)
+    step_f = float(step)
+    s_target = float(s_R) + step_f
+
+    if s_target > L_total:
+        trace_print(9, f"[next_point] s_target ({s_target:8.2f}) > L_total ({L_total:8.2f}) --> (None, None)")
+        return None, None
+
+    n_seg = Q.shape[0] - 1
+    if num_seg_R < 0 or num_seg_R >= n_seg:
+        raise ValueError("num_seg_R doit être dans [0, len(_Q)-2].")
+
+    # Contrôle de cohérence minimal (on n'utilise pas R directement pour le calcul).
+    s_seg0 = float(ls[num_seg_R])
+    s_seg1 = float(ls[num_seg_R + 1])
+    if not (min(s_seg0, s_seg1) - 1e-9 <= float(s_R) <= max(s_seg0, s_seg1) + 1e-9):
+        # On ne bloque pas : l'utilisateur peut fournir s_R approximatif.
+        pass
+
+    # clamp éventuel sur la borne gauche
+    if s_target <= float(ls[0]):
+        trace_print(9, f"[next_point] : Q[0]=({Q[0][0]:8.2f}, {Q[0][1]:8.2f}) s_target ({s_target:8.2f}) <= ls[0] ({ls[0]:8.2f}) --> (0, Q[0])")
+        return 0, Q[0].copy()
+
+    if s_target >= float(ls[-1]):
+        trace_print(9, f"[next_point] : Q[-1]=({Q[-1][0]:8.2f}, {Q[-1][1]:8.2f}) s_target ({s_target:8.2f}) >= ls[-1] ({ls[-1]:8.2f}) --> ({n_seg - 1}, Q[-1])")
+        return n_seg - 1, Q[-1].copy()
+
+    ns = int(np.searchsorted(ls, s_target, side="right") - 1)
+    ns = max(0, min(ns, n_seg - 1))
+
+    seg_start = float(ls[ns])
+    seg_end = float(ls[ns + 1])
+    seg_len = seg_end - seg_start
+
+    if abs(seg_len) <= 1e-15:
+        return ns, Q[ns].copy()
+
+    t = (s_target - seg_start) / seg_len
+    t = float(np.clip(t, 0.0, 1.0))
+    T = (1.0 - t) * Q[ns] + t * Q[ns + 1]
+    trace_print(9, f"[next_point] : ns = {ns} T=({T[0]:6.2f}, {T[1]:6.2f}) = (1.0 - t) * Q[ns] + t * Q[ns + 1] avec t = {t:4.2f}")
+    return ns, T

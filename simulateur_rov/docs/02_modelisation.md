@@ -20,6 +20,7 @@ format: "Markdown"
 10. Récapitulatif des forces sur le ROV
 11. Récapitulatif des forces sur le câble
 12. Conventions de signe détaillées
+13. Construction d'un point isocèle cible
 
 ## 1. Repère et conventions
 
@@ -406,3 +407,71 @@ La traction est positive vers le haut quand le câble tire le ROV vers la surfac
 ### 12.6 Forces verticales (câble)
 
 Pour le câble : **Négatif** = vers le bas, **Positif** = vers le haut (cohérent avec y < 0 = profondeur).
+
+---
+
+## 13. Construction d'un point isocèle cible
+
+### 13.1 Objectif
+
+La fonction `create_point_with_target_length(_P, l_seg_target) -> (res, C)` construit un point `C` tel que :
+
+```
+|AC| = l_seg_target
+|BC| = l_seg_target
+```
+
+avec :
+
+- `A = _P[0]` (premier point),
+- `B = _P[-1]` (dernier point),
+- `H = (A + B) / 2` (milieu de `AB`).
+
+Le booléen `res` indique si une solution conforme est disponible.
+
+### 13.2 Prétraitement (contrainte surface)
+
+Avant tout calcul, tous les points `Z` de `_P` sont clippés pour imposer :
+
+```
+Zy = min(Zy, 0)
+```
+
+### 13.3 Cas limites
+
+- Si `|AB| > 2 * l_seg_target` : retour `(False, H)` (triangle isocèle impossible).
+- Si `|AB| == 2 * l_seg_target` : retour `(True, H)` (solution unique sur `AB`).
+- Si `A == B` : retour `(True, A + (l_seg_target, 0))`.
+
+### 13.4 Choix du côté géométrique
+
+On calcule `G` comme barycentre des milieux des segments de `_P`.
+
+- Si `G` est aligné sur la droite `(AB)` :
+  - d'abord `G <- G + (0, -1)`,
+  - puis si besoin `G <- G + (1, 0)`.
+
+Cela garantit un côté de référence non ambigu pour placer `C`.
+
+### 13.5 Construction de `C`
+
+- `C` est pris sur la perpendiculaire à `AB` passant par `H`,
+- du même côté de `AB` que `G`,
+- avec la contrainte `|AC| = l_seg_target`.
+
+La hauteur par rapport à `H` vaut :
+
+```
+h = sqrt(l_seg_target^2 - (|AB|/2)^2)
+```
+
+### 13.6 Correction finale surface
+
+Si `Cy > 0`, le point est réfléchi par symétrie axiale par rapport à la droite `(AB)` afin de respecter la contrainte `y <= 0`.
+
+### 13.7 Localisation code et tests
+
+- Implémentation : `src/utils/utils.py`
+- Tests unitaires : `tests/test_utils_create_point_with_target_length.py`
+- Rapport visuel Plotly (cas 2 a 6 points) : `tests/test_create_point_with_target_length_visual.py`
+- Sortie HTML : `results/create_point_with_target_length_visual_tests.html`

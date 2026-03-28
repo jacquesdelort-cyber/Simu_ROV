@@ -1,11 +1,29 @@
 """Solveur pour les équations du câble"""
+from re import L
 from tkinter import N
 import numpy as np
+from numpy._typing import _64Bit
 from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint
 from scipy.interpolate import interp1d
 from src.utils.logger import trace_print
-from src.utils.utils import enforce_cable_segments_nb, scale_slack
+from src.utils.utils import (
+    enforce_cable_segments_nb,
+    scale_slack,
+    create_point_with_target_length,
+    next_point,
+)
 
+_ANSI_RESET = "\033[0m"
+_ANSI_RED = "\033[91m"
+_ANSI_GREEN = "\033[92m"
+_ANSI_YELLOW = "\033[93m"
+_ANSI_BLUE = "\033[94m"
+_ANSI_MAGENTA = "\033[95m"
+_ANSI_CYAN = "\033[96m"
+_ANSI_WHITE = "\033[97m"
+_ANSI_GRAY = "\033[90m"
+_ANSI_LIGHT_GRAY = "\033[37m"
+_ANSI_LIGHT_RED = "\033[91m"
 
 class CableSolver:
     """Résout les équations d'équilibre du câble"""
@@ -33,25 +51,67 @@ class CableSolver:
         self.A_cable = np.pi * (self.d / 2)**2
         self._T_prev = None
 
-    def _normalize_cable_geometry(
-        self,
-        x_cable,
-        y_cable,
-        L_target,
-        bateau,
-        rov,
-        N_debut_iter,
-    ):
+    def _str_cable_format(self, points: np.ndarray, ds_target: float | None = None) -> str:
+        """
+        Formate un câble P (shape (N+1, 2)) sous la forme :
+        [ x0  y0 ] ds0 [ x1  y1 ] ds1 ... [ xN  yN ]
+        où dsi est la longueur du segment entre les points i et i+1.
+        """
+        pts = np.asarray(points, dtype=float)
+        if pts.ndim != 2 or pts.shape[1] != 2 or pts.shape[0] == 0:
+            return repr(pts)
+        n = pts.shape[0]
+        parts: list[str] = []
+        for i in range(n):
+            x, y = pts[i]
+            parts.append(f"[{x:5.2f} {y:5.2f}]")
+            if i < n - 1:
+                dx = pts[i + 1, 0] - x
+                dy = pts[i + 1, 1] - y
+                ds = float(np.hypot(dx, dy))
+                if ds_target is None:
+                    parts.append(f" {ds:5.2f} ")
+                elif abs(ds - ds_target) > 1e-6:
+                    # Rouge si ds > ds_max_allowed
+                    parts.append(f" \x1b[31m{ds:5.2f}\x1b[0m ")
+                else:
+                    # Vert sinon
+                    parts.append(f" \x1b[32m{ds:5.2f}\x1b[0m ")
+        return "".join(parts)
+
+    def _str_result_cable_format(self, points: np.ndarray, L_target, N_target ):
+        """
+        Renvoie une string qui synthétise les informations sur le câble après normalisation
+        """
+        parts: list[str] = []
+        Longueur_cable = float(np.sum(np.linalg.norm(np.diff(points, axis=0), axis=1)))
+        if abs(Longueur_cable - L_target) > 1e-3:
+            parts.append(f"L_cable= {_ANSI_RED}{Longueur_cable:6.2f}{_ANSI_RESET}  ") 
+        else:
+            parts.append(f"L_cable= {_ANSI_GREEN}{Longueur_cable:6.2f}{_ANSI_RESET}  ")
+
+        if len(points) - 1 == N_target:
+            parts.append(f"N_target= {_ANSI_GREEN}{N_target:4d}{_ANSI_RESET}  ")
+        else:
+            parts.append(f"N_target= {_ANSI_RED}{N_target:4d}{_ANSI_RESET}  ")
+
+        parts.append(f"ds_target= {L_target / N_target: 4.2f}\n                               ")
+        parts.append(self._str_cable_format(points, L_target / N_target  ))
+
+        return "".join(parts)
+
+    def _normalize_cable_geometry(self, x_cable, y_cable, L_target, bateau, rov, N_target, ):
         """
         Normalise la géométrie du câble en autorisant l'ajout de points.
 
         Contraintes en sortie :
         - P[0] est strictement collé au bateau.
         - P[-1] est strictement collé au ROV.
+        - Le nombre de points du câble est exactement N_target
         - La somme des longueurs des segments est aussi proche que possible de L_target,
           avec une erreur relative <= 1e-4 (si la convergence est atteinte).
-        - Chaque segment a une longueur comprise entre L_target/N_debut_iter et
-          2 * L_target/N_debut_iter.
+        - Chaque segment a une longueur comprise entre (L_target/N_target)/2 et
+          2 * L_target/N_target.
 
         Paramètres
         ----------
@@ -63,8 +123,8 @@ class CableSolver:
             Coordonnées (x, y) du bateau.
         rov : tuple(float, float)
             Coordonnées (x, y) du ROV.
-        N_debut_iter : int
-            Nombre de segments au début de l'itération.
+        N_target : int
+            Nombre de segments cible.
 
         Returns
         -------
@@ -75,47 +135,16 @@ class CableSolver:
         iters : int
             Nombre d'itérations effectuées.
         """
-        x_arr = np.asarray(x_cable, dtype=float).reshape(-1)
-        y_arr = np.asarray(y_cable, dtype=float).reshape(-1)
-        if x_arr.size != y_arr.size or x_arr.size < 2:
-            raise ValueError("_normalize_cable_geometry: géométrie invalide")
-
-        P = np.stack([x_arr, y_arr], axis=1)
-
-        x_boat, y_boat = float(bateau[0]), float(bateau[1])
-        x_rov, y_rov = float(rov[0]), float(rov[1])
 
         def segment_lengths(points):
             diffs = np.diff(points, axis=0)
             return np.linalg.norm(diffs, axis=1)
 
-        def _str_cable_format(points: np.ndarray, ds_max_allowed_val: float | None = None) -> str:
-            """
-            Formate un câble P (shape (N+1, 2)) sous la forme :
-            [ x0  y0 ] ds0 [ x1  y1 ] ds1 ... [ xN  yN ]
-            où dsi est la longueur du segment entre les points i et i+1.
-            """
-            pts = np.asarray(points, dtype=float)
-            if pts.ndim != 2 or pts.shape[1] != 2 or pts.shape[0] == 0:
-                return repr(pts)
-            n = pts.shape[0]
-            parts: list[str] = []
-            for i in range(n):
-                x, y = pts[i]
-                parts.append(f"[{x:5.2f} {y:5.2f}]")
-                if i < n - 1:
-                    dx = pts[i + 1, 0] - x
-                    dy = pts[i + 1, 1] - y
-                    ds = float(np.hypot(dx, dy))
-                    if ds_max_allowed_val is not None and ds > ds_max_allowed_val:
-                        # Rouge si ds > ds_max_allowed
-                        parts.append(f" \x1b[31m{ds:5.2f}\x1b[0m ")
-                    else:
-                        # Vert sinon
-                        parts.append(f" \x1b[32m{ds:5.2f}\x1b[0m ")
-            return "".join(parts)
-
         def enforce_max_segment_length(points):
+            """
+            Forcer la longueur des segments à ne pas dépasser ds_max_allowed.
+            Ajoute des points intermédiaires entre les points existants pour respecter la contrainte.
+            """
             changed = True
             while changed:
                 changed = False
@@ -127,12 +156,12 @@ class CableSolver:
                     ds = float(np.linalg.norm(seg))
                     if ds > ds_max_allowed and ds > 0.0:
                         n_sub = int(np.ceil(ds / ds_max_allowed))
-                        alpha_step = 1.0 / n_sub
                         trace_print(
-                            8,
-                            f"[DEBUG] : on ajoute {n_sub-1} points entre {p0} et {p1}  "
+                            9,
+                            f"[DEBUG] On ajoute {n_sub-1} points entre {p0} et {p1}  "
                             f"ds = {ds:6.2f}  ds_max_allowed = {ds_max_allowed:6.2f}",
                         )
+                        alpha_step = 1.0 / n_sub
                         for k in range(1, n_sub + 1):
                             alpha = k * alpha_step
                             pk = p0 + alpha * seg
@@ -144,6 +173,16 @@ class CableSolver:
                 points = np.array(new_pts, dtype=float)
             return points
 
+        x_arr = np.asarray(x_cable, dtype=float).reshape(-1)
+        y_arr = np.asarray(y_cable, dtype=float).reshape(-1)
+        if x_arr.size != y_arr.size or x_arr.size < 2:
+            raise ValueError("_normalize_cable_geometry: géométrie invalide")
+
+        P = np.stack([x_arr, y_arr], axis=1)
+
+        x_boat, y_boat = float(bateau[0]), float(bateau[1])
+        x_rov, y_rov = float(rov[0]), float(rov[1])
+
         # Étape 1 : recollement des extrémités
         P[0, 0] = x_boat
         P[0, 1] = min(y_boat, 0.0)
@@ -152,9 +191,9 @@ class CableSolver:
 
         P[:, 1] = np.minimum(P[:, 1], 0.0)
 
-        N0 = max(int(N_debut_iter), 1)
-        ds_min = L_target / N0
-        ds_max_allowed = 2.0 * ds_min
+        ds_target = L_target / N_target
+        ds_max_allowed = 2.0 * ds_target
+        ds_min_allowed = ds_target / 2.0
 
         iters = 0
         rel_err = 1.0
@@ -164,6 +203,15 @@ class CableSolver:
         
         L_straight_cable = float(np.linalg.norm(P[-1] - P[0]))
         total_slack = L_target - L_straight_cable
+        
+        if L_straight_cable < ds_min_allowed * N_target:
+            # Impossible : pas de slack disponible, on obtiendrait des segments trop petits. ERREUR
+            trace_print(
+                10,
+                "[ERROR] _normalize_cable_geometry: L_straight_cable < ds_min_allowed * N_target, "
+                "  on ne sait pas rattraper la situation",
+            )
+            raise Exception("_normalize_cable_geometry: L_straight_cable < ds_min_allowed * N_target")
 
         if total_slack <= 0.0:
             # Impossible : pas de slack disponible, on passe en mode « droite tendue »
@@ -172,31 +220,35 @@ class CableSolver:
                 "[ERROR] _normalize_cable_geometry: total_slack <= 0, "
                 "passage en mode câble droit entre bateau et ROV.",
             )
-            N0 = max(int(N_debut_iter), 1)
-            # Câble droit entre bateau et ROV, discrétisé en N0 segments
-            x_line = np.linspace(x_boat, x_rov, N0 + 1)
-            y_line = np.linspace(y_boat, y_rov, N0 + 1)
+            
+            # Câble droit entre bateau et ROV, discrétisé en N_target segments
+            x_line = np.linspace(x_boat, x_rov, N_target + 1)
+            y_line = np.linspace(y_boat, y_rov, N_target + 1)
             # Clipping y <= 0 par sécurité
             y_line = np.minimum(y_line, 0.0)
             return x_line, y_line, 0.0, 0
 
+        # On est dans un cas raisonnable (slack positif). On va essayer de normaliser le câble.
         total_slack_ratio = total_slack / L_straight_cable
+        trace_print(8, f"[DEBUG] Initial P: {self._str_cable_format(P, ds_max_allowed)}")
 
-        trace_print(8, f"[DEBUG] Initial P: {_str_cable_format(P, ds_max_allowed)}")
         while iters < max_iters:
-            P = enforce_max_segment_length(P)
-            trace_print(8, f"[DEBUG] max_seg_l: {_str_cable_format(P, ds_max_allowed)}")
+            iters += 1
             lengths = segment_lengths(P)
             L_seg = float(lengths.sum())
-            if L_seg <= 0.0 or L_target <= 0.0:
-                break
+            trace_print(9, f"\n[DEBUG] Itération {iters} : L_target={L_target:.4f}  L_seg={L_seg:.4f} ds_target={ds_target:.4f}   N_target={N_target}  N_segments={len(P)-1}")
+            nb_seg_avant = len(P) - 1
+            # division des segments trop longs par ajout de points
 
-            # Erreur relative actuelle sur la longueur totale du câble
-            rel_err = abs(L_target - L_seg) / max(L_target, 1e-9)
-            if rel_err <= tol_rel:
-                # Longueur déjà suffisament proche de la cible
-                break
+            P = enforce_max_segment_length(P)
+            n_seg_après = len(P) - 1
+            if n_seg_après - nb_seg_avant != 0:
+                trace_print(9, f"[DEBUG] Ajout de {n_seg_après - nb_seg_avant} points")
+            trace_print(8, f"[DEBUG] P: {self._str_cable_format(P, ds_max_allowed)}")
 
+            # Ajustement de la longueur des segments pour respecter la longueur cible
+            lengths = segment_lengths(P)
+            L_seg = float(lengths.sum())
             scale = L_target / L_seg
             P_new = P.copy()
 
@@ -204,45 +256,314 @@ class CableSolver:
                 A = P[k - 1]
                 B = P[k]
                 C = P[k + 1]
-                local_slack =  float(np.linalg.norm(A-B)) + float(np.linalg.norm(B-C)) - float(np.linalg.norm(A-C)) 
-                if float(np.linalg.norm(A-C)) == 0.0:
-                    # configuration dégénérée
-                    local_slack_ratio = 10
-                else :  local_slack_ratio = local_slack / float(np.linalg.norm(A-C)) 
-                if local_slack_ratio > total_slack_ratio :
-                    sc = scale 
-                else:
-                    sc = 1
+
                 Bp = scale_slack(A, B, C, sc=scale)
                 Bp[1] = min(Bp[1], 0.0)
                 P_new[k] = Bp
-            trace_print(8, f"[DEBUG] scl_slack: {_str_cable_format(P_new, ds_max_allowed)}")
+            
             P = P_new
 
-            iters += 1
+            # Supprimer les points du câble en surnombre
+            nb_seg_avant = len(P) - 1
+            P, ok_reduction = enforce_cable_segments_nb(P, N_target_seg=N_target)
+            if not ok_reduction:
+                trace_print(
+                    10,
+                    f"[ERROR] enforce_cable_segments_nb n'a pas pu atteindre N_target={N_target} segments "
+                    f"(N_final={P.shape[0] - 1})",
+                )
+                raise Exception(f"_normalize_cable_geometry: enforce_cable_segments_nb n'a pas pu atteindre N_target={N_target} segments " 
+                    f"(N_final={P.shape[0] - 1})")
+            else:
+                nb_seg_après = len(P) - 1
+                if nb_seg_avant - nb_seg_après != 0:
+                    trace_print(9, f"[DEBUG] Suppression de {nb_seg_après - nb_seg_avant} points")
 
-        # Dernier ajustement des longueurs de segments
-        P = enforce_max_segment_length(P)
-        # Mettre à jour rel_err avec la géométrie finale
-        lengths = segment_lengths(P)
-        L_seg = float(lengths.sum())
-        if L_seg > 0.0 and L_target > 0.0:
             rel_err = abs(L_target - L_seg) / max(L_target, 1e-9)
-        trace_print(8, f"[DEBUG] last max l. : {_str_cable_format(P, ds_max_allowed)}")
-        # Supprimer les points du câble en surnombre
-        trace_print(9, f"[DEBUG] Suppression des points en surnombre")
-        P, ok_reduction = enforce_cable_segments_nb(P, N_target_seg=N0)
-        if not ok_reduction:
-            trace_print(
-                10,
-                f"[DEBUG] enforce_cable_segments_nb n'a pas pu atteindre N0={N0} segments "
-                f"(N_final={P.shape[0] - 1})"
-            )
-        x_new = P[:, 0]
-        y_new = P[:, 1]
-        trace_print(8, f"[DEBUG] x_new: {x_new}, y_new: {y_new}")
-        trace_print(9, f"[DEBUG] L_target={L_target:.4f}, L_seg={L_seg:.4f}, rel_err={rel_err:.3e}, iters={iters}")
+            x_new = P[:, 0]
+            y_new = P[:, 1]
+            trace_print(8, f"[DEBUG] x_new: {x_new}, y_new: {y_new}")
+            trace_print(8, f"[DEBUG] L_target={L_target:.4f}, L_seg={L_seg:.4f}, rel_err={rel_err:.3e}, iters={iters}")
+
+            min_seg_len = np.min(np.linalg.norm(np.diff(P, axis=0), axis=1))
+            max_seg_len = np.max(np.linalg.norm(np.diff(P, axis=0), axis=1))
+            nb_segt_courts = np.sum(np.linalg.norm(np.diff(P, axis=0), axis=1) < ds_min_allowed)
+            nb_segt_longs = np.sum(np.linalg.norm(np.diff(P, axis=0), axis=1) > ds_max_allowed)
+
+            if len(P)-1 != N_target:
+                trace_print(9, f"[DEBUG] Itération {iters} : len(P)-1 != N_target")
+            if rel_err > tol_rel:
+                trace_print(9, f"[DEBUG] Itération {iters} : rel_err > tol_rel")
+            if min_seg_len < ds_min_allowed:
+                trace_print(9, f"[DEBUG] Itération {iters} : nb_segt_courts = {nb_segt_courts}  min= {min_seg_len:.4f}")
+            if max_seg_len > ds_max_allowed:
+                trace_print(9, f"[DEBUG] Itération {iters} : nb_segt_longs = {nb_segt_longs}  max= {max_seg_len:.4f}")
+
+            if len(P)-1 == N_target and rel_err <= tol_rel and min_seg_len > ds_min_allowed and max_seg_len < ds_max_allowed:
+                return x_new, y_new, rel_err, iters
+
         return x_new, y_new, rel_err, iters
+
+    def _normalize_cable_segments(self, x_cable, y_cable, L_target, bateau, rov, N_target=None):
+        """
+        Normalise le câble en (ré)échantillonnant sa géométrie pour obtenir N_target segments,
+        en s'appuyant sur :
+        - next_point(_P, _ls, L_segments, R, num_seg_R, s_R, step)
+        - create_point_with_target_length(_Z, l_seg_target)
+
+        Retourne (res, x_new, y_new) où res=True si la construction respecte len(_Q)=N_target+1.
+        """
+        # region : récupération des arguments et initialisation
+        x_arr = np.asarray(x_cable, dtype=float).reshape(-1)
+        y_arr = np.asarray(y_cable, dtype=float).reshape(-1)
+        if x_arr.size != y_arr.size or x_arr.size < 2:
+            trace_print(9, f"[normalize_segments] P init :  x_arr.size ({x_arr.size:4}) != y_arr.size ({y_arr.size:4}) or x_arr.size ({x_arr.size:4}) < 2")
+            return False, x_arr, y_arr
+        P = np.stack([x_arr, y_arr], axis=1)
+        N_target_initial = N_target
+        L_target_initial = L_target
+
+        L_straight_bateau_rov_initial = float(np.linalg.norm(np.asarray(rov, dtype=float).reshape(-1)[:2] - np.asarray(bateau, dtype=float).reshape(-1)[:2]))
+        if L_straight_bateau_rov_initial > float(L_target):
+            trace_print(9, f"\n[normalize_segments] param   : L_target={L_target:6.2f}  N_target={N_target:4}  lseg_target={L_target/N_target:4.2f}  "
+                f"bateau={bateau}   \x1b[31mrov={rov}   L_straight_bateau_rov={L_straight_bateau_rov_initial:8.3f}\x1b[0m")
+        else:
+            trace_print(9, f"\n[normalize_segments] param   : L_target={L_target:6.2f}  N_target={N_target:4}  lseg_target={L_target/N_target:4.2f}  "
+                f"bateau={bateau}   rov={rov}   L_straight_bateau_rov={L_straight_bateau_rov_initial:8.3f}")
+        trace_print(9, f"[normalize_segments] P init  : {self._str_cable_format(P)}")
+        # endregion
+
+        # region : On clippe le cable, le bateau et le ROV (qui ne peuvent pas être strictement au dessus de la, surface)
+        P[:, 1] = np.minimum(P[:, 1], 0.0)
+        y_arr = P[:, 1]
+
+        boat_vec = np.asarray(bateau, dtype=float).reshape(-1)[:2]
+        boat_vec[1] = min(boat_vec[1], 0.0)
+        bateau = boat_vec.tolist()
+
+        rov_vec = np.asarray(rov, dtype=float).reshape(-1)[:2]
+        rov_vec[1] = min(rov_vec[1], 0.0)
+        rov = rov_vec.tolist()
+
+        boat_vec = np.asarray(bateau, dtype=float).reshape(-1)[:2]
+        rov_vec = np.asarray(rov, dtype=float).reshape(-1)[:2]
+        L_straight_bateau_rov = float(np.linalg.norm(rov_vec - boat_vec))
+        # endregion
+
+        # region : Target straight. L_target trop court : corde bateau–ROV plus longue que la cible → On modifie la position du ROV pour respecter L_target
+        # puis on recolle les extrémités et on linéarise le câble.
+        if L_straight_bateau_rov > float(L_target):
+            rov_vec = boat_vec + (rov_vec - boat_vec) * (float(L_target) / L_straight_bateau_rov)
+            rov = rov_vec.tolist()
+            x_line = np.linspace(float(boat_vec[0]), float(rov_vec[0]), N_target + 1)
+            y_line = np.linspace(float(boat_vec[1]), float(rov_vec[1]), N_target + 1)
+            y_line = np.minimum(y_line, 0.0)
+            trace_print(9, f"[normalize_segments] P    : L_straight_bateau_rov ({L_straight_bateau_rov:8.3f}) > L_target ({L_target:8.3f})")
+            trace_print(9, f"[normalize_segments] -->   : {self._str_cable_format(P, L_target_initial / N_target_initial)}")
+            return False, x_line, y_line
+        # endregion
+
+        # region : Target non straight. On recolle les extrémités + clip y<=0. On ne change pas la position du ROV
+        # On est assuré que L_straight_bateau_rov < L_target et que donc on ne sera pas en mode straight.
+        x_boat, y_boat = float(bateau[0]), float(bateau[1])
+        x_rov, y_rov = float(rov[0]), float(rov[1])
+        P[0, 0] = x_boat
+        P[-1, 0] = x_rov
+        P[:, 1] = np.minimum(P[:, 1], 0.0)
+        # endregion
+
+        # region : Cas dégénéré où le cable ne comprend qu'un seul segment ..
+        # On sait que L_target > L_straight_bateau_rov. On va donc faire au mieux enlinéarisant le câble. On ne respe ctera pas la contrainte sur L_tagert
+        if len(P) == 2:
+            trace_print(9, f"[normalize_segments] P       :  len(P) == 2")
+            x_line = np.linspace(float(boat_vec[0]), float(rov_vec[0]), N_target_initial + 1)
+            y_line = np.linspace(float(boat_vec[1]), float(rov_vec[1]), N_target_initial + 1)
+            y_line = np.minimum(y_line, 0.0)
+            Q = np.stack([x_line, y_line], axis=1)
+            trace_print(9, f"[normalize_segments] (2p) -> : {self._str_result_cable_format(Q, L_target_initial, N_target_initial)}")
+            return True if L_straight_bateau_rov == float(L_target) else False, x_line, y_line
+        # endregion
+
+        # region : Cas où N_target est impair : on le ramène à N_target pair
+        # en déplaçant P[1] pour normaliser le premier segment et en supprimant P[0] que l'on remettra à ma fin.
+        # On modifie aussi N_target et L_target pour ce nouveau câble.
+        l_seg_target_blk = float(L_target) / float(N_target)
+        if N_target % 2 == 1:
+            # TODO cas où P[0] et P[1] sont confondus
+            trace_print(9, f"[normalize_segments] P  pair : {self._str_cable_format(P)}")
+            P[1] = P[0] + (P[1] - P[0]) * l_seg_target_blk / np.linalg.norm(P[1] - P[0])
+            trace_print(9, f"[normalize_segments] P  pair : {self._str_cable_format(P)}")
+            N_target = N_target - 1
+            L_target = float(L_target_initial) - l_seg_target_blk
+            # On supprime le premier point de P (le bateau)
+            P = P[1:]
+            trace_print(9, f"[normalize_segments] P' pair : {self._str_cable_format(P)}")
+        # endregion
+
+        # TRAITEMENT DU CAS STANDARD. On a un nombre pair de segments et on n'est pas en mode straight.
+        if N_target % 2 == 1:
+            raise Exception(f"_normalize_cable_segments: N_target ({N_target:4}) % 2 == 1 => impossible ici")
+
+        # region :Calcul des longueurs / abscisses curvilignes de P
+        diffs = np.diff(P, axis=0)
+        seg_lengths = np.linalg.norm(diffs, axis=1)
+        L_segments = float(np.sum(seg_lengths))
+        if not np.isfinite(L_segments) or L_segments <= 0.0:
+            raise Exception(f"_normalize_cable_segments: L_segments ({L_segments:8.3f}) <= 0.0")
+        # endregion
+
+        # region : Calcul des abscisses curvilignes : ls[0] = 0 au bateau, ls[N_target] = L au ROV
+        #                                    ls[k] pour k ≥ 1 : distance cumulée depuis le premier point jusqu’au point d’indice k. 
+        ls = np.zeros(P.shape[0], dtype=float)
+        ls[1:] = np.cumsum(seg_lengths)
+        # endregion
+
+        # region : Métriques sur P
+        lseg_min_P = float(np.min(seg_lengths)) if seg_lengths.size else 0.0
+        lseg_max_P = float(np.max(seg_lengths)) if seg_lengths.size else 0.0
+        l_seg_target = float(L_target) / float(N_target)
+        ds_min_allowed = 0.99 * l_seg_target
+        ds_max_allowed = 1.01 * l_seg_target
+
+        trace_print(9, f"[normalize_segments] Target  : nb_pts_tgt= {N_target:4}  L_tgt={L_target:8.3f}  lseg_tgt={l_seg_target:8.3f}  L_straight={float(np.linalg.norm(P[-1] - P[0])):8.3f}")
+        #trace_print(9, f"[normalize_segments] _P     : nb_points= {P.shape[0]:4}  L={L_segments:8.3f}  lseg_min={lseg_min_P:8.3f}  lseg_max={lseg_max_P:8.3f}")
+        #trace_print(9, f"[normalize_segments] P       : {self._str_cable_format(P, none)}")
+        # endregion 
+
+        # region : R = copie rééchantillonnée de P selon l'abscisse curviligne 
+        # curviligne sur [0, L_P]
+        if N_target % 2 == 1:
+            raise Exception(f"_normalize_cable_segments: N_target ({N_target:4}) % 2 == 1 => impossible ici")
+        L_P = float(ls[-1])
+        s_targets = np.linspace(0.0, L_P, int(N_target/2) + 1)
+        R = np.empty((int(N_target/2) + 1, 2), dtype=float)
+        R[:, 0] = np.interp(s_targets, ls, P[:, 0])
+        R[:, 1] = np.minimum(np.interp(s_targets, ls, P[:, 1]), 0.0)
+        trace_print(9, f"[normalize_segments] R       : {self._str_cable_format(R, None)}")
+        # endregion
+
+        # region : Q = Nouveau câble intégrant les points de R et un nouveau point entre chaque segment de R
+        Q: list[np.ndarray] = []
+        Q.append(R[0].copy())
+        u = 1
+
+        for i in range(len(R) - 1):
+            SG = []
+            SG.append(R[i].copy())
+            while u < P.shape[0] and i * l_seg_target < ls[u] < (i + 1) * l_seg_target:
+                SG.append(P[u].copy())
+                u += 1
+            SG.append(R[i + 1].copy())
+
+            _res_h, NewP = create_point_with_target_length(SG, l_seg_target)
+            NewP = np.asarray(NewP, dtype=float).reshape(-1)[:2]
+            NewP[1] = min(float(NewP[1]), 0.0)
+            Q.append(NewP.copy())
+            Q.append(R[i + 1].copy())
+
+        trace_print(9, f"[normalize_segments] Q       : {self._str_cable_format(Q, l_seg_target)}")
+        # endregion
+
+        # region : Cas N_target_initial impair. Il faut insérer le ROV en début de Q.
+        if N_target_initial % 2 == 1:
+            Q.insert(0, bateau)
+            L_target = L_target_initial
+            N_target = N_target_initial
+            trace_print(9, f"[normalize_segments] Q'      : {self._str_cable_format(Q, l_seg_target)}")
+        # endregion
+
+        Nb_points_Q = len(Q)
+        Q_stack = np.asarray(Q, dtype=float)
+        # Si nécessaire, (ERREUR) recoller explicitement bateau / ROV (create_point_with_target_length peut dériver en bout de câble)
+        if not np.allclose(Q[0], bateau, atol=1e-2, rtol=0.0) or not np.allclose(Q[-1], rov, atol=1e-2, rtol=0.0):
+            trace_print(9, f"[normalize_segments] Q check : {_ANSI_RED}Q[0] != bateau or Q[-1] != rov{_ANSI_RESET}")    
+            Q_stack[0, 0] = x_boat
+            Q_stack[0, 1] = min(y_boat, 0.0)
+            Q_stack[-1, 0] = x_rov
+            Q_stack[-1, 1] = min(y_rov, 0.0)
+
+        dQ = np.diff(Q_stack, axis=0)
+        seg_Q = np.linalg.norm(dQ, axis=1)
+        length_Q = float(np.sum(seg_Q))
+        lseg_min_Q = float(np.min(seg_Q)) if seg_Q.size else 0.0
+        lseg_max_Q = float(np.max(seg_Q)) if seg_Q.size else 0.0
+
+        ok_segs = (
+            lseg_min_Q >= ds_min_allowed * (1.0 - 1e-6)
+            and lseg_max_Q <= ds_max_allowed * (1.0 + 1e-6)
+        )
+        # Longueur totale : indication seulement (le zigzag ne garantit pas L_Q == L_target au bit près)
+        ok_len = np.isclose(length_Q, float(L_target), rtol=0.25, atol=0.25)
+        ok = (
+            Nb_points_Q == N_target + 1
+            and ok_segs
+            and np.isfinite(length_Q)
+        )
+        if not ok or not ok_len:
+            trace_print(
+                9,
+                f"[normalize_segments] Q check : len={Nb_points_Q} (want {N_target + 1})  L_Q={length_Q:.4f} "
+                f"L_tgt={float(L_target_initial):.4f}  lseg in [{lseg_min_Q:.4f},{lseg_max_Q:.4f}] "
+                f"allowed in [{ds_min_allowed:.4f},{ds_max_allowed:.4f}]  ok_len~{ok_len} ok_segs={ok_segs}",
+            )
+
+        trace_print(9, f"[normalize_segments] -->     : {self._str_result_cable_format(Q_stack, L_target_initial, N_target_initial)}")
+        return bool(ok), Q_stack[:, 0], Q_stack[:, 1]
+
+
+        # Forcer recollement final sur le ROV
+        # if len(Q) < N_target + 1:
+        #     if len(Q) == 0 or not np.allclose(Q[-1], B, atol=tol_same, rtol=0.0):
+        #         Q.append(B.copy())
+
+        # Q_arr = np.asarray(Q, dtype=float)
+        # Q_arr[:, 1] = np.minimum(Q_arr[:, 1], 0.0)
+        # Q_arr[0] = A
+        # Q_arr[-1] = B
+
+        # ------------------------------------------------------------------
+        # Post-traitement (implémentation précédente) : rééchantillonnage par
+        # interpolation en abscisse curviligne.
+        #
+        # Note : cela garantit bien len(Q)=N_target+1 et L_final≈L_target après rescaling,
+        # mais NE garantit PAS que les segments euclidiens aient tous exactement la
+        # même longueur.
+        # ------------------------------------------------------------------
+        # dQ = np.diff(Q_arr, axis=0)
+        # segQ = np.linalg.norm(dQ, axis=1)
+        # sQ = np.zeros(Q_arr.shape[0], dtype=float)
+        # if segQ.size > 0:
+        #     sQ[1:] = np.cumsum(segQ)
+        # L_final_raw = float(sQ[-1])
+
+        # if np.isfinite(L_final_raw) and L_final_raw > 1e-15:
+        #     s_scaled = sQ * (float(L_target) / L_final_raw)
+        # else:
+        #     s_scaled = np.linspace(0.0, float(L_target), Q_arr.shape[0])
+
+        # s_targets = np.linspace(0.0, float(L_target), N_target + 1)
+        # x_new = np.interp(s_targets, s_scaled, Q_arr[:, 0])
+        # y_new = np.interp(s_targets, s_scaled, Q_arr[:, 1])
+        # y_new = np.minimum(y_new, 0.0)
+        # x_new[0], y_new[0] = A[0], A[1]
+        # x_new[-1], y_new[-1] = B[0], B[1]
+
+        # Q_final = np.stack([x_new, y_new], axis=1)
+        # seg_final = np.linalg.norm(np.diff(Q_final, axis=0), axis=1)
+        # L_final = float(np.sum(seg_final))
+        # lseg_min = float(np.min(seg_final)) if seg_final.size else 0.0
+        # lseg_max = float(np.max(seg_final)) if seg_final.size else 0.0
+
+        # trace_print(
+        #     9,
+        #     f"[normalize_segments] _Q: nb_points={Q_final.shape[0]}  L={L_final:.6f}  "
+        #     f"lseg_min={lseg_min:.6f}  lseg_max={lseg_max:.6f}",
+        # )
+
+        # # Pré-zigzag : on ne force plus l'égalité stricte L_final == L_target.
+        # # On conserve un booléen de succès basé sur la structure de sortie.
+        # ok = Q_final.shape[0] == (N_target + 1)
+        # return bool(ok), Q_final[:, 0], Q_final[:, 1]
 
     def solve_equilibrium_static(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None):
         """
@@ -3119,9 +3440,10 @@ class CableSolver:
     ):
         """
         Normalise la longueur du câble en conservant au mieux sa forme générale,
-        tout en respectant trois contraintes « dures » et une contrainte « souple » :
+        tout en respectant 4 contraintes « dures » et une contrainte « souple » :
 
         Contraintes dures (quand les positions d'extrémité sont fournies) :
+        - Le nombre de points du câble est inchangé
         - Le premier point est recollé au bateau (x_boat, y_boat).
         - Le dernier point est recollé au ROV (x_rov, y_rov).
         - La longueur totale est ramenée à L_target (à la précision numérique près).
@@ -3132,6 +3454,8 @@ class CableSolver:
           et ds_max la longueur du segment le plus long.
 
         L'algorithme suit les étapes suivantes :
+        Appel à normalize_cable_geometry. 
+        Si échec, on met en oeuvre le fallback suivant:
         1. Calcul de l'abscisse curviligne cumulative s_cumulative et de la longueur
            actuelle L_actual.
         2. Remise à l'échelle de s_cumulative pour que s_cumulative[-1] = L_target.
@@ -3171,7 +3495,7 @@ class CableSolver:
             x_rov_eff = x_rov if x_rov is not None else float(x_cable[-1])
             y_rov_eff = y_rov if y_rov is not None else float(y_cable[-1])
 
-            N_debut_iter = max(len(x_cable) - 1, 1)
+            N_initial = max(len(x_cable) - 1, 1)
 
             x_new, y_new, rel_err, iters = self._normalize_cable_geometry(
                 x_cable,
@@ -3179,7 +3503,7 @@ class CableSolver:
                 L_target,
                 (x_boat_eff, y_boat_eff),
                 (x_rov_eff, y_rov_eff),
-                N_debut_iter,
+                N_initial,
             )
 
             trace_print(
@@ -3190,7 +3514,7 @@ class CableSolver:
             return x_new, y_new
         except Exception as e:
             trace_print(
-                8,
+                9,
                 f"[DEBUG] _normalize_cable_length: échec _normalize_cable_geometry ({e}), "
                 "retour à l'algorithme historique.",
             )
