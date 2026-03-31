@@ -7,9 +7,9 @@
   },
   "visual_enforce_cable_segments_nb": {
     "checked": false,
-    "last_run": "2026-03-26T23:44:32",
-    "status": "PASS",
-    "comment": "Succès."
+    "last_run": "2026-03-29T16:51:13",
+    "status": "FAIL",
+    "comment": "NameError: name 'y_max' is not defined"
   },
   "visual_scale_slack": {
     "checked": false,
@@ -37,13 +37,13 @@
   },
   "visual_cable_normalization": {
     "checked": false,
-    "last_run": "2026-03-26T23:44:49",
-    "status": "FAIL",
-    "comment": "Exception: _normalize_cable_geometry: enforce_cable_segments_nb n'a pas pu atteindre N_target=10 segments (N_final=6)"
+    "last_run": "2026-03-29T17:21:41",
+    "status": "PASS",
+    "comment": "Succès."
   },
   "visual_create_point_with_target_length": {
     "checked": false,
-    "last_run": "2026-03-26T23:44:29",
+    "last_run": "2026-03-29T16:33:21",
     "status": "PASS",
     "comment": "Succès."
   },
@@ -66,15 +66,33 @@
     "comment": "Succès."
   },
   "visual_cable_normalize_segments": {
-    "checked": true,
-    "last_run": "2026-03-27T07:11:55",
-    "status": "FAIL",
-    "comment": "AssertionError"
+    "checked": false,
+    "last_run": "2026-03-29T17:21:42",
+    "status": "PASS",
+    "comment": "Succès."
   },
   "cable_normalize_segments_unit": {
     "checked": false,
-    "last_run": "2026-03-26T23:44:54",
+    "last_run": "2026-03-29T16:58:48",
     "status": "FAIL",
-    "comment": "1 failed, 2 passed in 2.40s"
+    "comment": "2 failed, 1 passed in 0.99s"
+  },
+  "utils_aplatir_polyline_unit": {
+    "checked": false,
+    "last_run": "2026-03-30T12:41:37",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "utils_deformer_polyline_unit": {
+    "checked": false,
+    "last_run": "2026-03-30T12:41:39",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "visual_deformer_polyline": {
+    "checked": true,
+    "last_run": "2026-03-30T16:22:28",
+    "status": "PASS",
+    "comment": "Succès."
   }
 }

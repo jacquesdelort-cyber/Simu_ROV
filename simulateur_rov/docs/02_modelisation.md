@@ -474,4 +474,4 @@ Si `Cy > 0`, le point est réfléchi par symétrie axiale par rapport à la droi
 - Implémentation : `src/utils/utils.py`
 - Tests unitaires : `tests/test_utils_create_point_with_target_length.py`
 - Rapport visuel Plotly (cas 2 a 6 points) : `tests/test_create_point_with_target_length_visual.py`
-- Sortie HTML : `results/create_point_with_target_length_visual_tests.html`
+- Sortie HTML : `results/create_point_with_target_length_rapport_graphique.html` (nom dérivé du libellé « Test / Fonction » dans l’onglet Tests)

@@ -2,6 +2,8 @@ import numpy as np
 
 from src.solvers.cable_solver import CableSolver
 
+from tests.cable_shared_cases import CASE_FALLBACK_LT_SHORT
+
 
 class _DummyEnv:
     pass
@@ -14,21 +16,31 @@ def _make_solver() -> CableSolver:
 
 def test_normalize_cable_segments_fallback_straight_line_when_too_short():
     solver = _make_solver()
-    # Bateau et ROV très éloignés, L_target trop court
-    bateau = (0.0, 0.0)
-    rov = (10.0, -2.0)
-    x = np.array([bateau[0], rov[0]])
-    y = np.array([bateau[1], rov[1]])
+    case = CASE_FALLBACK_LT_SHORT
+    bateau = case.boat
+    rov = case.rov
+    x = np.asarray(case.x_cable, dtype=float)
+    y = np.asarray(case.y_cable, dtype=float)
 
-    ok, x_new, y_new = solver._normalize_cable_segments(x, y, L_target=5.0, bateau=bateau, rov=rov, N_target=6)
-    assert ok is False
-    assert len(x_new) == 7
-    assert len(y_new) == 7
-    # extrémités recollées
+    ok, x_new, y_new, straight_mode, expl = solver._normalize_cable_segments(
+        x, y, L_target=case.l_target, bateau=bateau, rov=rov, N_target=case.n_target
+    )
+    assert expl == ""
+    assert straight_mode is True
+    assert ok is True
+    assert len(x_new) == case.n_target + 1
+    assert len(y_new) == case.n_target + 1
     assert np.isclose(x_new[0], bateau[0])
     assert np.isclose(y_new[0], 0.0)
-    assert np.isclose(x_new[-1], rov[0])
-    assert np.isclose(y_new[-1], rov[1])
+    # Corde bateau–ROV > L_target : extrémité câble = ROV ramené sur la droite à distance L_target
+    bx, by = float(bateau[0]), float(bateau[1])
+    chord = np.hypot(rov[0] - bx, rov[1] - by)
+    u = np.array([(rov[0] - bx) / chord, (rov[1] - by) / chord])
+    rov_adj = np.array([bx, by]) + case.l_target * u
+    assert np.isclose(x_new[-1], rov_adj[0], rtol=1e-5)
+    assert np.isclose(y_new[-1], rov_adj[1], rtol=1e-5)
+    segs = np.sqrt(np.diff(x_new) ** 2 + np.diff(y_new) ** 2)
+    assert np.isclose(float(segs.sum()), case.l_target, rtol=1e-5)
 
 
 def test_normalize_cable_segments_invalid_target():
@@ -38,7 +50,11 @@ def test_normalize_cable_segments_invalid_target():
     x = np.array([0.0, 1.0, 2.0])
     y = np.array([0.0, -0.5, -1.0])
 
-    ok, x_new, y_new = solver._normalize_cable_segments(x, y, L_target=3.0, bateau=bateau, rov=rov, N_target=1)
+    ok, x_new, y_new, straight_mode, expl = solver._normalize_cable_segments(
+        x, y, L_target=3.0, bateau=bateau, rov=rov, N_target=1
+    )
+    assert straight_mode is False
+    assert "Un seul segment" in expl
     assert ok is False
     assert np.allclose(x_new, x)
     assert np.allclose(y_new, y)
@@ -53,7 +69,11 @@ def test_normalize_cable_segments_general_shape_has_right_count_and_endpoints():
     y = np.array([0.0, -0.4, -1.2, -1.7, -2.0])
 
     N_target = 6
-    ok, x_new, y_new = solver._normalize_cable_segments(x, y, L_target=8.0, bateau=bateau, rov=rov, N_target=N_target)
+    ok, x_new, y_new, straight_mode, expl = solver._normalize_cable_segments(
+        x, y, L_target=8.0, bateau=bateau, rov=rov, N_target=N_target
+    )
+    assert straight_mode is False
+    assert expl == ""
     assert ok is True
     assert len(x_new) == N_target + 1
     assert len(y_new) == N_target + 1

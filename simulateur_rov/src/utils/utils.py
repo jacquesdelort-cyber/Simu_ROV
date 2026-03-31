@@ -229,7 +229,7 @@ def create_point_with_target_length(
     - Sinon, C est sur la perpendiculaire à AB passant par H, du côté de G.
       Si C est au-dessus de la surface (y > 0), on le réfléchit par rapport à AB.
     """
-    
+    # region : fonctions locales et initialisation
     def _is_on_line_ab(U: np.ndarray) -> bool:
         return abs(AB_vec[0] * (U[1] - A[1]) - AB_vec[1] * (U[0] - A[0])) <= tol
     
@@ -249,29 +249,31 @@ def create_point_with_target_length(
 
     AB_vec = B - A
     AB = float(np.linalg.norm(AB_vec))
-    tol = 1e-12 * max(1.0, abs(AB), abs(l_seg_target))
+    tol = 1e-9 * max(1.0, abs(AB)/abs(l_seg_target))
 
     seg_midpoints = 0.5 * (P2[:-1] + P2[1:])
     G = np.mean(seg_midpoints, axis=0)
-    
-    # section :Cas dégénérés 
+    # endregion : fonctions locales et initialisation
+    # region :Cas dégénérés 
     if AB > 2.0 * l_seg_target + tol:
         Q = H
         res = False
-        expliction = "AB ({AB:6.2f})> 2*l_seg_target ({2.0 * l_seg_target:6.2f}))"
+        explication = f"AB ({AB:6.2f}) > 2*l_seg_target ({2.0 * l_seg_target:6.2f})"
 
     elif abs(AB - 2.0 * l_seg_target) <= tol:
         Q=H
         res = True
-        expliction = "AB ({AB:6.2f}) - 2*l_seg_target ({2.0 * l_seg_target:6.2f}) <= tol ({tol:6.2f}))"
+        explication = (
+            f"AB ({AB:6.2f}) - 2*l_seg_target ({2.0 * l_seg_target:6.2f}) <= tol ({tol:6.2f})"
+        )
 
     elif np.linalg.norm(A - B) <= tol:
-        expliction = "A == B"
+        explication = "A == B"
         res = True
         Q = A + np.array([float(l_seg_target), 0.0], dtype=float)
     else:
-    # end section : Cas dégénérés 
-    # section cas standard : on cherche Q sur la perpendiculaire à AB passant par H, du côté de G.
+    # endregion : Cas dégénérés 
+    # region cas standard : on cherche Q sur la perpendiculaire à AB passant par H, du côté de G.
         if _is_on_line_ab(G):
             G = G + np.array([0.0, -1.0], dtype=float)
             if _is_on_line_ab(G):
@@ -297,38 +299,43 @@ def create_point_with_target_length(
             proj = np.dot(AH, u) * u
             perp = AH - proj
             Q = A + proj - perp
-            expliction = "Cas standard - miroir" 
+            explication = "Cas standard - miroir" 
         else:
-            expliction = "Cas standard"
+            explication = "Cas standard"
         # On est dzns le cas standard, donc on doit doit avoir AQ == BQ == l_seg_target
         if abs(np.linalg.norm(Q - A) - l_seg_target) > tol or abs(np.linalg.norm(Q - B) - l_seg_target) > tol:
             raise ValueError("AQ or BQ != l_seg_target")
-
-    # end section : cas standard
+        res = True
+    # endregion : cas standard
+    # region : contrôle des segments
     L_AQ = float(np.linalg.norm(Q - A))
     L_BQ = float(np.linalg.norm(Q - B))
     _ANSI_RED = "\033[91m"
     _ANSI_RESET = "\033[0m"
+    control_segments = True
+    L_seg_A = ""
+    L_segB = ""
     if abs(L_AQ - l_seg_target) > tol:
-        L_seg_A = (f"AQ ( {_ANSI_RED}{L_AQ:4.2f}{_ANSI_RESET}) != l_seg_target ( {l_seg_target:4.2f})")
-    else:
-        L_seg_A = (f"AQ ( {L_AQ:4.2f}) == l_seg_target ( {l_seg_target:4.2f})")
+        L_seg_A = (f"AQ ( {_ANSI_RED}{L_AQ:5.3f}{_ANSI_RESET})")
+        control_segments = False
+
     if abs(L_BQ - l_seg_target) > tol:
-        L_segB = f"BQ ( {_ANSI_RED}{L_BQ:4.2f}{_ANSI_RESET}) != l_seg_target ( {l_seg_target:4.2f})"
-    else:
-        L_segB = f"BQ ( {L_BQ:4.2f}) == l_seg_target ( {l_seg_target:4.2f})"
-        
-    trace_print(9, "[create_pnt_with_tgt_length] : "
-        f"A=({A[0]:6.2f}, {A[1]:6.2f}) "
-        f"B=({B[0]:6.2f}, {B[1]:6.2f}) "
-        f"H=({H[0]:6.2f}, {H[1]:6.2f}) "
-        f"G=({G[0]:6.2f}, {G[1]:6.2f}) "
-        f"--> Q=({Q[0]:6.2f}, {Q[1]:6.2f})  "
-        f"  {L_seg_A}"
-        f"  {L_segB}"
-        f"  {expliction}"
+        L_segB = f"BQ ( {_ANSI_RED}{L_BQ:5.3f}{_ANSI_RESET})"
+        explication = explication + " " + L_segB
+        control_segments = False
+    
+    if not res or not control_segments:
+        trace_print(6, "[create_pnt_with_tgt_length] : "
+            f"A=({A[0]:6.2f}, {A[1]:6.2f}) "
+            f"B=({B[0]:6.2f}, {B[1]:6.2f}) "
+            f"--> Q=({Q[0]:6.2f}, {Q[1]:6.2f})  "
+            f"{L_seg_A} "
+            f"{L_segB} "
+            f"l_seg_target: {l_seg_target:5.3f} "
+            f"Exp:  {explication}"
     )
-    return True, Q
+    # endregion : contrôle des segments
+    return res, Q
 
 
 def supprimer_point(
@@ -545,7 +552,7 @@ def enforce_cable_segments_nb(
                 D = P_xy[3]
                 E = supprimer_point(A, B, C, D)
                 if E is None:
-                    trace_print(9, f"[DEBUG] CAS BATEAU supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
+                    trace_print(6, f"[DEBUG] CAS BATEAU supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
                     continue    
                 new_pts = [A, E]
                 new_pts.extend(P_xy[3:])
@@ -561,7 +568,7 @@ def enforce_cable_segments_nb(
                 D = P_xy[-1]
                 E = supprimer_point(A, B, C, D)
                 if E is None:
-                    trace_print(9, f"[DEBUG] CAS ROV supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
+                    trace_print(6, f"[DEBUG] CAS ROV supprimer_point(A={A}, B={B}, C={C}, D={D}) is None")
                     continue
                 # ... , A, E, D
                 new_pts = []
@@ -659,5 +666,5 @@ def next_point(
     t = (s_target - seg_start) / seg_len
     t = float(np.clip(t, 0.0, 1.0))
     T = (1.0 - t) * Q[ns] + t * Q[ns + 1]
-    trace_print(9, f"[next_point] : ns = {ns} T=({T[0]:6.2f}, {T[1]:6.2f}) = (1.0 - t) * Q[ns] + t * Q[ns + 1] avec t = {t:4.2f}")
+    trace_print(6, f"[next_point] : ns = {ns} T=({T[0]:6.2f}, {T[1]:6.2f}) = (1.0 - t) * Q[ns] + t * Q[ns + 1] avec t = {t:4.2f}")
     return ns, T

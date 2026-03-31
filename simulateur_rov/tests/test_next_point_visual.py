@@ -20,7 +20,13 @@ from plotly.subplots import make_subplots
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import next_point  # noqa: E402
+from tests._plotly_cable_axes import (  # noqa: E402
+    data_ranges_for_cable_view,
+    figure_layout_square_subplots,
+)
+from tests._report_output import write_plotly_html_with_generation_line  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -207,22 +213,9 @@ def generate_next_point_report(output_file: str | Path | None = None) -> Path:
         # Encarts : info à droite
         xs = Q[:, 0]
         ys = Q[:, 1]
-        x_min, x_max = float(xs.min()), float(xs.max())
-        y_min, y_max = float(ys.min()), float(ys.max())
-        span = max(x_max - x_min, y_max - y_min, 1.0)
-        cx = 0.5 * (x_min + x_max)
-        cy = 0.5 * (y_min + y_max)
-        half = 0.7 * span
-
-        fig.update_xaxes(title_text="x", range=[cx - half, cx + half], row=row, col=1)
-        fig.update_yaxes(
-            title_text="y",
-            range=[cy - half, cy + half],
-            scaleanchor=f"x{row}",
-            scaleratio=1.0,
-            row=row,
-            col=1,
-        )
+        (x_rng, y_rng) = data_ranges_for_cable_view(xs, ys, pad_frac=0.08)
+        fig.update_xaxes(title_text="x", range=list(x_rng), row=row, col=1)
+        fig.update_yaxes(title_text="y", range=list(y_rng), row=row, col=1)
 
         fig.add_annotation(
             xref=f"x{row}" if row > 1 else "x",
@@ -245,19 +238,25 @@ def generate_next_point_report(output_file: str | Path | None = None) -> Path:
             align="left",
         )
 
+    w_px, h_px, margin = figure_layout_square_subplots(n_cases, margin_r=120, margin_t=100)
     fig.update_layout(
         title="Visualisation next_point",
         template="plotly_white",
-        height=max(320 * n_cases, 650),
-        width=900,
+        width=w_px,
+        height=h_px,
+        margin=margin,
+        autosize=False,
         hovermode="closest",
     )
 
     if output_file is None:
-        output_file = Path("results") / "next_point_visual_tests.html"
+        rel = get_visual_default_html_path("visual_next_point")
+        if rel is None:
+            raise RuntimeError("Catalogue: entrée visual_next_point introuvable.")
+        output_file = Path(rel)
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(output_path), include_plotlyjs="inline")
+    write_plotly_html_with_generation_line(fig, output_path, include_plotlyjs="inline")
     return output_path
 
 

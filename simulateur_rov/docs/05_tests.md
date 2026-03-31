@@ -34,6 +34,9 @@ Le répertoire `tests/` contient les tests unitaires automatisables :
 
 - `tests/test_cable_solver.py`
 - `tests/test_cable_normalization_edge_cases.py`
+- `tests/test_cable_normalize_segments.py`
+- `tests/test_aplatir_polyline.py`
+- `tests/test_deformer_polyline.py`
 - `tests/test_utils_scale_slack.py`
 - `tests/test_utils_supprimer_point.py`
 - `tests/test_utils_enforce_cable_segments_nb.py`
@@ -106,6 +109,17 @@ Ces tests vérifient notamment :
 - les bornes de segments après réduction au nombre cible ;
 - le respect de `y <= 0`.
 
+### 3.2.1 `tests/test_cable_normalize_segments.py`
+
+Vérifie `CableSolver._normalize_cable_segments`, qui retourne
+`(ok, x_arr, y_arr, straight_mode, explication)` : `straight_mode` vaut `True`
+lorsque la corde bateau–ROV est supérieure à `L_target` et que le ROV est ramené
+sur la corde (polyligne droite). La fonction `_normalize_cable_length` renvoie
+`(x, y, straight_mode)` pour permettre aux appelants d’aligner l’état ROV sur
+l’extrémité du câble lorsque nécessaire.
+`_normalize_cable_length_historical_fallback` utilise la même signature
+`(x, y, straight_mode)` ; dans ce chemin, `straight_mode` est toujours `False`.
+
 ### 3.3 `tests/test_environment_current_velocity.py`
 
 Ce fichier vérifie le comportement de `Environment.get_current_velocity()`.
@@ -146,19 +160,45 @@ Les cas couverts incluent :
 Tests unitaires de la fonction géométrique `scale_slack` (cas triangulaires,
 cas avec slack > 1, slack < 1 et cas alignés).
 
-### 3.7 `tests/test_utils_supprimer_point.py`
+### 3.7 `tests/test_aplatir_polyline.py`
+
+Tests unitaires de `CableSolver.aplatir_polyline` (aplatissement d'une polyligne
+par projection sur la droite `Q[0]Q[-1]` et interpolation contrôlée par `k`).
+Retour attendu : ``(T, explication)`` (entrée non modifiée ; `explication` vide pour l'instant).
+
+Les cas couverts incluent :
+
+- `k = 0` : retour de la projection orthogonale sur la droite de référence ;
+- `k = 1` : retour de la polyligne originale ;
+- cas dégénéré `Q[0] == Q[-1]` : comportement robuste (pas de division par zéro).
+
+### 3.8 `tests/test_deformer_polyline.py`
+
+Tests unitaires de `CableSolver.deformer_polyline` (recherche d'un facteur `k`
+tel que la longueur de la polyligne aplatie corresponde à une longueur cible
+`L_target`). Retour attendu : ``(T, explication)`` avec `T` la solution ou `None`
+(explication vide pour l'instant).
+
+Les cas couverts incluent :
+
+- polyligne alignée : retourne `(False, None)` ;
+- cible atteignable : retourne `(True, R)` avec \( \mathrm{length}(R) \approx L_{target} \) ;
+- cible impossible (plus courte que la longueur minimale) : retourne `(False, None)` ;
+- cas où la solution implique `k > 1` (déformation accentuée).
+
+### 3.9 `tests/test_utils_supprimer_point.py`
 
 Tests unitaires de `supprimer_point`, notamment sur les cas de micro-géométrie
 et les cas où les points deviennent quasi alignés (pour éviter les retours
 `None` dans des configurations réalistes).
 
-### 3.8 `tests/test_utils_enforce_cable_segments_nb.py`
+### 3.10 `tests/test_utils_enforce_cable_segments_nb.py`
 
 Tests unitaires de la réduction du nombre de segments (`enforce_cable_segments_nb`)
 à une valeur cible, avec vérification que la géométrie et la longueur restent
 compatibles.
 
-### 3.9 `tests/test_utils_deplacer_point.py`
+### 3.11 `tests/test_utils_deplacer_point.py`
 
 Tests unitaires de `deplacer_point`, avec vérification de la construction
 géométrique (milieu/perpendiculaire) et des longueurs (condition sur la somme
@@ -296,7 +336,7 @@ Pour chaque cas, il affiche :
 
 Le rapport est généré par défaut dans :
 
-`results/cable_normalization_visual_tests.html`
+`results/normalisation_du_cable_rapport_graphique.html`
 
 Ce script est particulièrement utile pour diagnostiquer visuellement les cas
 de clipping, de compression géométrique, de points répétés ou de géométrie
@@ -380,7 +420,7 @@ python tests/test_cable_normalization_visual.py
 
 Le script génère ensuite le fichier :
 
-`results/cable_normalization_visual_tests.html`
+`results/normalisation_du_cable_rapport_graphique.html`
 
 ### 6.5 Lancement via l'onglet `🧪 Tests`
 

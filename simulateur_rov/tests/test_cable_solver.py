@@ -71,7 +71,7 @@ def test_normalize_cable_length_returns_same_geometry_when_already_normalized():
     x_cable = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=float)
     y_cable = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=float)
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         5.0,
@@ -92,7 +92,7 @@ def test_normalize_cable_length_enforces_target_length_and_uniform_segments():
     y_cable = np.array([0.0, -0.4, -1.1, -1.3, -2.2, -2.6, -3.0], dtype=float)
     l_target = 6.0
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         l_target,
@@ -122,7 +122,7 @@ def test_normalize_cable_length_clips_points_above_surface():
     x_cable = np.array([0.0, 0.5, 1.0, 1.5, 2.0], dtype=float)
     y_cable = np.array([0.2, 0.1, -0.3, -0.8, -1.2], dtype=float)
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         2.4,
@@ -148,7 +148,7 @@ def test_normalize_cable_length_with_few_segments_keeps_expected_point_count():
     x_cable = np.array([0.0, 0.4, 1.4, 2.0], dtype=float)
     y_cable = np.array([0.0, -0.2, -0.9, -1.2], dtype=float)
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         3.0,

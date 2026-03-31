@@ -9,7 +9,7 @@ def _make_solver(n_segments=6):
     """Crée un solveur minimal pour tester la renormalisation."""
     params = {
         'd': 0.01,
-        'rho_cable': 1500.0,
+        'rho_cable': 950.0,
         'Cx_cable': 1.2,
         'Cf_cable': 0.04,
     }
@@ -45,7 +45,7 @@ def test_normalize_cable_length_handles_repeated_points():
     y_cable = np.array([0.0, 0.0, 0.0, -0.5, -0.8, -0.8, -1.2], dtype=float)
     l_target = 3.6
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         l_target,
@@ -76,7 +76,7 @@ def test_normalize_cable_length_handles_strong_surface_clipping():
     y_cable = np.array([0.8, 0.6, 0.3, -0.2, -0.7, -1.1], dtype=float)
     l_target = 3.5
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         l_target,
@@ -104,7 +104,7 @@ def test_normalize_cable_length_compresses_geometry_to_shorter_target():
     y_cable = np.array([0.0, -0.5, -1.2, -1.6, -2.0], dtype=float)
     l_target = 2.0
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         l_target,
@@ -133,7 +133,7 @@ def test_normalize_cable_length_zero_length_geometry_should_expand_to_target():
     y_cable = np.array([-2.0, -2.0, -2.0, -2.0, -2.0], dtype=float)
     l_target = 4.0
 
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         l_target,
@@ -178,7 +178,7 @@ def test_normalize_cable_length_with_long_last_segment():
     
     # Normaliser vers une longueur cible de 6.0 m
     l_target = 6.0
-    x_norm, y_norm, _, _ = solver._normalize_cable_geometry(
+    x_norm, y_norm, _, _, _ = solver._normalize_cable_geometry(
         x_cable,
         y_cable,
         l_target,

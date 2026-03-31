@@ -12,12 +12,34 @@ Chaque entrée décrit :
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+
+def html_report_path_from_column_name(name: str) -> str:
+    """
+    Chemin relatif ``results/<slug>.html`` dérivé du libellé colonne « Test / Fonction »
+    (même logique que l'affichage UI).
+    """
+    s = unicodedata.normalize("NFKD", name)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.replace("–", "-").replace("—", "-")
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    if not s:
+        s = "rapport"
+    return f"results/{s}.html"
+
+
+# Rapport texte agrégé de ``pytest`` (plusieurs entrées unitaires dans l'onglet Test)
+TEXT_REPORT_PYTEST_AGGREGATE = "results/rapport_execution_pytest.txt"
 
 
 @dataclass(frozen=True)
@@ -41,6 +63,20 @@ def _tests_utils() -> Iterable[TestEntry]:
             name="scale_slack (numérique)",
             description="Tests numériques de la fonction scale_slack.",
             command="python -m pytest -q tests/test_utils_scale_slack.py",
+        ),
+        TestEntry(
+            id="utils_aplatir_polyline_unit",
+            group="Géométrie câble – unitaires",
+            name="aplatir_polyline (numérique)",
+            description="Tests numériques de la fonction CableSolver.aplatir_polyline.",
+            command="python -m pytest -q tests/test_aplatir_polyline.py",
+        ),
+        TestEntry(
+            id="utils_deformer_polyline_unit",
+            group="Géométrie câble – unitaires",
+            name="deformer_polyline (numérique)",
+            description="Tests numériques de la fonction CableSolver.deformer_polyline (recherche de k pour une longueur cible).",
+            command="python -m pytest -q tests/test_deformer_polyline.py",
         ),
         TestEntry(
             id="utils_supprimer_point_unit",
@@ -75,7 +111,7 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="scale_slack – rapport graphique",
             description="Génère un rapport HTML illustrant la fonction scale_slack.",
             command="python tests/test_scale_slack_visual.py",
-            html_report="results/test_scale_slack_visual_report.html",
+            html_report=html_report_path_from_column_name("scale_slack – rapport graphique"),
         ),
         TestEntry(
             id="visual_deplacer_point",
@@ -83,7 +119,15 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="deplacer_point – rapport graphique",
             description="Génère un rapport HTML illustrant la fonction deplacer_point.",
             command="python tests/test_deplacer_point_visual.py",
-            html_report="results/test_deplacer_point_visual_report.html",
+            html_report=html_report_path_from_column_name("deplacer_point – rapport graphique"),
+        ),
+        TestEntry(
+            id="visual_deformer_polyline",
+            group="Géométrie câble – rapports graphiques",
+            name="deformer_polyline – rapport graphique",
+            description="Génère un rapport HTML illustrant CableSolver.deformer_polyline.",
+            command="python tests/test_deformer_polyline_visual.py",
+            html_report=html_report_path_from_column_name("deformer_polyline – rapport graphique"),
         ),
         TestEntry(
             id="visual_create_point_with_target_length",
@@ -91,7 +135,9 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="create_point_with_target_length – rapport graphique",
             description="Génère un rapport HTML illustrant la fonction create_point_with_target_length.",
             command="python tests/test_create_point_with_target_length_visual.py",
-            html_report="results/create_point_with_target_length_visual_tests.html",
+            html_report=html_report_path_from_column_name(
+                "create_point_with_target_length – rapport graphique"
+            ),
         ),
         TestEntry(
             id="utils_next_point_unit",
@@ -106,7 +152,7 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="next_point – rapport graphique",
             description="Génère un rapport HTML illustrant la fonction next_point.",
             command="python tests/test_next_point_visual.py",
-            html_report="results/next_point_visual_tests.html",
+            html_report=html_report_path_from_column_name("next_point – rapport graphique"),
         ),
         TestEntry(
             id="visual_supprimer_point",
@@ -114,7 +160,7 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="supprimer_point – rapport graphique",
             description="Génère un rapport HTML illustrant la fonction supprimer_point.",
             command="python tests/test_supprimer_point_visual.py",
-            html_report="results/test_supprimer_point_visual_report.html",
+            html_report=html_report_path_from_column_name("supprimer_point – rapport graphique"),
         ),
         TestEntry(
             id="visual_enforce_cable_segments_nb",
@@ -122,7 +168,9 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="enforce_cable_segments_nb – rapport graphique",
             description="Génère un rapport HTML illustrant la réduction du nombre de segments du câble.",
             command="python tests/test_enforce_cable_segments_nb_visual.py",
-            html_report="results/test_enforce_cable_segments_nb_visual_report.html",
+            html_report=html_report_path_from_column_name(
+                "enforce_cable_segments_nb – rapport graphique"
+            ),
         ),
         TestEntry(
             id="visual_cable_normalization",
@@ -130,7 +178,9 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="Normalisation du câble – rapport graphique",
             description="Génère le rapport HTML des tests de normalisation du câble (_normalize_cable_geometry).",
             command="python tests/test_cable_normalization_visual.py",
-            html_report="results/test_cable_normalization_visual_report.html",
+            html_report=html_report_path_from_column_name(
+                "Normalisation du câble – rapport graphique"
+            ),
         ),
         TestEntry(
             id="visual_cable_normalize_segments",
@@ -138,7 +188,9 @@ def _tests_visual() -> Iterable[TestEntry]:
             name="_normalize_cable_segments – rapport graphique",
             description="Génère un rapport HTML illustrant CableSolver._normalize_cable_segments.",
             command="python tests/test_cable_normalize_segments_visual.py",
-            html_report="results/cable_normalize_segments_visual_tests.html",
+            html_report=html_report_path_from_column_name(
+                "_normalize_cable_segments – rapport graphique"
+            ),
         ),
     ]
 
@@ -153,5 +205,19 @@ def get_all_tests() -> List[TestEntry]:
     return entries
 
 
-__all__ = ["TestEntry", "get_all_tests"]
+def get_visual_default_html_path(entry_id: str) -> str | None:
+    """Chemin HTML par défaut pour un test visuel (``id`` du catalogue), ou None."""
+    for e in get_all_tests():
+        if e.id == entry_id and e.html_report:
+            return e.html_report
+    return None
+
+
+__all__ = [
+    "TestEntry",
+    "get_all_tests",
+    "get_visual_default_html_path",
+    "html_report_path_from_column_name",
+    "TEXT_REPORT_PYTEST_AGGREGATE",
+]
 

@@ -6,6 +6,7 @@ cas élémentaire, le profil du câble avant et après normalisation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 import os
 import sys
@@ -16,21 +17,16 @@ from plotly.subplots import make_subplots
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.models.environment import Environment
 from src.solvers.cable_solver import CableSolver
-
-
-@dataclass(frozen=True)
-class CableNormalizationCase:
-    """Décrit un cas élémentaire de normalisation."""
-
-    name: str
-    x_cable: np.ndarray
-    y_cable: np.ndarray
-    l_target: float
-    n_segments: int
-    boat: tuple[float, float]
-    rov: tuple[float, float]
+from tests._plotly_cable_axes import (
+    data_ranges_for_cable_view,
+    figure_layout_square_subplots,
+    subplot_vertical_spacing,
+)
+from tests._report_output import write_plotly_html_with_generation_line  # noqa: E402
+from tests.cable_shared_cases import ALL_SHARED_CABLE_CASES, SharedCableCase  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -91,7 +87,7 @@ def _stats_text(label: str, x_vals: np.ndarray, y_vals: np.ndarray) -> str:
 
 
 def _build_summary(
-    case: CableNormalizationCase,
+    case: SharedCableCase,
     x_before: np.ndarray,
     y_before: np.ndarray,
     x_after: np.ndarray,
@@ -112,132 +108,11 @@ def _build_summary(
     )
 
 
-def _build_cases() -> list[CableNormalizationCase]:
-    cases =  [
-        CableNormalizationCase(
-            name="Deja normalise",
-            x_cable=np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], dtype=float),
-            y_cable=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=float),
-            l_target=5.0,
-            n_segments=5,
-            boat=(0.0, 0.0),
-            rov=(5.0, 0.0),
-        ),
-        CableNormalizationCase(
-            name="Longueur cible imposee",
-            x_cable=np.array([0.0, 0.3, 1.2, 2.0, 2.7, 4.1, 5.0], dtype=float),
-            y_cable=np.array([0.0, -0.4, -1.1, -1.3, -2.2, -2.6, -3.0], dtype=float),
-            l_target=6.0,
-            n_segments=6,
-            boat=(0.0, 0.0),
-            rov=(5.0, -3.0),
-        ),
-        CableNormalizationCase(
-            name="Clipping surface",
-            x_cable=np.array([0.0, 0.5, 1.0, 1.5, 2.0], dtype=float),
-            y_cable=np.array([0.2, 0.1, -0.3, -0.8, -1.2], dtype=float),
-            l_target=2.4,
-            n_segments=4,
-            boat=(0.0, 0.0),
-            rov=(2.0, -1.2),
-        ),
-        CableNormalizationCase(
-            name="Peu de segments",
-            x_cable=np.array([0.0, 0.4, 1.4, 2.0], dtype=float),
-            y_cable=np.array([0.0, -0.2, -0.9, -1.2], dtype=float),
-            l_target=3.0,
-            n_segments=3,
-            boat=(0.0, 0.0),
-            rov=(2.0, -1.2),
-        ),
-        CableNormalizationCase(
-            name="Points repetes",
-            x_cable=np.array([0.0, 0.0, 0.0, 1.5, 2.0, 2.0, 3.0], dtype=float),
-            y_cable=np.array([0.0, 0.0, 0.0, -0.5, -0.8, -0.8, -1.2], dtype=float),
-            l_target=3.6,
-            n_segments=6,
-            boat=(0.0, 0.0),
-            rov=(3.0, -1.2),
-        ),
-        CableNormalizationCase(
-            name="Clipping agressif",
-            x_cable=np.array([0.0, 0.2, 0.7, 1.4, 2.2, 3.0], dtype=float),
-            y_cable=np.array([0.8, 0.6, 0.3, -0.2, -0.7, -1.1], dtype=float),
-            l_target=3.5,
-            n_segments=5,
-            boat=(0.0, 0.0),
-            rov=(3.0, -1.1),
-        ),
-        CableNormalizationCase(
-            name="Compression geometrique",
-            x_cable=np.array([0.0, 1.0, 2.5, 4.0, 5.0], dtype=float),
-            y_cable=np.array([0.0, -0.5, -1.2, -1.6, -2.0], dtype=float),
-            l_target=2.0,
-            n_segments=4,
-            boat=(0.0, 0.0),
-            rov=(5.0, -2.0),
-        ),
-        CableNormalizationCase(
-            name="Geometrie degeneree",
-            x_cable=np.array([1.0, 1.0, 1.0, 1.0, 1.0], dtype=float),
-            y_cable=np.array([-2.0, -2.0, -2.0, -2.0, -2.0], dtype=float),
-            l_target=4.0,
-            n_segments=4,
-            boat=(1.0, -2.0),
-            rov=(1.0, -2.0),
-        ),
-        CableNormalizationCase(
-            name="Dernier segment tres long",
-            x_cable=np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 5.5], dtype=float),
-            y_cable=np.array([0.0, -0.3, -0.6, -0.9, -1.2, -1.5, -2.5], dtype=float),
-            l_target=6.0,
-            n_segments=6,
-            boat=(0.0, 0.0),
-            rov=(5.5, -2.5),
-        ),
-        CableNormalizationCase(
-            name="Cas simple 1",
-            x_cable=np.array([0.2, 1.9, 2, 2.6, 2.8, 3.2], dtype=float),
-            y_cable=np.array([-0.2, -1.8, -3.9, -5.9, -7.9, -9.9],dtype=float),
-            l_target=10.8,
-            n_segments=10,
-            boat=(0.0, 0.0),
-            rov=(3.0, -10.0),
-        ),
-                CableNormalizationCase(
-            name="Cas simple 2",
-            x_cable=np.array([-0.2, 1.9, 2, 2.6, 2.8, 3.2], dtype=float),
-            y_cable=np.array([-0.2, -1.8, -3.9, -5.9, -7.9, -9.9],dtype=float),
-            l_target=10.8,
-            n_segments=10,
-            boat=(0.0, 0.0),
-            rov=(3.0, -10.0),
-        ),
-                        CableNormalizationCase(
-            name="Cas simple 3",
-            x_cable=np.array([0.3, 1.9, 2, 2.6, 2.8, 2.8], dtype=float),
-            y_cable=np.array([-0.2, -1.8, -3.9, -5.9, -7.9, -9.6],dtype=float),
-            l_target=10.8,
-            n_segments=10,
-            boat=(0.0, 0.0),
-            rov=(3.0, -10.0),
-        ),
-        CableNormalizationCase(
-            name="Cas réaliste 1",
-            x_cable=np.array([0.2, 1, 1.6, 1.8, 2.1, 2.4, 2.5, 2.7, 3, 3.1, 3.2], dtype=float),
-            y_cable=np.array([-1.0, -1.9, -2.1, -3.3, -4.1, -5, -6.1, -7.1, -8.2, -9.1, -10.1],dtype=float),
-            l_target=11.5,
-            n_segments=5,
-            boat=(0.0, 0.0),
-            rov=(3.2, -9.9),
-        ),
-    ]
-
-    ret = cases[-4:]
-
-    return ret
-
-from datetime import datetime
+def _build_cases() -> list[SharedCableCase]:
+    """Cas définis dans ``tests/cable_shared_cases.py`` (ordre du tuple)."""
+    # Rapport complet : tous les cas. Pour n'en tracer qu'un sous-ensemble :
+    # return list(ALL_SHARED_CABLE_CASES[-4:])
+    return list(ALL_SHARED_CABLE_CASES)
 
 
 def generate_visual_report(output_file: str | Path | None = None) -> Path:
@@ -248,16 +123,20 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
     n_cols = 1
     n_plot_rows = n_cases
 
-    subplot_titles = [case.name for case in cases]
+    # Titres de sous-graphiques : nom lisible du cas (HTML pris en charge par Plotly)
+    subplot_titles = [f"<b>{case.name}</b>" for case in cases]
     fig = make_subplots(
         rows=n_plot_rows,
         cols=n_cols,
         specs=[[{"type": "scatter"}] for _ in range(n_plot_rows)],
         subplot_titles=subplot_titles,
         horizontal_spacing=0.1,
-        vertical_spacing=0.08,
+        vertical_spacing=subplot_vertical_spacing(n_plot_rows),
         row_heights=[1.0] * n_plot_rows,
     )
+    # Titres de sous-graphiques : police un peu plus lisible (annotations créées par make_subplots)
+    for i in range(min(n_cases, len(fig.layout.annotations))):
+        fig.layout.annotations[i].font.size = 14
 
     summaries: list[CableNormalizationSummary] = []
 
@@ -268,17 +147,25 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
         x_before = np.asarray(case.x_cable, dtype=float)
         y_before = np.asarray(case.y_cable, dtype=float)
 
-        # Utiliser la nouvelle normalisation géométrique avec les positions bateau/ROV
-        x_after, y_after, rel_err, iters = solver._normalize_cable_geometry(
-            x_before,
-            y_before,
-            case.l_target,
-            case.boat,
-            case.rov,
-            case.n_segments,
-        )
-        x_after = np.asarray(x_after, dtype=float)
-        y_after = np.asarray(y_after, dtype=float)
+        # Normalisation géométrique (échec affiché dans l'encart sans interrompre le rapport)
+        norm_error: str | None = None
+        try:
+            x_after, y_after, rel_err, iters, _expl = solver._normalize_cable_geometry(
+                x_before,
+                y_before,
+                case.l_target,
+                case.boat,
+                case.rov,
+                case.n_segments,
+            )
+            x_after = np.asarray(x_after, dtype=float)
+            y_after = np.asarray(y_after, dtype=float)
+        except Exception as e:
+            norm_error = str(e)
+            x_after = np.asarray(x_before, dtype=float).copy()
+            y_after = np.asarray(y_before, dtype=float).copy()
+            rel_err = float("nan")
+            iters = -1
         summaries.append(_build_summary(case, x_before, y_before, x_after, y_after))
 
         # Abscisse curviligne pour les tooltips
@@ -391,12 +278,20 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
         avant_label = "Avant: <span style='color:#d62728;font-weight:bold'>────</span>"
         apres_label = "Après: <span style='color:#1f77b4;font-weight:bold'>────</span>"
 
+        rel_err_str = f"{rel_err:.3e}" if np.isfinite(rel_err) else "n/a"
+        err_block = (
+            f"<br><br><span style='color:#b00'>Erreur _normalize_cable_geometry : {norm_error}</span>"
+            if norm_error
+            else ""
+        )
         stats = (
-            _stats_text(avant_label, x_before, y_before)
+            f"<b>Cas : {case.name}</b><br><br>"
+            + _stats_text(avant_label, x_before, y_before)
             + "<br><br>"
             + _stats_text(apres_label, x_after, y_after)
             + f"<br><br>L cible = {case.l_target:.4f} m"
-            + f"<br>rel_err = {rel_err:.3e}, iters = {iters}"
+            + f"<br>rel_err = {rel_err_str}, iters = {iters}"
+            + err_block
         )
         fig.add_annotation(
             # On place l'encart nettement à droite du graphique, dans les coordonnées du papier
@@ -413,10 +308,20 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
             font=dict(size=9),
         )
 
-        fig.update_xaxes(title_text="x (m)", row=row, col=col)
-        fig.update_yaxes(title_text="y (m)", row=row, col=col)
+        (x_axis_rng, y_axis_rng) = data_ranges_for_cable_view(
+            np.concatenate([x_before, x_after]),
+            np.concatenate([y_before, y_after]),
+            pad_frac=0.08,
+        )
+        fig.update_xaxes(title_text="x (m)", range=list(x_axis_rng), row=row, col=col)
+        fig.update_yaxes(title_text="y (m)", range=list(y_axis_rng), row=row, col=col)
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    w_px, h_px, margin = figure_layout_square_subplots(
+        n_plot_rows,
+        margin_r=400,
+        margin_t=140,
+    )
     fig.update_layout(
         title=(
             "Tests visuels de normalisation du cable"
@@ -424,16 +329,21 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
             f"<br><sup>Généré le {timestamp}</sup>"
         ),
         template="plotly_white",
-        height=max(420 * n_plot_rows, 600),
-        width=1200,
+        width=w_px,
+        height=h_px,
+        margin=margin,
+        autosize=False,
         hovermode="closest",
     )
 
     if output_file is None:
-        output_file = Path("results") / "cable_normalization_visual_tests.html"
+        rel = get_visual_default_html_path("visual_cable_normalization")
+        if rel is None:
+            raise RuntimeError("Catalogue: entrée visual_cable_normalization introuvable.")
+        output_file = Path(rel)
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(output_path), include_plotlyjs="inline")
+    write_plotly_html_with_generation_line(fig, output_path, include_plotlyjs="inline")
     return output_path
 
 

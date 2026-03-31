@@ -148,6 +148,9 @@ class ROVSystem:
             if vy_rov > 0.0:
                 vy_rov = 0.0
 
+        x_rov_state = float(x_rov)
+        y_rov_state = float(y_rov)
+
         # Calculer la distance droite et le slack
         dx_straight = x_rov - x_boat
         dy_straight = y_rov - 0.0
@@ -196,346 +199,30 @@ class ROVSystem:
                 not np.isfinite(x_cable_new[-1]) or not np.isfinite(y_cable_new[-1]) or not np.isfinite(T_new[-1])):
                 raise ValueError(f"Résultats invalides du solveur de câble à t={t:.2f} s")
 
-        # CONTRAINTE CRITIQUE : Forcer les extrémités du câble à correspondre exactement au bateau et au ROV
-        # Le solveur avec contraintes (_normalize_cable_length) garantit déjà toutes les contraintes :
-        # - L = L_seg (à 0.01% près)
-        # - P0 = bateau, PN = ROV
-        # - y <= 0 pour tous les points
-        # - ds_max/ds_target <= k_max
-        # On ne fait donc que forcer les extrémités comme sécurité supplémentaire
+        # Bateau : recollage explicite. Extrémité ROV : géométrie du solveur (normalize straight peut rapprocher le ROV).
         if len(x_cable_new) > 0 and len(y_cable_new) > 0:
             x_cable_new[0] = x_boat
             y_cable_new[0] = 0.0
-            x_cable_new[-1] = x_rov
-            y_cable_new[-1] = y_rov
-        
-        # NOTE: La normalisation redondante a été supprimée car _normalize_cable_length garantit déjà toutes les contraintes
-        # Le solveur avec contraintes (_normalize_cable_length) garantit :
-        # - L = L_seg (à 0.01% près)
-        # - P0 = bateau, PN = ROV
-        # - y <= 0 pour tous les points
-        # - ds_max/ds_target <= k_max
-        # On ne fait donc que forcer les extrémités comme sécurité supplémentaire (déjà fait ci-dessus)
-        # et s'assurer que y <= 0 (fait ci-dessous)
-        
-        # Ancien code de normalisation supprimé pour éviter les violations de contraintes
-            
-            # CONTRAINTE CRITIQUE : Normaliser avec les extrémités fixées pour garantir toutes les contraintes
-            # L'ordre des opérations est crucial :
-            # 1. Forcer les extrémités
-            # 2. Normaliser avec extrémités fixées (rééchantillonnage avec interpolation)
-            # 3. Vérifier et corriger si nécessaire
-            
-            N_seg = len(x_cable_new) - 1
-            ds_target = L / max(N_seg, 1)
-            
-            # Étape 1 : Forcer les extrémités
-            x_cable_new[0] = x_boat
-            y_cable_new[0] = 0.0
-            x_cable_new[-1] = x_rov
-            y_cable_new[-1] = y_rov
-            
-            # Étape 2 : Rééchantillonner avec interpolation linéaire en abscisse curviligne
-            # pour garantir des segments de longueur égale = L/N avec extrémités fixées
-            s_points = np.linspace(0.0, L, N_seg + 1)  # Points à s = 0, ds, 2*ds, ..., L
-            
-            # Calculer l'abscisse curviligne cumulative du câble actuel
-            s_cum = np.zeros(N_seg + 1)
-            for i in range(N_seg):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
-            
-            # Rééchantillonner avec interpolation, en préservant les extrémités
-            x_cable_normalized = np.zeros(N_seg + 1)
-            y_cable_normalized = np.zeros(N_seg + 1)
-            x_cable_normalized[0] = x_boat
-            y_cable_normalized[0] = 0.0
-            x_cable_normalized[-1] = x_rov
-            y_cable_normalized[-1] = y_rov
-            
-            # Interpoler les points intermédiaires à intervalles réguliers
-            for i in range(1, N_seg):
-                s_i = s_points[i]  # s_i = i * ds_target
-                idx = np.searchsorted(s_cum, s_i)
-                if idx == 0:
-                    idx = 1
-                elif idx >= len(s_cum):
-                    idx = len(s_cum) - 1
-                
-                s_prev = s_cum[idx - 1]
-                s_next = s_cum[idx]
-                
-                if abs(s_next - s_prev) > 1e-6:
-                    alpha = (s_i - s_prev) / (s_next - s_prev)
-                    x_cable_normalized[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
-                    y_cable_normalized[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
-                else:
-                    x_cable_normalized[i] = x_cable_new[idx - 1]
-                    y_cable_normalized[i] = y_cable_new[idx - 1]
-            
-            # CRITIQUE : Ajuster le point N_seg-1 pour que le dernier segment (N_seg-1 -> ROV) ait exactement ds_target
-            # Le dernier point DOIT être au ROV (x_rov, y_rov), donc on ajuste le point N_seg-1
-            if N_seg > 0:
-                # Calculer la direction du dernier segment depuis le point N_seg-1 vers le ROV
-                dx_to_rov = x_rov - x_cable_normalized[N_seg-1]
-                dy_to_rov = y_rov - y_cable_normalized[N_seg-1]
-                dist_to_rov = np.sqrt(dx_to_rov**2 + dy_to_rov**2)
-                
-                if dist_to_rov > 1e-9:
-                    # Ajuster le point N_seg-1 pour que le segment de N_seg-1 à ROV ait exactement ds_target
-                    # Le point N_seg-1 doit être à une distance ds_target du ROV dans la direction opposée
-                    scale = ds_target / dist_to_rov
-                    x_cable_normalized[N_seg-1] = x_rov - dx_to_rov * scale
-                    y_cable_normalized[N_seg-1] = y_rov - dy_to_rov * scale
-                else:
-                    # Le point N_seg-1 est déjà au ROV, le déplacer légèrement
-                    if N_seg > 1:
-                        # Utiliser la direction du segment précédent
-                        dx_prev = x_cable_normalized[N_seg-1] - x_cable_normalized[N_seg-2]
-                        dy_prev = y_cable_normalized[N_seg-1] - y_cable_normalized[N_seg-2]
-                        dist_prev = np.sqrt(dx_prev**2 + dy_prev**2)
-                        if dist_prev > 1e-9:
-                            x_cable_normalized[N_seg-1] = x_rov - (dx_prev / dist_prev) * ds_target
-                            y_cable_normalized[N_seg-1] = y_rov - (dy_prev / dist_prev) * ds_target
-                        else:
-                            x_cable_normalized[N_seg-1] = x_rov - ds_target
-                            y_cable_normalized[N_seg-1] = y_rov
-                    else:
-                        x_cable_normalized[N_seg-1] = x_rov - ds_target
-                        y_cable_normalized[N_seg-1] = y_rov
-                
-                # Forcer le dernier point au ROV
-                x_cable_normalized[N_seg] = x_rov
-                y_cable_normalized[N_seg] = y_rov
-            
-            x_cable_new = x_cable_normalized
-            y_cable_new = y_cable_normalized
-            
-            # Vérification finale : s'assurer que les contraintes sont respectées
-            # Vérifier la longueur totale et les longueurs des segments
-            L_final_check = 0.0
-            segments_ok = True
-            for i in range(N_seg):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                ds = np.sqrt(dx**2 + dy**2)
-                L_final_check += ds
-                # Vérifier que chaque segment a la longueur cible (tolérance 1e-2 m comme dans contrôle_câble)
-                if abs(ds - ds_target) > 1e-2:
-                    segments_ok = False
-            
-            # Si la longueur totale n'est pas correcte, ajuster proportionnellement les points intermédiaires
-            if abs(L_final_check - L) / max(L, 1e-9) > 1e-2:
-                # Ajuster proportionnellement depuis le bateau vers le ROV
-                if L_final_check > 1e-9:
-                    scale = L / L_final_check
-                    for i in range(1, N_seg):
-                        dx = x_cable_new[i] - x_cable_new[0]
-                        dy = y_cable_new[i] - y_cable_new[0]
-                        x_cable_new[i] = x_cable_new[0] + dx * scale
-                        y_cable_new[i] = y_cable_new[0] + dy * scale
-                
-                # Réappliquer les extrémités après ajustement
-                x_cable_new[0] = x_boat
-                y_cable_new[0] = 0.0
-                x_cable_new[-1] = x_rov
-                y_cable_new[-1] = y_rov
-                
-                # Si les segments ne sont toujours pas égaux après ajustement, rééchantillonner à nouveau
-                if not segments_ok:
-                    # Recalculer s_cum après ajustement
-                    s_cum = np.zeros(N_seg + 1)
-                    for i in range(N_seg):
-                        dx = x_cable_new[i+1] - x_cable_new[i]
-                        dy = y_cable_new[i+1] - y_cable_new[i]
-                        s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
-                    
-                    # Rééchantillonner à nouveau avec interpolation
-                    for i in range(1, N_seg):
-                        s_i = s_points[i]
-                        idx = np.searchsorted(s_cum, s_i)
-                        if idx == 0:
-                            idx = 1
-                        elif idx >= len(s_cum):
-                            idx = len(s_cum) - 1
-                        s_prev = s_cum[idx - 1]
-                        s_next = s_cum[idx]
-                        if abs(s_next - s_prev) > 1e-6:
-                            alpha = (s_i - s_prev) / (s_next - s_prev)
-                            x_cable_new[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
-                            y_cable_new[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
-                        else:
-                            x_cable_new[i] = x_cable_new[idx - 1]
-                            y_cable_new[i] = y_cable_new[idx - 1]
-                    
-                    # Réappliquer les extrémités
-                    x_cable_new[0] = x_boat
-                    y_cable_new[0] = 0.0
-                    x_cable_new[-1] = x_rov
-                    y_cable_new[-1] = y_rov
+            x_rov = float(x_cable_new[-1])
+            y_rov = float(y_cable_new[-1])
+        dx_straight = x_rov - x_boat
+        dy_straight = y_rov - 0.0
+        L_straight = np.hypot(dx_straight, dy_straight)
+        slack = L - L_straight
+        cable_taut = slack < 0.0
+        cable_length_constrained = cable_taut
 
-        # Forcer les conditions aux limites du câble : bateau à y=0 (surface), ROV à y_rov (<=0, profondeur)
-        # Convention : y < 0 = profondeur (sous la surface), y = 0 = surface
+        # Surface : clip y <= 0 et recoller extrémités (x_rov, y_rov = extrémité renvoyée par le solveur)
         if len(y_cable_new) > 0:
-            # CONTRAINTE PHYSIQUE STRICTE : Le câble ne peut JAMAIS être au-dessus de la surface (y > 0)
-            # Forcer tous les points du câble (sauf les extrémités) à être strictement en dessous de la surface
-            # Seuls les points aux extrémités peuvent être à y=0 (bateau) ou y=y_rov (ROV)
-            
-            # D'abord, forcer tous les points à y <= 0
+            y_cable_new = np.asarray(y_cable_new, dtype=float)
             y_cable_new = np.clip(y_cable_new, None, 0.0)
-            
-            # Ensuite, forcer tous les points intermédiaires à être strictement en dessous de la surface
-            # pour éviter les discontinuités et les angles aigus
-            for i in range(1, len(y_cable_new) - 1):
-                if y_cable_new[i] >= -0.01:  # Points très proches de la surface (à moins de 1 cm)
-                    # Forcer ces points à être légèrement en dessous pour éviter les discontinuités
-                    # Interpoler entre les voisins pour créer une transition douce
-                    y_prev = y_cable_new[i-1]
-                    y_next = y_cable_new[i+1]
-                    # Utiliser la moyenne des voisins, mais forcer à être en dessous de -0.01 m
-                    if y_prev < -0.01 and y_next < -0.01:
-                        y_cable_new[i] = min(-0.01, 0.5 * (y_prev + y_next))
-                    elif y_prev < -0.01:
-                        y_cable_new[i] = min(-0.01, y_prev - 0.01)
-                    elif y_next < -0.01:
-                        y_cable_new[i] = min(-0.01, y_next - 0.01)
-                    else:
-                        # Si les deux voisins sont aussi proches de la surface, forcer à -0.01 m
-                        y_cable_new[i] = -0.01
-            
-            # Réappliquer les conditions aux limites strictes
-            y_cable_new[0] = 0.0  # Bateau à la surface
-            y_cable_new[-1] = y_rov  # ROV à sa position
-            
-            # NOTE: La renormalisation après clipping a été supprimée car elle peut violer les contraintes
-            # Le solveur (_normalize_cable_length) garantit déjà toutes les contraintes.
-            # Si le clipping modifie la longueur, cela sera corrigé au prochain appel du solveur.
-            # Ancien code de renormalisation supprimé (lignes 411-476) pour éviter les violations de contraintes
-            if abs(L_final_check - L) / max(L, 1e-9) > 1e-2:
-                # Ajuster proportionnellement depuis le bateau vers le ROV
-                if L_final_check > 1e-9:
-                    scale = L / L_final_check
-                    for i in range(1, N_seg):
-                        dx = x_cable_new[i] - x_cable_new[0]
-                        dy = y_cable_new[i] - y_cable_new[0]
-                        x_cable_new[i] = x_cable_new[0] + dx * scale
-                        y_cable_new[i] = y_cable_new[0] + dy * scale
-                
-                # Réappliquer les extrémités
-                x_cable_new[0] = x_boat
-                y_cable_new[0] = 0.0
-                x_cable_new[-1] = x_rov
-                y_cable_new[-1] = y_rov
-                
-                # Si les segments ne sont toujours pas égaux, rééchantillonner à nouveau
-                if not segments_ok:
-                    # Recalculer s_cum après ajustement
-                    s_cum = np.zeros(N_seg + 1)
-                    for i in range(N_seg):
-                        dx = x_cable_new[i+1] - x_cable_new[i]
-                        dy = y_cable_new[i+1] - y_cable_new[i]
-                        s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
-                    
-                    # Rééchantillonner à nouveau avec interpolation
-                    for i in range(1, N_seg):
-                        s_i = s_points[i]
-                        idx = np.searchsorted(s_cum, s_i)
-                        if idx == 0:
-                            idx = 1
-                        elif idx >= len(s_cum):
-                            idx = len(s_cum) - 1
-                        s_prev = s_cum[idx - 1]
-                        s_next = s_cum[idx]
-                        if abs(s_next - s_prev) > 1e-6:
-                            alpha = (s_i - s_prev) / (s_next - s_prev)
-                            x_cable_new[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
-                            y_cable_new[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
-                        else:
-                            x_cable_new[i] = x_cable_new[idx - 1]
-                            y_cable_new[i] = y_cable_new[idx - 1]
-                    
-                    # Réappliquer les extrémités
-                    x_cable_new[0] = x_boat
-                    y_cable_new[0] = 0.0
-                    x_cable_new[-1] = x_rov
-                    y_cable_new[-1] = y_rov
-            
-            # Réappliquer la contrainte y <= 0 après renormalisation
-            y_cable_new = np.clip(y_cable_new, None, 0.0)
-            # Réappliquer la contrainte stricte sur les points intermédiaires
-            for i in range(1, len(y_cable_new) - 1):
-                if y_cable_new[i] >= -0.01:
-                    y_prev = y_cable_new[i-1]
-                    y_next = y_cable_new[i+1]
-                    if y_prev < -0.01 and y_next < -0.01:
-                        y_cable_new[i] = min(-0.01, 0.5 * (y_prev + y_next))
-                    elif y_prev < -0.01:
-                        y_cable_new[i] = min(-0.01, y_prev - 0.01)
-                    elif y_next < -0.01:
-                        y_cable_new[i] = min(-0.01, y_next - 0.01)
-                    else:
-                        y_cable_new[i] = -0.01
-            
-            # Réappliquer les extrémités après toutes les opérations
-            x_cable_new[0] = x_boat
             y_cable_new[0] = 0.0
-            x_cable_new[-1] = x_rov
             y_cable_new[-1] = y_rov
-            
-            # Vérification finale après clipping : si la longueur a encore changé, ajuster une dernière fois
-            L_final_after_clip = 0.0
-            for i in range(N_seg):
-                dx = x_cable_new[i+1] - x_cable_new[i]
-                dy = y_cable_new[i+1] - y_cable_new[i]
-                L_final_after_clip += np.sqrt(dx**2 + dy**2)
-            
-            if abs(L_final_after_clip - L) / max(L, 1e-9) > 1e-2:
-                # Ajustement proportionnel final
-                if L_final_after_clip > 1e-9:
-                    scale = L / L_final_after_clip
-                    for i in range(1, N_seg):
-                        dx = x_cable_new[i] - x_cable_new[0]
-                        dy = y_cable_new[i] - y_cable_new[0]
-                        x_cable_new[i] = x_cable_new[0] + dx * scale
-                        y_cable_new[i] = y_cable_new[0] + dy * scale
-                
-                # Réappliquer les extrémités
-                x_cable_new[0] = x_boat
-                y_cable_new[0] = 0.0
-                x_cable_new[-1] = x_rov
-                y_cable_new[-1] = y_rov
-                
-                # Rééchantillonner une dernière fois pour garantir des segments égaux
-                s_cum = np.zeros(N_seg + 1)
-                for i in range(N_seg):
-                    dx = x_cable_new[i+1] - x_cable_new[i]
-                    dy = y_cable_new[i+1] - y_cable_new[i]
-                    s_cum[i+1] = s_cum[i] + np.sqrt(dx**2 + dy**2)
-                
-                for i in range(1, N_seg):
-                    s_i = s_points[i]
-                    idx = np.searchsorted(s_cum, s_i)
-                    if idx == 0:
-                        idx = 1
-                    elif idx >= len(s_cum):
-                        idx = len(s_cum) - 1
-                    s_prev = s_cum[idx - 1]
-                    s_next = s_cum[idx]
-                    if abs(s_next - s_prev) > 1e-6:
-                        alpha = (s_i - s_prev) / (s_next - s_prev)
-                        x_cable_new[i] = x_cable_new[idx - 1] + alpha * (x_cable_new[idx] - x_cable_new[idx - 1])
-                        y_cable_new[i] = y_cable_new[idx - 1] + alpha * (y_cable_new[idx] - y_cable_new[idx - 1])
-                    else:
-                        x_cable_new[i] = x_cable_new[idx - 1]
-                        y_cable_new[i] = y_cable_new[idx - 1]
-                
-                # Réappliquer les extrémités une dernière fois
-                x_cable_new[0] = x_boat
-                y_cable_new[0] = 0.0
-                x_cable_new[-1] = x_rov
-                y_cable_new[-1] = y_rov
-        
+        if len(x_cable_new) > 0:
+            x_cable_new = np.asarray(x_cable_new, dtype=float)
+            x_cable_new[0] = float(x_boat)
+            x_cable_new[-1] = x_rov
+
         if len(x_cable_new) > 0:
             # Vérifier si le câble est vertical : tous les points doivent avoir la même position x
             x_cable_range = np.max(x_cable_new) - np.min(x_cable_new)
@@ -917,8 +604,10 @@ class ROVSystem:
         
         # Assembler les dérivées
         dydt = np.zeros_like(y)
-        dydt[0] = vx_rov  # dx_rov/dt
-        dydt[1] = vy_rov  # dy_rov/dt
+        # Ramener progressivement la position ROV de l'état vers l'extrémité câble (solveur / straight)
+        tau_rov_geom_sync = 0.05
+        dydt[0] = vx_rov + (x_rov - x_rov_state) / tau_rov_geom_sync
+        dydt[1] = vy_rov + (y_rov - y_rov_state) / tau_rov_geom_sync
         dydt[2] = dvx_rov_dt
         dydt[3] = dvy_rov_dt
         dydt[4] = vx_boat  # dx_boat/dt

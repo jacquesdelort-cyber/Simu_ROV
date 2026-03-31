@@ -17,7 +17,13 @@ from plotly.subplots import make_subplots
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import create_point_with_target_length  # noqa: E402
+from tests._plotly_cable_axes import (  # noqa: E402
+    data_ranges_for_cable_view,
+    figure_layout_square_subplots,
+)
+from tests._report_output import write_plotly_html_with_generation_line  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -210,33 +216,29 @@ def generate_create_point_report(output_file: str | Path | None = None) -> Path:
 
         xs = np.concatenate([P[:, 0], P_clip[:, 0], np.array([C[0]])])
         ys = np.concatenate([P[:, 1], P_clip[:, 1], np.array([C[1]])])
-        span = max(xs.max() - xs.min(), ys.max() - ys.min(), 1.0)
-        cx = 0.5 * (xs.max() + xs.min())
-        cy = 0.5 * (ys.max() + ys.min())
-        half = 0.7 * span
-        fig.update_xaxes(title_text="x", range=[cx - half, cx + half], row=row, col=1)
-        fig.update_yaxes(
-            title_text="y",
-            range=[cy - half, cy + half],
-            scaleanchor=f"x{row}" if row > 1 else "x",
-            scaleratio=1.0,
-            row=row,
-            col=1,
-        )
+        (x_rng, y_rng) = data_ranges_for_cable_view(xs, ys, pad_frac=0.08)
+        fig.update_xaxes(title_text="x", range=list(x_rng), row=row, col=1)
+        fig.update_yaxes(title_text="y", range=list(y_rng), row=row, col=1)
 
+    w_px, h_px, margin = figure_layout_square_subplots(n_cases, margin_r=120, margin_t=100)
     fig.update_layout(
         title="Visualisation create_point_with_target_length",
         template="plotly_white",
-        height=max(330 * n_cases, 700),
-        width=900,
+        width=w_px,
+        height=h_px,
+        margin=margin,
+        autosize=False,
         hovermode="closest",
     )
 
     if output_file is None:
-        output_file = Path("results") / "create_point_with_target_length_visual_tests.html"
+        rel = get_visual_default_html_path("visual_create_point_with_target_length")
+        if rel is None:
+            raise RuntimeError("Catalogue: entrée visual_create_point_with_target_length introuvable.")
+        output_file = Path(rel)
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(output_path), include_plotlyjs="inline")
+    write_plotly_html_with_generation_line(fig, output_path, include_plotlyjs="inline")
     return output_path
 
 

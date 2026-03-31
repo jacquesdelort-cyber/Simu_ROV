@@ -226,7 +226,7 @@ class SimulationThread(QThread):
                     and float(L_init) > 1e-6
                 ):
                     # Normaliser la longueur du câble à L_init avec recollement doux
-                    x_corr, y_corr = system.cable.solver._normalize_cable_length(
+                    x_corr, y_corr, straight_mode = system.cable.solver._normalize_cable_length(
                         np.asarray(x_cable_init, dtype=float),
                         np.asarray(y_cable_init, dtype=float),
                         float(L_init),
@@ -242,6 +242,10 @@ class SimulationThread(QThread):
                     idx_y_cable = idx_x_cable + system.N + 1
                     y_current[idx_x_cable:idx_y_cable] = x_corr
                     y_current[idx_y_cable:idx_y_cable + system.N + 1] = y_corr
+                    # Aligner le ROV sur l'extrémité câble si la branche corde > L a été utilisée
+                    if straight_mode:
+                        y_current[0] = float(x_corr[-1])
+                        y_current[1] = float(y_corr[-1])
 
                     # Mettre à jour les buffers précédents du système
                     system.x_cable_prev = np.asarray(x_corr, dtype=float).copy()

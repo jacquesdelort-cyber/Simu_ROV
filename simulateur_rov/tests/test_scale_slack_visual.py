@@ -17,7 +17,13 @@ from plotly.subplots import make_subplots
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import scale_slack  # noqa: E402
+from tests._plotly_cable_axes import (  # noqa: E402
+    data_ranges_for_cable_view,
+    figure_layout_square_subplots,
+)
+from tests._report_output import write_plotly_html_with_generation_line  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -202,33 +208,11 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
             col=col,
         )
 
-        # Ajuster les axes avec la même échelle
         xs = np.array([A[0], B[0], C[0], Bp[0]])
         ys = np.array([A[1], B[1], C[1], Bp[1]])
-        x_span = xs.max() - xs.min()
-        y_span = ys.max() - ys.min()
-        span = max(x_span, y_span, 1.0)
-        cx = 0.5 * (xs.max() + xs.min())
-        cy = 0.5 * (ys.max() + ys.min())
-        half_span = 0.7 * span
-        x_min = cx - half_span
-        x_max = cx + half_span
-        y_min = cy - half_span
-        y_max = cy + half_span
-        fig.update_xaxes(
-            title_text="x",
-            range=[x_min, x_max],
-            row=row,
-            col=col,
-        )
-        fig.update_yaxes(
-            title_text="y",
-            scaleanchor="x",
-            scaleratio=1.0,
-            range=[y_min, y_max],
-            row=row,
-            col=col,
-        )
+        (x_rng, y_rng) = data_ranges_for_cable_view(xs, ys, pad_frac=0.08)
+        fig.update_xaxes(title_text="x", range=list(x_rng), row=row, col=col)
+        fig.update_yaxes(title_text="y", range=list(y_rng), row=row, col=col)
 
         # Annoter les longueurs avant / après
         L_before = _length_sum(A, B, C)
@@ -252,19 +236,25 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
             font=dict(size=9),
         )
 
+    w_px, h_px, margin = figure_layout_square_subplots(n_cases, margin_r=320, margin_t=100)
     fig.update_layout(
         title="Visualisation de la fonction scale_slack (A, B, C, sc -> B')",
         template="plotly_white",
-        height=max(350 * n_cases, 600),
-        width=900,
+        width=w_px,
+        height=h_px,
+        margin=margin,
+        autosize=False,
         hovermode="closest",
     )
 
     if output_file is None:
-        output_file = Path("results") / "scale_slack_visual_tests.html"
+        rel = get_visual_default_html_path("visual_scale_slack")
+        if rel is None:
+            raise RuntimeError("Catalogue: entrée visual_scale_slack introuvable.")
+        output_file = Path(rel)
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(output_path), include_plotlyjs="inline")
+    write_plotly_html_with_generation_line(fig, output_path, include_plotlyjs="inline")
     return output_path
 
 
