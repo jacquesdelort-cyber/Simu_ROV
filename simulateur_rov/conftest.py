@@ -9,6 +9,13 @@ from src.tests.test_catalog import TEXT_REPORT_PYTEST_AGGREGATE
 from tests._report_output import report_generated_first_line
 
 
+def pytest_configure(config) -> None:
+    """Pendant les tests : accepter tous les niveaux ``trace_print`` (voir ``TRACE_LEVEL`` dans logger)."""
+    from src.utils.logger import set_trace_level
+
+    set_trace_level(0)
+
+
 def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
     root = Path(config.rootpath)
     report_path = root / TEXT_REPORT_PYTEST_AGGREGATE

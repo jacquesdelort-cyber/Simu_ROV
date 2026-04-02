@@ -10,7 +10,19 @@ import copy
 import re
 import json
 import concurrent.futures
-from src.utils.logger import trace_print, set_trace_file, close_trace_file
+from src.utils.logger import trace_print, set_trace_file, close_trace_file, get_trace_level
+
+_ANSI_RESET = "\033[0m"
+_ANSI_RED = "\033[91m"
+_ANSI_GREEN = "\033[92m"
+_ANSI_YELLOW = "\033[93m"
+_ANSI_BLUE = "\033[94m"
+_ANSI_MAGENTA = "\033[95m"
+_ANSI_CYAN = "\033[96m"
+_ANSI_WHITE = "\033[97m"
+_ANSI_GRAY = "\033[90m"
+_ANSI_LIGHT_GRAY = "\033[37m"
+_ANSI_LIGHT_RED = "\033[91m"
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
@@ -63,6 +75,7 @@ class SimulationThread(QThread):
     
     def run(self):
         """Exécute la simulation"""
+        trace_print(9, f"\n{_ANSI_YELLOW}[DEBUG] simulation_thread: RUN :  TRACE_LEVEL ={get_trace_level()}{_ANSI_RESET}")
         try:
             from src.models.system_model import ROVSystem
             from src.utils.initial_conditions import get_initial_state
@@ -226,7 +239,8 @@ class SimulationThread(QThread):
                     and float(L_init) > 1e-6
                 ):
                     # Normaliser la longueur du câble à L_init avec recollement doux
-                    x_corr, y_corr, straight_mode = system.cable.solver._normalize_cable_length(
+                    system.cable.solver._last_sim_time = float(t_current)
+                    x_corr, y_corr, straight_mode, _ = system.cable.solver._normalize_cable_length(
                         np.asarray(x_cable_init, dtype=float),
                         np.asarray(y_cable_init, dtype=float),
                         float(L_init),
@@ -235,6 +249,7 @@ class SimulationThread(QThread):
                         x_rov=float(x_rov_init),
                         y_rov=float(y_rov_init),
                         k_tail=10,
+                        t=float(t_current),
                     )
 
                     # Réinjecter la géométrie corrigée dans l'état initial
@@ -251,7 +266,7 @@ class SimulationThread(QThread):
                     system.x_cable_prev = np.asarray(x_corr, dtype=float).copy()
                     system.y_cable_prev = np.asarray(y_corr, dtype=float).copy()
             except Exception as e:
-                trace_print(8, f"[INIT] Échec renormalisation câble initial: {e}")
+                trace_print(9, f"[INIT] Échec renormalisation câble initial: {e}")
 
             dt = min(dt_max, t_final / 100.0)  # Pas initial
             dt_min = float(self.calc_params.get('dt_min', 1e-4))
@@ -1036,8 +1051,23 @@ class SimulationThread(QThread):
                     'step': 0,
                     'y': y_current,
                 })
+
+            def _trace_non_finite_rov(stage_name, y_vec, t_val, step_val):
+                """Trace compacte si une composante ROV de l'état n'est pas finie."""
+                try:
+                    xr, yr, vxr, vyr = float(y_vec[0]), float(y_vec[1]), float(y_vec[2]), float(y_vec[3])
+                    if all(np.isfinite(v) for v in (xr, yr, vxr, vyr)):
+                        return
+                    trace_print(
+                        1,
+                        f"[NON_FINITE] stage={stage_name} t={t_val:.2f} step={step_val} "
+                        f"x_rov={xr} y_rov={yr} vx_rov={vxr} vy_rov={vyr}"
+                    )
+                except Exception as e_nf:
+                    trace_print(1, f"[NON_FINITE] stage={stage_name} t={t_val:.2f} step={step_val} inspect_error={e_nf}")
             
             while t_current < t_final and not self._stop_requested:
+                trace_print(8, f"\n{_ANSI_YELLOW}[DEBUG] simulation_thread: LOOP : t_current={t_current:.2f} {_ANSI_RESET} ")
                 # Attendre si en pause
                 while self._paused and not self._stop_requested:
                     time.sleep(0.1)
@@ -1052,7 +1082,11 @@ class SimulationThread(QThread):
                 # puisse afficher le temps auquel la commande sera appliquée
                 t_next = min(t_current + dt, t_final)
                 dt_used = t_next - t_current
-                
+                try:
+                    system.cable.solver._last_sim_time = float(t_next)
+                except Exception:
+                    pass
+
                 fx_rov_cmd = None
                 fy_rov_cmd = None
                 vx_boat_cmd = None
@@ -1062,11 +1096,12 @@ class SimulationThread(QThread):
                 if isinstance(self.simulation_state, dict):
                     dl_dt_mode = self.simulation_state.get('dl_dt_mode', 'scen')
 
+                _trace_non_finite_rov("pre_command", y_current, t_current, step_count)
                 if self.sc_fx_rov or self.sc_fy_rov or self.sc_v_bateau or self.sc_v_moulinet or dl_dt_mode == "auto":
                     try:
                         (x_rov_current, y_rov_current, _, _, x_boat_current, _, _, _, T_current, L_current) = system.unpack_state(y_current)
                         # DEBUG: Traçage de L_current avant intégration
-                        trace_print(5, f"[DEBUG L] t={t_current:.2f} AVANT intégration: L_current={L_current:.6f} m")
+                        trace_print(7, f"[DEBUG L] t={t_current:.2f} AVANT intégration: L_current={L_current:.6f} m")
                         t_boat = None
                         if T_current is not None and len(T_current) > 0:
                             t_boat = float(T_current[0])
@@ -1169,7 +1204,7 @@ class SimulationThread(QThread):
                             else:
                                 dl_dt_cmd = auto_result
                             # DEBUG: Traçage de dL_dt calculé
-                            trace_print(8, f"[DEBUG L] t={t_current:.2f} dL_dt_cmd={dl_dt_cmd:.6f} m/s "
+                            trace_print(7, f"[DEBUG L] t={t_current:.2f} dL_dt_cmd={dl_dt_cmd:.6f} m/s "
                                 f"(L_current={L_current:.6f} m pour calcul)"
                             )
                             trace_print(1, f"[AUTO dL/dt] t={t_current:.2f} L={L_current:.2f} "
@@ -1189,7 +1224,7 @@ class SimulationThread(QThread):
                                 step_triggers,
                             )
                     except Exception as e:
-                        trace_print(8, f"Erreur commande_scenario: {e}")
+                        trace_print(9, f"{_ANSI_RED}Erreur commande_scenario: {e}{_ANSI_RESET}")
                         fx_rov_cmd = None
                         fy_rov_cmd = None
                         vx_boat_cmd = None
@@ -1239,6 +1274,7 @@ class SimulationThread(QThread):
                 # t_next et dt_used ont déjà été calculés au début de l'itération
                 # Intégrer un pas (avec réduction adaptative si nécessaire)
                 try:
+                    trace_print(7, f"[DEBUG] simulation_thread: INTÉGRATION : step_count={step_count}")
                     # Vérifications optimisées : seulement tous les N pas et seulement les valeurs critiques
                     # Vérifier seulement les premières valeurs (ROV) au lieu de tout le vecteur
                     if step_count % 10 == 0:  # Vérifier seulement tous les 10 pas
@@ -1327,6 +1363,7 @@ class SimulationThread(QThread):
                             y_current = solution.sol(t_next)
                         else:
                             y_current = solution.y[:, -1]
+                    _trace_non_finite_rov("post_integrate", y_current, t_current, step_count)
 
                     # Sécuriser les tensions (éviter valeurs négatives ou déraisonnables)
                     try:
@@ -1357,6 +1394,66 @@ class SimulationThread(QThread):
                     # Décoder l'état
                     (x_rov, y_rov, vx_rov, vy_rov,
                      x_boat, vx_boat, x_cable, y_cable, T, L) = system.unpack_state(y_current)
+
+                    # Projection finale du câble: imposer recollement/L_target sur l'état de fin de pas,
+                    # puis redistribuer les tensions sur cette géométrie finale.
+                    try:
+                        if (
+                            x_cable is not None and y_cable is not None
+                            and len(x_cable) > 1 and L is not None and float(L) > 1e-9
+                        ):
+                            x_proj, y_proj, straight_mode, _ = system.cable.solver._normalize_cable_length(
+                                np.asarray(x_cable, dtype=float),
+                                np.asarray(y_cable, dtype=float),
+                                float(L),
+                                x_boat=float(x_boat),
+                                y_boat=0.0,
+                                x_rov=float(x_rov),
+                                y_rov=float(y_rov),
+                                k_tail=10,
+                                t=float(t_next),
+                            )
+
+                            x_proj = np.asarray(x_proj, dtype=float)
+                            y_proj = np.asarray(y_proj, dtype=float)
+                            x_proj[0] = float(x_boat)
+                            y_proj[0] = 0.0
+                            if straight_mode:
+                                x_rov = float(x_proj[-1])
+                                y_rov = float(y_proj[-1])
+                            else:
+                                x_proj[-1] = float(x_rov)
+                                y_proj[-1] = float(y_rov)
+
+                            weight_per_unit = (
+                                (system.cable.rho_cable - system.environment.rho_eau)
+                                * system.cable.A_cable
+                                * system.environment.g
+                            )
+                            T_proj = system.cable.solver._compute_catenary_tensions(
+                                x_proj,
+                                y_proj,
+                                weight_per_unit,
+                                rov_m=system.rov.m,
+                                rov_vol=system.rov.V,
+                            )
+                            T_proj = np.asarray(T_proj, dtype=float)
+
+                            idx_x_cable = 6
+                            idx_y_cable = idx_x_cable + system.N + 1
+                            idx_t = idx_y_cable + system.N + 1
+                            y_current[0] = float(x_rov)
+                            y_current[1] = float(y_rov)
+                            y_current[idx_x_cable:idx_y_cable] = x_proj
+                            y_current[idx_y_cable:idx_t] = y_proj
+                            y_current[idx_t:idx_t + system.N + 1] = T_proj
+
+                            x_cable = x_proj
+                            y_cable = y_proj
+                            T = T_proj
+                            _trace_non_finite_rov("post_projection", y_current, t_current, step_count)
+                    except Exception as e:
+                        trace_print(9, f"[FINAL PROJECTION] Échec projection finale câble: {e}")
 
                     # DEBUG: Traçage de L après intégration et comparaison avec L_current
                     # Récupérer la commande dL_dt qui a été utilisée pour cette intégration
@@ -1482,13 +1579,13 @@ class SimulationThread(QThread):
                             # Afficher plus de détails si la déviation est beaucoup plus faible que théorique
                             ratio = theoretical_max_deviation / max_deviation if max_deviation > 1e-6 else 0.0
                             if ratio > 2.0:
-                                trace_print(9, f"[DEBUG CABLE SHAPE] ⚠️  Câble courbe mais déviation trop faible à t={t_current:.3f}: "
+                                trace_print(7, f"[DEBUG CABLE SHAPE] ⚠️  Câble courbe mais déviation trop faible à t={t_current:.3f}: "
                                     f"max_deviation={max_deviation:.6f} m (théorique≈{theoretical_max_deviation:.2f} m, "
                                     f"ratio={ratio:.1f}x), slack={slack_calc:.2f} m, D_straight={D_straight:.2f} m, "
                                     f"L_seg={L_seg_calc:.2f} m, i_max={i_max_deviation}, "
                                     f"P_max=({x_cable_display[i_max_deviation]:.3f},{y_cable_display[i_max_deviation]:.3f})")
                             else:
-                                trace_print(9, f"[DEBUG CABLE SHAPE] ✓ Câble a une forme courbe à t={t_current:.3f}: "
+                                trace_print(7, f"[DEBUG CABLE SHAPE] ✓ Câble a une forme courbe à t={t_current:.3f}: "
                                     f"max_deviation={max_deviation:.6f} m (théorique≈{theoretical_max_deviation:.2f} m), "
                                     f"slack={slack_calc:.2f} m")
                     
@@ -1699,12 +1796,6 @@ class SimulationThread(QThread):
                         data['x_cable_curr'] = x_cable_list
                         data['y_cable_curr'] = y_cable_list
                         data['cable_point_indices'] = list(range(len(x_cable_list)))
-                        # Debug: vérifier les données stockées dans data
-                        if (abs(t_current - 7.7) < 0.1 and step_count % 77 == 0) or (abs(t_current - 7.8) < 0.1 and step_count % 78 == 0):
-                            if len(x_cable_list) > 0:
-                                trace_print(9, f"[DEBUG AFTER DATA STORAGE] t={t_current:.3f} step={step_count} "
-                                    f"P0=({x_cable_list[0]:.3f},{y_cable_list[0]:.3f}) "
-                                    f"PN=({x_cable_list[-1]:.3f},{y_cable_list[-1]:.3f})")
                     
                     # Tensions du câble actuel
                     if T is not None and len(T) > 0:
@@ -1801,14 +1892,6 @@ class SimulationThread(QThread):
                     # snapshot que celui utilisé pour remplir data / update_data.
                     # IMPORTANT : Appeler APRÈS toutes les corrections de tension et
                     # JUSTE AVANT l'émission vers l'UI pour garantir la cohérence.
-                    # Debug: vérifier les données avant l'appel aux invariants
-                    if abs(t_current - 7.7) < 0.1 and step_count % 77 == 0:
-                        x_cable_ctx = shared_context.get('x_cable')
-                        y_cable_ctx = shared_context.get('y_cable')
-                        if x_cable_ctx is not None and len(x_cable_ctx) > 0:
-                            trace_print(9, f"[DEBUG BEFORE INVARIANTS] t={t_current:.3f} step={step_count} "
-                                f"P0=({x_cable_ctx[0]:.3f},{y_cable_ctx[0]:.3f}) "
-                                f"PN=({x_cable_ctx[-1]:.3f},{y_cable_ctx[-1]:.3f})")
                     check_cable_invariants(shared_context)
                     
                     # Émettre les données vers l'IHM APRÈS la vérification des invariants,

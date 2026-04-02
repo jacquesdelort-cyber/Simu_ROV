@@ -22,6 +22,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import next_point  # noqa: E402
+from src.visualization.cable_hover import (  # noqa: E402
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_vertex_tooltip,
+)
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
@@ -145,6 +150,7 @@ def generate_next_point_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#7f7f7f", width=2),
                 marker=dict(size=7),
+                **cable_polyline_hover_plotly_kwargs(Q[:, 0], Q[:, 1]),
             ),
             row=row,
             col=1,
@@ -190,6 +196,11 @@ def generate_next_point_report(output_file: str | Path | None = None) -> Path:
                 textposition="top center",
                 showlegend=False,
                 marker=dict(size=12, color="#d62728"),
+                hovertext=[
+                    cable_vertex_tooltip("R", float(case.s_R), None, float(R[0]), float(R[1]))
+                ],
+                hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                hoverinfo="text",
             ),
             row=row,
             col=1,
@@ -205,6 +216,11 @@ def generate_next_point_report(output_file: str | Path | None = None) -> Path:
                 textposition="top center",
                 showlegend=False,
                 marker=dict(size=12, color="#2ca02c"),
+                hovertext=[
+                    cable_vertex_tooltip("T", float(target_s), None, float(T[0]), float(T[1]))
+                ],
+                hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                hoverinfo="text",
             ),
             row=row,
             col=1,

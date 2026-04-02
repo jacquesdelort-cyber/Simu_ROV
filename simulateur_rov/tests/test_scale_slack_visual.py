@@ -19,6 +19,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import scale_slack  # noqa: E402
+from src.visualization.cable_hover import (  # noqa: E402
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_polyline_hover_texts,
+    cable_vertex_tooltip,
+)
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
@@ -121,6 +127,7 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([A[0], B[0]], [A[1], B[1]]),
             ),
             row=row,
             col=col,
@@ -135,6 +142,7 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#ff7f0e", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([B[0], C[0]], [B[1], C[1]]),
             ),
             row=row,
             col=col,
@@ -151,6 +159,7 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#2ca02c", width=2, dash="dot"),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([A[0], Bp[0]], [A[1], Bp[1]]),
             ),
             row=row,
             col=col,
@@ -165,6 +174,7 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#d62728", width=2, dash="dot"),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([Bp[0], C[0]], [Bp[1], C[1]]),
             ),
             row=row,
             col=col,
@@ -172,6 +182,13 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
 
         # Points A, B, C, M, B' avec labels
         M = 0.5 * (A + C)
+        path_abc = np.stack([A, B, C], axis=0)
+        h_abc = cable_polyline_hover_texts(path_abc[:, 0], path_abc[:, 1])
+        L_abc = float(np.sum(np.linalg.norm(np.diff(path_abc, axis=0), axis=1)))
+        path_abp = np.stack([A, Bp, C], axis=0)
+        h_abp = cable_polyline_hover_texts(path_abp[:, 0], path_abp[:, 1])
+        h_M = cable_vertex_tooltip("M", 0.5 * L_abc, None, float(M[0]), float(M[1]))
+        point_hover = {"A": h_abc[0], "B": h_abc[1], "C": h_abc[2], "M": h_M, "B'": h_abp[1]}
         for pt, label, color in [
             (A, "A", "#000000"),
             (B, "B", "#000000"),
@@ -188,6 +205,9 @@ def generate_scale_slack_report(output_file: str | Path | None = None) -> Path:
                     textposition="top center",
                     showlegend=False,
                     marker=dict(size=9, color=color),
+                    hovertext=[point_hover[label]],
+                    hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                    hoverinfo="text",
                 ),
                 row=row,
                 col=col,

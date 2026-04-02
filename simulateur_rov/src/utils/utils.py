@@ -227,7 +227,7 @@ def create_point_with_target_length(
     - Si AB == 2*l_seg_target -> (True, H)
     - Si A == B               -> (True, A + (l_seg_target, 0))
     - Sinon, C est sur la perpendiculaire à AB passant par H, du côté de G.
-      Si C est au-dessus de la surface (y > 0), on le réfléchit par rapport à AB.
+      Si C est au-dessus de la surface (y > 0), on le réfléchit par rapport à AB -> True 
     """
     # region : fonctions locales et initialisation
     def _is_on_line_ab(U: np.ndarray) -> bool:
@@ -249,7 +249,7 @@ def create_point_with_target_length(
 
     AB_vec = B - A
     AB = float(np.linalg.norm(AB_vec))
-    tol = 1e-9 * max(1.0, abs(AB)/abs(l_seg_target))
+    tol = 1e-9 * max(1.0, abs(AB)/abs(2*l_seg_target))
 
     seg_midpoints = 0.5 * (P2[:-1] + P2[1:])
     G = np.mean(seg_midpoints, axis=0)

@@ -19,6 +19,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import enforce_cable_segments_nb  # noqa: E402
+from src.visualization.cable_hover import (  # noqa: E402
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_polyline_hover_texts,
+)
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
@@ -133,6 +138,7 @@ def generate_enforce_cable_report(output_file: str | Path | None = None) -> Path
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs(P[:, 0], P[:, 1]),
             ),
             row=row,
             col=col,
@@ -149,6 +155,7 @@ def generate_enforce_cable_report(output_file: str | Path | None = None) -> Path
                 showlegend=(idx == 0),
                 line=dict(color="#d62728", width=2, dash="dot"),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs(P_new[:, 0], P_new[:, 1]),
             ),
             row=row,
             col=col,
@@ -159,6 +166,7 @@ def generate_enforce_cable_report(output_file: str | Path | None = None) -> Path
             (P, "A", "#000000"),
             (P_new, "A'", "#444444"),
         ]:
+            hov_pts = cable_polyline_hover_texts(arr[:, 0], arr[:, 1])
             for k, pt in enumerate(arr):
                 fig.add_trace(
                     go.Scatter(
@@ -169,6 +177,9 @@ def generate_enforce_cable_report(output_file: str | Path | None = None) -> Path
                         textposition="top center",
                         showlegend=False,
                         marker=dict(size=7, color=color),
+                        hovertext=[hov_pts[k]],
+                        hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                        hoverinfo="text",
                     ),
                     row=row,
                     col=col,
@@ -177,6 +188,8 @@ def generate_enforce_cable_report(output_file: str | Path | None = None) -> Path
         xs = np.concatenate([P[:, 0], P_new[:, 0]])
         ys = np.concatenate([P[:, 1], P_new[:, 1]])
         (x_rng, y_rng) = data_ranges_for_cable_view(xs, ys, pad_frac=0.08)
+        y_min = float(y_rng[0])
+        y_max = float(y_rng[1])
         fig.update_xaxes(title_text="x", range=list(x_rng), row=row, col=col)
         fig.update_yaxes(title_text="y", range=list(y_rng), row=row, col=col)
 

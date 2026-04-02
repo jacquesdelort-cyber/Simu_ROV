@@ -2049,14 +2049,14 @@ def auto_L_7(
     T_rov_display = curr.get('T_rov')
     cable_drag_display = _last_val('cable_drag')
     
-    trace_print(9, "\nIC_L_7: "
+    trace_print(8, "\nIC_L_7: "
         f"t={_fmt(t_display)}, "
         f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
         f"L_straight={L_straight: 6.2f}, "
         f"slack={slack: 6.2f}, "
         f"T_bat={_fmt(T_boat_display)}, "  # Utiliser T_boat passé en paramètre
         f"T_rov={_fmt(T_rov_display)}, "  # Depuis data (itération précédente)
-        f"F_drag_cable={_fmt_vec(cable_drag_display)}, "  # Depuis data (itération précédente)
+        f"F_drag_cable(prev_step)={_fmt_vec(cable_drag_display)}, "  # Depuis data (itération précédente)
         f"Fy_cmd={Fy_rov: 6.2f}, "
         f"desired={desired: 6.2f}, ret={ret: 6.2f}, exp={exp}"
     )

@@ -2,6 +2,13 @@
 import plotly.graph_objects as go
 import numpy as np
 
+from src.visualization.cable_hover import (
+    CABLE_XY_HOVERTEMPLATE,
+    cable_markers_along_s_hover_texts,
+    cable_polyline_hover_texts,
+    cable_vertex_tooltip,
+)
+
 
 def create_system_plot(
     x_rov,
@@ -84,38 +91,18 @@ def create_system_plot(
         PN_coincide_rov = (np.abs(x_cable_complete[-1] - x_rov) < tol and 
                            np.abs(y_cable_complete[-1] - y_rov) < tol)
         
-        # Préparer le template de hover en fonction de la disponibilité des tensions
+        dx = np.diff(x_cable_complete)
+        dy = np.diff(y_cable_complete)
+        ds = np.sqrt(dx**2 + dy**2)
+        s_cumulative = np.concatenate(([0.0], np.cumsum(ds)))
+        pn_list = [int(point_ids_complete[i]) for i in range(len(x_cable_complete))]
+        hover_texts = cable_polyline_hover_texts(
+            x_cable_complete, y_cable_complete, point_numbers=pn_list
+        )
         if T_cable_complete is not None and len(T_cable_complete) > 0:
-            
-            # Calculer l'abscisse curviligne s (distance cumulative le long du câble)
-            # s=0 au premier point du câble (P0), s=L_seg au dernier point (PN)
-            dx = np.diff(x_cable_complete)
-            dy = np.diff(y_cable_complete)
-            ds = np.sqrt(dx**2 + dy**2)  # Distance entre chaque paire de points consécutifs
-            s_cumulative = np.concatenate(([0.0], np.cumsum(ds)))  # Abscisse curviligne cumulative
-            
-            # Créer des textes complets pour chaque point (hovertext contient tout le texte)
-            hover_texts = []
-            for i in range(len(x_cable_complete)):
-                x_val = x_cable_complete[i]
-                y_val = y_cable_complete[i]
-                T_val = T_cable_complete[i]
-                s_val = s_cumulative[i]
-                point_id = int(point_ids_complete[i]) if point_ids_complete is not None else i
-                hover_texts.append(
-                    f"Point: {point_id}<br>"
-                    f"s: {s_val:.2f} m<br>"
-                    f"X: {x_val:.2f} m<br>"
-                    f"Y: {y_val:.2f} m<br>"
-                    f"Tension: {T_val:.2f} N"
-                )
-            
-            hover_data = hover_texts
-            use_hovertext = True
-        else:
-            hover_data = None
-            use_hovertext = False
-        
+            for i in range(len(hover_texts)):
+                hover_texts[i] += f"<br>Tension: {float(T_cable_complete[i]):.2f} N"
+
         # Câble (profil complet avec courbe lisse)
         # Afficher tous les points du câble pour montrer le vrai profil
         if cable_mode == "straight":
@@ -133,10 +120,10 @@ def create_system_plot(
             'showlegend': True
         }
         
-        if use_hovertext:
-            trace_params['hovertext'] = hover_data
-            trace_params['hoverinfo'] = 'text'
-        
+        trace_params['hovertext'] = hover_texts
+        trace_params['hovertemplate'] = CABLE_XY_HOVERTEMPLATE
+        trace_params['hoverinfo'] = 'text'
+
         fig.add_trace(go.Scatter(**trace_params))
     else:
         # Si pas de données de câble, ne pas créer de trace "pas de données"
@@ -144,25 +131,61 @@ def create_system_plot(
         # Cela évite d'avoir une trace "pas de données" qui reste visible après l'initialisation
         pass
     
+    rov_hover_kw: dict = {}
+    bateau_hover_kw: dict = {}
+    if x_cable_complete is not None and len(x_cable_complete) > 0:
+        pn0 = int(point_ids_complete[0])
+        pn1 = int(point_ids_complete[-1])
+        l_first = (
+            float(
+                np.hypot(
+                    x_cable_complete[1] - x_cable_complete[0],
+                    y_cable_complete[1] - y_cable_complete[0],
+                )
+            )
+            if len(x_cable_complete) > 1
+            else None
+        )
+        rov_hover_kw = {
+            "hovertext": [
+                cable_vertex_tooltip(pn1, float(s_cumulative[-1]), None, float(x_rov), float(y_rov))
+            ],
+            "hovertemplate": CABLE_XY_HOVERTEMPLATE,
+            "hoverinfo": "text",
+        }
+        bateau_hover_kw = {
+            "hovertext": [
+                cable_vertex_tooltip(pn0, 0.0, l_first, float(x_bateau), 0.0)
+            ],
+            "hovertemplate": CABLE_XY_HOVERTEMPLATE,
+            "hoverinfo": "text",
+        }
+
     # ROV (marqueur) - même taille que le bateau (20 pixels)
-    fig.add_trace(go.Scatter(
-        x=[x_rov], y=[y_rov],
-        mode='markers',
-        name='ROV',
-        marker=dict(size=8, color='red', symbol='square',
-                   line=dict(width=2, color='darkred'))
-    ))
-    
+    fig.add_trace(
+        go.Scatter(
+            x=[x_rov],
+            y=[y_rov],
+            mode='markers',
+            name='ROV',
+            marker=dict(size=8, color='red', symbol='square', line=dict(width=2, color='darkred')),
+            **rov_hover_kw,
+        )
+    )
+
     # Bateau - sera ajouté comme forme avec taille constante en pixels après le layout
     # Ajouter un marqueur invisible pour la légende et le hover
-    fig.add_trace(go.Scatter(
-        x=[x_bateau], y=[0],
-        mode='markers',
-        name='Bateau',
-        marker=dict(size=1, opacity=0),  # Invisible mais présent pour la légende
-        showlegend=True,
-        hovertemplate='Bateau<br>Position: %{x:.2f} m<extra></extra>'
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=[x_bateau],
+            y=[0],
+            mode='markers',
+            name='Bateau',
+            marker=dict(size=1, opacity=0),
+            showlegend=True,
+            **bateau_hover_kw,
+        )
+    )
     
     # Surface de l'eau
     # Utiliser les données du câble complet si disponibles
@@ -812,74 +835,78 @@ def create_tension_curvilinear_plot(s_curvilinear, T, title="Tension",
             x_arr = np.asarray(x_cable)
             y_arr = np.asarray(y_cable)
         
-        # Créer le template de tooltip avec ou sans coordonnées X et Y
-        hover_texts_T = None
-        hover_texts_Tx = None
-        hover_texts_Ty = None
-        
         if x_arr is not None and y_arr is not None:
-            # Utiliser hovertext pour inclure X et Y
-            hover_texts_T = [f"Point: {i}<br>s: {s_arr[i]:.2f} m<br>X: {x_arr[i]:.2f} m<br>Y: {y_arr[i]:.2f} m<br>T: {T_arr[i]:.2f} N" 
-                            for i in range(len(s_arr))]
-        
+            hover_texts_T = cable_markers_along_s_hover_texts(
+                s_arr, x_arr=x_arr, y_arr=y_arr
+            )
+        else:
+            hover_texts_T = cable_markers_along_s_hover_texts(s_arr)
+        for i in range(len(hover_texts_T)):
+            hover_texts_T[i] += f"<br>T: {float(T_arr[i]):.2f} N"
+
         # Tracer la tension totale
         trace_params_T = {
-            'x': s_arr, 'y': T_arr,
+            'x': s_arr,
+            'y': T_arr,
             'mode': 'lines+markers',
             'name': 'T',
             'line': dict(color='purple', width=2),
             'marker': dict(size=3, color='purple', opacity=0.5, symbol='circle'),
-            'showlegend': True
+            'showlegend': True,
+            'hovertext': hover_texts_T,
+            'hovertemplate': CABLE_XY_HOVERTEMPLATE,
+            'hoverinfo': 'text',
         }
-        if hover_texts_T is not None:
-            trace_params_T['hovertext'] = hover_texts_T
-            trace_params_T['hoverinfo'] = 'text'
-        else:
-            trace_params_T['hovertemplate'] = 'Abscisse: %{x:.2f} m<br>T: %{y:.2f} N<extra></extra>'
         fig.add_trace(go.Scatter(**trace_params_T))
-        
+
         # Tracer Tx si fourni
         if Tx is not None and len(Tx) > 0:
             Tx_arr = np.asarray(Tx)
-            # Créer hovertext pour Tx si X et Y sont disponibles
             if x_arr is not None and y_arr is not None:
-                hover_texts_Tx = [f"Point: {i}<br>s: {s_arr[i]:.2f} m<br>X: {x_arr[i]:.2f} m<br>Y: {y_arr[i]:.2f} m<br>Tx: {Tx_arr[i]:.2f} N" 
-                                 for i in range(len(s_arr))]
+                hover_texts_Tx = cable_markers_along_s_hover_texts(
+                    s_arr, x_arr=x_arr, y_arr=y_arr
+                )
+            else:
+                hover_texts_Tx = cable_markers_along_s_hover_texts(s_arr)
+            for i in range(len(hover_texts_Tx)):
+                hover_texts_Tx[i] += f"<br>Tx: {float(Tx_arr[i]):.2f} N"
             trace_params_Tx = {
-                'x': s_arr, 'y': Tx_arr,
+                'x': s_arr,
+                'y': Tx_arr,
                 'mode': 'lines+markers',
                 'name': 'Tx',
                 'line': dict(color='blue', width=2),
                 'marker': dict(size=3, color='blue', opacity=0.5, symbol='circle'),
-                'showlegend': True
+                'showlegend': True,
+                'hovertext': hover_texts_Tx,
+                'hovertemplate': CABLE_XY_HOVERTEMPLATE,
+                'hoverinfo': 'text',
             }
-            if hover_texts_Tx is not None:
-                trace_params_Tx['hovertext'] = hover_texts_Tx
-                trace_params_Tx['hoverinfo'] = 'text'
-            else:
-                trace_params_Tx['hovertemplate'] = 'Abscisse: %{x:.2f} m<br>Tx: %{y:.2f} N<extra></extra>'
             fig.add_trace(go.Scatter(**trace_params_Tx))
-        
+
         # Tracer Ty si fourni
         if Ty is not None and len(Ty) > 0:
             Ty_arr = np.asarray(Ty)
-            # Créer hovertext pour Ty si X et Y sont disponibles
             if x_arr is not None and y_arr is not None:
-                hover_texts_Ty = [f"Point: {i}<br>s: {s_arr[i]:.2f} m<br>X: {x_arr[i]:.2f} m<br>Y: {y_arr[i]:.2f} m<br>Ty: {Ty_arr[i]:.2f} N" 
-                                 for i in range(len(s_arr))]
+                hover_texts_Ty = cable_markers_along_s_hover_texts(
+                    s_arr, x_arr=x_arr, y_arr=y_arr
+                )
+            else:
+                hover_texts_Ty = cable_markers_along_s_hover_texts(s_arr)
+            for i in range(len(hover_texts_Ty)):
+                hover_texts_Ty[i] += f"<br>Ty: {float(Ty_arr[i]):.2f} N"
             trace_params_Ty = {
-                'x': s_arr, 'y': Ty_arr,
+                'x': s_arr,
+                'y': Ty_arr,
                 'mode': 'lines+markers',
                 'name': 'Ty',
                 'line': dict(color='red', width=2),
                 'marker': dict(size=3, color='red', opacity=0.5, symbol='circle'),
-                'showlegend': True
+                'showlegend': True,
+                'hovertext': hover_texts_Ty,
+                'hovertemplate': CABLE_XY_HOVERTEMPLATE,
+                'hoverinfo': 'text',
             }
-            if hover_texts_Ty is not None:
-                trace_params_Ty['hovertext'] = hover_texts_Ty
-                trace_params_Ty['hoverinfo'] = 'text'
-            else:
-                trace_params_Ty['hovertemplate'] = 'Abscisse: %{x:.2f} m<br>Ty: %{y:.2f} N<extra></extra>'
             fig.add_trace(go.Scatter(**trace_params_Ty))
     
     # Configuration des axes
@@ -999,7 +1026,10 @@ def create_rov_local_plot(
 
     x_vals = list(x_cable) if x_cable is not None else []
     y_vals = list(y_cable) if y_cable is not None else []
-    point_ids = list(point_indices) if point_indices is not None else list(range(len(x_vals)))
+    if point_indices is not None:
+        point_nums = [int(point_indices[i]) for i in range(len(x_vals))]
+    else:
+        point_nums = list(range(1, len(x_vals) + 1))
 
     if x_vals and y_vals:
         trace_params = {
@@ -1013,35 +1043,18 @@ def create_rov_local_plot(
 
         if s_cable is not None and len(s_cable) == len(x_vals):
             s_values = np.asarray(s_cable, dtype=float)
+            hover_texts = cable_markers_along_s_hover_texts(
+                s_values, x_arr=x_vals, y_arr=y_vals, point_numbers=point_nums
+            )
         else:
-            dx = np.diff(np.asarray(x_vals, dtype=float))
-            dy = np.diff(np.asarray(y_vals, dtype=float))
-            ds = np.sqrt(dx**2 + dy**2)
-            s_values = np.concatenate(([0.0], np.cumsum(ds)))
+            hover_texts = cable_polyline_hover_texts(x_vals, y_vals, point_numbers=point_nums)
 
         if T_cable is not None and len(T_cable) == len(x_vals):
-            hover_texts = []
-            for i in range(len(x_vals)):
-                hover_texts.append(
-                    f"Point: {point_ids[i]}<br>"
-                    f"s: {s_values[i]:.2f} m<br>"
-                    f"X: {x_vals[i]:.2f} m<br>"
-                    f"Y: {y_vals[i]:.2f} m<br>"
-                    f"Tension: {float(T_cable[i]):.2f} N"
-                )
-            trace_params['hovertext'] = hover_texts
-            trace_params['hoverinfo'] = 'text'
-        elif s_cable is not None and len(s_cable) == len(x_vals):
-            hover_texts = []
-            for i in range(len(x_vals)):
-                hover_texts.append(
-                    f"Point: {point_ids[i]}<br>"
-                    f"s: {s_values[i]:.2f} m<br>"
-                    f"X: {x_vals[i]:.2f} m<br>"
-                    f"Y: {y_vals[i]:.2f} m"
-                )
-            trace_params['hovertext'] = hover_texts
-            trace_params['hoverinfo'] = 'text'
+            for i in range(len(hover_texts)):
+                hover_texts[i] += f"<br>Tension: {float(T_cable[i]):.2f} N"
+        trace_params['hovertext'] = hover_texts
+        trace_params['hovertemplate'] = CABLE_XY_HOVERTEMPLATE
+        trace_params['hoverinfo'] = 'text'
 
         fig.add_trace(go.Scatter(**trace_params))
 

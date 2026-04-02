@@ -20,6 +20,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.models.environment import Environment
 from src.solvers.cable_solver import CableSolver
+from src.visualization.cable_hover import (
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_vertex_tooltip,
+)
 from tests._plotly_cable_axes import (
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
@@ -168,22 +173,13 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
             iters = -1
         summaries.append(_build_summary(case, x_before, y_before, x_after, y_after))
 
-        # Abscisse curviligne pour les tooltips
-        def _curvilinear_abscissa(x_vals: np.ndarray, y_vals: np.ndarray) -> np.ndarray:
-            x_vals = np.asarray(x_vals, dtype=float)
-            y_vals = np.asarray(y_vals, dtype=float)
-            s = np.zeros_like(x_vals, dtype=float)
-            if len(x_vals) > 1:
-                s[1:] = np.cumsum(_segment_lengths(x_vals, y_vals))
-            return s
-
-        s_before = _curvilinear_abscissa(x_before, y_before)
-        idx_before = np.arange(len(x_before), dtype=int)
-        custom_before = np.stack([idx_before, s_before], axis=1)
-
-        s_after = _curvilinear_abscissa(x_after, y_after)
-        idx_after = np.arange(len(x_after), dtype=int)
-        custom_after = np.stack([idx_after, s_after], axis=1)
+        na = len(x_after)
+        l_first = (
+            float(np.hypot(x_after[1] - x_after[0], y_after[1] - y_after[0]))
+            if na > 1
+            else None
+        )
+        s_rov = float(np.sum(_segment_lengths(x_after, y_after))) if na > 1 else 0.0
 
         # Câble avant normalisation
         fig.add_trace(
@@ -196,13 +192,7 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#d62728", width=2),
                 marker=dict(size=7),
-                customdata=custom_before,
-                hovertemplate=(
-                    "Point #%{customdata[0]}<br>"
-                    "s = %{customdata[1]:.3f} m<br>"
-                    "x = %{x:.3f} m<br>"
-                    "y = %{y:.3f} m<extra>Avant</extra>"
-                ),
+                **cable_polyline_hover_plotly_kwargs(x_before, y_before),
             ),
             row=row,
             col=col,
@@ -218,13 +208,7 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=7),
-                customdata=custom_after,
-                hovertemplate=(
-                    "Point #%{customdata[0]}<br>"
-                    "s = %{customdata[1]:.3f} m<br>"
-                    "x = %{x:.3f} m<br>"
-                    "y = %{y:.3f} m<extra>Apres</extra>"
-                ),
+                **cable_polyline_hover_plotly_kwargs(x_after, y_after),
             ),
             row=row,
             col=col,
@@ -240,7 +224,11 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
                 legendgroup="Bateau",
                 showlegend=(idx == 0),
                 marker=dict(size=9, symbol="square", color="#ff7f0e"),
-                hovertemplate="Bateau<br>x=%{x:.3f} m<br>y=%{y:.3f} m<extra></extra>",
+                hovertext=[
+                    cable_vertex_tooltip(1, 0.0, l_first, float(x_after[0]), float(y_after[0]))
+                ],
+                hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                hoverinfo="text",
             ),
             row=row,
             col=col,
@@ -254,7 +242,9 @@ def generate_visual_report(output_file: str | Path | None = None) -> Path:
                 legendgroup="ROV",
                 showlegend=(idx == 0),
                 marker=dict(size=9, symbol="diamond", color="#2ca02c"),
-                hovertemplate="ROV<br>x=%{x:.3f} m<br>y=%{y:.3f} m<extra></extra>",
+                hovertext=[cable_vertex_tooltip(na, s_rov, None, float(x_after[-1]), float(y_after[-1]))],
+                hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                hoverinfo="text",
             ),
             row=row,
             col=col,

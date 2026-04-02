@@ -8,6 +8,8 @@ Chaque entrée décrit :
 - la commande pytest (ou script python) à lancer,
 - un thème (groupe),
 - éventuellement un chemin de rapport HTML généré.
+
+La liste retournée par ``get_all_tests()`` est triée par **nom** (alphabetique, insensible à la casse).
 """
 
 from __future__ import annotations
@@ -98,6 +100,13 @@ def _tests_utils() -> Iterable[TestEntry]:
             name="_normalize_cable_segments (structure)",
             description="Tests de structure pour CableSolver._normalize_cable_segments (taille, extrémités, fallback).",
             command="python -m pytest -q tests/test_cable_normalize_segments.py",
+        ),
+        TestEntry(
+            id="cable_normalize_length_unit",
+            group="Normalisation du câble – unitaires",
+            name="_normalize_cable_length (numérique)",
+            description="Tests unitaires pour CableSolver._normalize_cable_length (pytest, sans rapport HTML).",
+            command="python -m pytest -q tests/test_cable_normalize_length.py",
         ),
     ]
 
@@ -192,16 +201,25 @@ def _tests_visual() -> Iterable[TestEntry]:
                 "_normalize_cable_segments – rapport graphique"
             ),
         ),
+        TestEntry(
+            id="visual_cable_normalize_length",
+            group="Normalisation du câble – rapports graphiques",
+            name="_normalize_cable_length – rapport graphique",
+            description="Génère un rapport HTML illustrant CableSolver._normalize_cable_length.",
+            command="python tests/test_cable_normalize_length_visual.py",
+            html_report=html_report_path_from_column_name(
+                "_normalize_cable_length – rapport graphique"
+            ),
+        ),
     ]
 
 
 def get_all_tests() -> List[TestEntry]:
-    """Retourne la liste complète des tests connus, ordonnés par groupe puis par nom."""
+    """Retourne la liste complète des tests connus, ordonnés par nom (alphabetique, insensible à la casse)."""
     entries: List[TestEntry] = []
     entries.extend(_tests_utils())
     entries.extend(_tests_visual())
-    # Tri stable par (group, name)
-    entries.sort(key=lambda e: (e.group, e.name))
+    entries.sort(key=lambda e: e.name.lower())
     return entries
 
 

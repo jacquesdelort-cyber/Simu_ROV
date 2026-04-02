@@ -23,7 +23,7 @@ def test_normalize_cable_segments_fallback_straight_line_when_too_short():
     y = np.asarray(case.y_cable, dtype=float)
 
     ok, x_new, y_new, straight_mode, expl = solver._normalize_cable_segments(
-        x, y, L_target=case.l_target, bateau=bateau, rov=rov, N_target=case.n_target
+        x, y, L_target=case.l_target, bateau=bateau, rov=rov, N_target=case.n_target, mode_test=True
     )
     assert expl == ""
     assert straight_mode is True
@@ -51,7 +51,7 @@ def test_normalize_cable_segments_invalid_target():
     y = np.array([0.0, -0.5, -1.0])
 
     ok, x_new, y_new, straight_mode, expl = solver._normalize_cable_segments(
-        x, y, L_target=3.0, bateau=bateau, rov=rov, N_target=1
+        x, y, L_target=3.0, bateau=bateau, rov=rov, N_target=1, mode_test=True
     )
     assert straight_mode is False
     assert "Un seul segment" in expl
@@ -70,7 +70,7 @@ def test_normalize_cable_segments_general_shape_has_right_count_and_endpoints():
 
     N_target = 6
     ok, x_new, y_new, straight_mode, expl = solver._normalize_cable_segments(
-        x, y, L_target=8.0, bateau=bateau, rov=rov, N_target=N_target
+        x, y, L_target=8.0, bateau=bateau, rov=rov, N_target=N_target, mode_test=True
     )
     assert straight_mode is False
     assert expl == ""

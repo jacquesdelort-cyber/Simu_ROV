@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from src.models.environment import Environment  # noqa: E402
 from src.solvers.cable_solver import CableSolver  # noqa: E402
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
+from src.visualization.cable_hover import cable_polyline_hover_plotly_kwargs  # noqa: E402
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
@@ -169,6 +170,7 @@ def generate_deformer_polyline_report(output_file: str | Path | None = None) -> 
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=7),
+                **cable_polyline_hover_plotly_kwargs(Q[:, 0], Q[:, 1]),
             ),
             row=row,
             col=col,
@@ -185,6 +187,7 @@ def generate_deformer_polyline_report(output_file: str | Path | None = None) -> 
                 showlegend=(idx == 0),
                 line=dict(color="#ff7f0e", width=2, dash="dot"),
                 marker=dict(size=7),
+                **cable_polyline_hover_plotly_kwargs(Q_proj[:, 0], Q_proj[:, 1]),
             ),
             row=row,
             col=col,
@@ -205,6 +208,7 @@ def generate_deformer_polyline_report(output_file: str | Path | None = None) -> 
                     showlegend=(idx == 0),
                     line=dict(color="#2ca02c", width=3),
                     marker=dict(size=7),
+                    **cable_polyline_hover_plotly_kwargs(R[:, 0], R[:, 1]),
                 ),
                 row=row,
                 col=col,

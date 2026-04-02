@@ -1,6 +1,11 @@
 """Système complet ROV-Câble-Bateau"""
 import numpy as np
 from .rov_model import ROV
+
+# Borne numérique des vitesses ROV (m/s) pour forces, solveur câble et champs dérivés associés.
+# L'état intégré (y[2], y[3]) n'est pas modifié ; seules les grandeurs utilisées dans compute_derivatives
+# passent par vx_rov_f / vy_rov_f pour limiter les termes sensibles (réaction surface, câble, etc.).
+V_MAX_ROV_VELOCITY_FORCES_MS = 500.0
 from .cable_model import Cable
 from .boat_model import Boat
 from .environment import Environment
@@ -136,7 +141,11 @@ class ROVSystem:
         # Vérifications de validité optimisées (seulement les valeurs critiques)
         # Vérifier seulement les premières valeurs (ROV et longueur) pour éviter le ralentissement
         if not np.isfinite(x_rov) or not np.isfinite(y_rov) or not np.isfinite(vx_rov) or not np.isfinite(vy_rov):
-            raise ValueError(f"État ROV invalide (NaN/Inf) dans compute_derivatives à t={t:.2f} s")
+            raise ValueError(
+                f"État ROV invalide (NaN/Inf) dans compute_derivatives à t={t:.2f} s "
+                f"[source=compute_derivatives.precheck] "
+                f"x_rov={x_rov}, y_rov={y_rov}, vx_rov={vx_rov}, vy_rov={vy_rov}, L={L}"
+            )
         if L <= 0 or not np.isfinite(L):
             raise ValueError(f"Longueur de câble invalide: L={L} à t={t:.2f} s")
         
@@ -147,6 +156,13 @@ class ROVSystem:
             y_rov = 0.0
             if vy_rov > 0.0:
                 vy_rov = 0.0
+
+        vx_rov_f = float(
+            np.clip(vx_rov, -V_MAX_ROV_VELOCITY_FORCES_MS, V_MAX_ROV_VELOCITY_FORCES_MS)
+        )
+        vy_rov_f = float(
+            np.clip(vy_rov, -V_MAX_ROV_VELOCITY_FORCES_MS, V_MAX_ROV_VELOCITY_FORCES_MS)
+        )
 
         x_rov_state = float(x_rov)
         y_rov_state = float(y_rov)
@@ -184,7 +200,7 @@ class ROVSystem:
                 # Passer les paramètres du ROV pour calculer correctement la tension initiale
                 # La longueur L est extraite de l'état et transmise au solveur
                 x_cable_new, y_cable_new, T_new = self.cable.solve_equilibrium(
-                    x_rov, y_rov, vx_rov, vy_rov,
+                    x_rov, y_rov, vx_rov_f, vy_rov_f,
                     x_boat, vx_boat, L,
                     self.x_cable_prev, self.y_cable_prev,
                     rov_m=self.rov.m, rov_vol=self.rov.V
@@ -266,7 +282,7 @@ class ROVSystem:
         # Calculer les forces sur le ROV pour déterminer la tension cible dynamique
         # (On doit calculer ces forces maintenant pour adapter la tension)
         Fx_drag_rov_temp, Fy_drag_rov_temp = self.rov.compute_drag_force(
-            vx_rov, vy_rov, y_rov, self.environment
+            vx_rov_f, vy_rov_f, y_rov, self.environment
         )
         F_buoyancy_temp = self.rov.compute_buoyancy_force(self.environment)
         F_weight_temp = self.rov.compute_weight_force(self.environment)
@@ -310,7 +326,7 @@ class ROVSystem:
             # Le ROV remonte alors qu'il devrait descendre
             # Réduire la tension cible pour permettre à la force apparente (vers le bas) de dominer
             # La tension cible doit être faible devant |F_apparent_weight| pour créer une force nette vers le bas
-            reduction_factor = min(0.8, 0.3 + abs(vy_rov) * 0.5)  # Réduction jusqu'à 80%
+            reduction_factor = min(0.8, 0.3 + abs(vy_rov_f) * 0.5)  # Réduction jusqu'à 80%
             T_rov_target = T_rov_target * (1.0 - reduction_factor)
             # Limiter la tension cible entre 10% et 20% de |F_apparent_weight|
             target_cap = abs(F_apparent_weight_temp)
@@ -422,7 +438,7 @@ class ROVSystem:
             if vy_rov > 0.0:
                 # Force de réaction du sol : empêche le ROV de remonter au-dessus de la surface
                 # Cette force est proportionnelle à la vitesse pour créer une décélération
-                Fy_surface_reaction = -self.rov.m * 10.0 * vy_rov  # Force de réaction
+                Fy_surface_reaction = -self.rov.m * 10.0 * vy_rov_f  # Force de réaction
                 Fy_total = Fy_total + Fy_surface_reaction
                 dvy_rov_dt = Fy_total / self.rov.m
             if dvy_rov_dt > 0.0:
@@ -482,8 +498,8 @@ class ROVSystem:
         
         # Dérivées des positions du câble (vitesses)
         # Simplification : interpolation linéaire des vitesses
-        vx_cable = np.linspace(vx_rov, vx_boat, self.N + 1)
-        vy_cable = np.linspace(vy_rov, 0.0, self.N + 1)
+        vx_cable = np.linspace(vx_rov_f, vx_boat, self.N + 1)
+        vy_cable = np.linspace(vy_rov_f, 0.0, self.N + 1)
         
         # CONTRAINTE PHYSIQUE CRITIQUE : Les points du câble ne peuvent pas remonter s'ils sont à ou près de la surface
         # Forcer vy_cable <= 0 pour tous les points où y_cable_new est proche de la surface

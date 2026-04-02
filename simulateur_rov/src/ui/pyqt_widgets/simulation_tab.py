@@ -1262,6 +1262,11 @@ class SimulationTab(QWidget):
             self.status_label.setStyleSheet("padding: 8px; background-color: #d4edda; border: 1px solid #c3e6cb;")
             self._update_refresh_button_state()
             
+            # Fenêtre Snapshot : bouton Pause -> même effet que « Pause » dans cet onglet
+            app = QApplication.instance()
+            if app is not None:
+                app._cable_snapshot_request_pause = self._pause_simulation_from_snapshot
+            
             self.simulation_started.emit()
             
         except Exception as e:
@@ -1269,8 +1274,29 @@ class SimulationTab(QWidget):
             import traceback
             traceback.print_exc()
     
+    def _pause_simulation_from_snapshot(self):
+        """Utilisé par la fenêtre modale Snapshot : met en pause sans fermer le dialogue."""
+        if not self.simulation_thread or not self.simulation_thread.isRunning():
+            return
+        state = self.main_window.get_simulation_state()
+        if state.get("mission_ended") or state.get("paused"):
+            return
+        state["paused"] = True
+        self.main_window.update_simulation_state("paused", True)
+        self.simulation_thread.pause()
+        self.btn_pause.setText("▶ Reprendre")
+        self.status_label.setText("⏸ Simulation en pause")
+        self.status_label.setStyleSheet(
+            "padding: 8px; background-color: #fff3cd; border: 1px solid #ffeaa7;"
+        )
+        self.btn_restart.setEnabled(True)
+        self._update_refresh_button_state()
+
     def stop_simulation(self):
         """Arrête la simulation"""
+        app = QApplication.instance()
+        if app is not None and getattr(app, "_cable_snapshot_request_pause", None) is self._pause_simulation_from_snapshot:
+            app._cable_snapshot_request_pause = None
         # Ne pas réinitialiser les plages à l'arrêt pour garder la vue finale
         if self.simulation_thread and self.simulation_thread.isRunning():
             self.simulation_thread.stop()
@@ -2592,12 +2618,6 @@ class SimulationTab(QWidget):
                         x_cable = list(x_cable_raw) if not isinstance(x_cable_raw, list) else x_cable_raw
                         if len(x_cable) == 0:
                             x_cable = []
-                        # Debug: vérifier les données juste après récupération
-                        if abs(current_time - 7.7) < 0.1 and len(x_cable) > 0:
-                            trace_print(9, f"[DEBUG AFTER RETRIEVAL] t={current_time:.3f} "
-                                f"P0=({x_cable[0]:.3f},{y_cable_raw[0] if y_cable_raw is not None else 0:.3f}) "
-                                f"PN=({x_cable[-1]:.3f},{y_cable_raw[-1] if y_cable_raw is not None and len(y_cable_raw) > 0 else 0:.3f}) "
-                                f"len={len(x_cable)}")
                     else:
                         x_cable = []
                     
@@ -2626,13 +2646,6 @@ class SimulationTab(QWidget):
                     if len(x_cable) > 0 and len(y_cable) > 0:
                         t_final = self.main_window.calc_params.get('t_final', 60.0)
                         title = f"Système ROV - t = {current_time:.2f} s / {t_final:.2f} s"
-                        
-                        # Debug: vérifier les coordonnées utilisées pour le graphique
-                        if abs(current_time - 7.7) < 0.1 and len(x_cable) > 0:
-                            trace_print(9, f"[DEBUG PLOT DATA] t={current_time:.3f} "
-                                f"P0=({x_cable[0]:.3f},{y_cable[0]:.3f}) "
-                                f"PN=({x_cable[-1]:.3f},{y_cable[-1]:.3f}) "
-                                f"len={len(x_cable)}")
                         
                         # Debug: vérifier les longueurs de segments réellement utilisées par le plot
                         if len(x_cable) > 1:

@@ -19,6 +19,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import supprimer_point  # noqa: E402
+from src.visualization.cable_hover import (  # noqa: E402
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_polyline_hover_texts,
+    cable_vertex_tooltip,
+)
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
@@ -146,6 +152,7 @@ def generate_supprimer_point_report(output_file: str | Path | None = None) -> Pa
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([A[0], B[0]], [A[1], B[1]]),
             ),
             row=row,
             col=col,
@@ -160,6 +167,7 @@ def generate_supprimer_point_report(output_file: str | Path | None = None) -> Pa
                 showlegend=(idx == 0),
                 line=dict(color="#ff7f0e", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([B[0], C[0]], [B[1], C[1]]),
             ),
             row=row,
             col=col,
@@ -174,6 +182,7 @@ def generate_supprimer_point_report(output_file: str | Path | None = None) -> Pa
                 showlegend=(idx == 0),
                 line=dict(color="#2ca02c", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([C[0], D[0]], [C[1], D[1]]),
             ),
             row=row,
             col=col,
@@ -191,6 +200,7 @@ def generate_supprimer_point_report(output_file: str | Path | None = None) -> Pa
                     showlegend=(idx == 0),
                     line=dict(color="#d62728", width=2, dash="dot"),
                     marker=dict(size=8),
+                    **cable_polyline_hover_plotly_kwargs([A[0], E[0]], [A[1], E[1]]),
                 ),
                 row=row,
                 col=col,
@@ -205,14 +215,21 @@ def generate_supprimer_point_report(output_file: str | Path | None = None) -> Pa
                     showlegend=(idx == 0),
                     line=dict(color="#9467bd", width=2, dash="dot"),
                     marker=dict(size=8),
+                    **cable_polyline_hover_plotly_kwargs([E[0], D[0]], [E[1], D[1]]),
                 ),
                 row=row,
                 col=col,
             )
 
         # Points A, B, C, D, E (si défini)
+        chain = np.stack([A, B, C, D], axis=0)
+        h_abcd = cable_polyline_hover_texts(chain[:, 0], chain[:, 1])
+        point_hover = {"A": h_abcd[0], "B": h_abcd[1], "C": h_abcd[2], "D": h_abcd[3]}
         points = [(A, "A"), (B, "B"), (C, "C"), (D, "D")]
         if E is not None:
+            s_e = float(np.linalg.norm(E - A))
+            l_ed = float(np.linalg.norm(D - E))
+            point_hover["E"] = cable_vertex_tooltip(5, s_e, l_ed, float(E[0]), float(E[1]))
             points.append((E, "E"))
 
         for pt, label in points:
@@ -225,6 +242,9 @@ def generate_supprimer_point_report(output_file: str | Path | None = None) -> Pa
                     textposition="top center",
                     showlegend=False,
                     marker=dict(size=9, color="#000000"),
+                    hovertext=[point_hover[label]],
+                    hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                    hoverinfo="text",
                 ),
                 row=row,
                 col=col,

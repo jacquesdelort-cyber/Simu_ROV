@@ -1,6 +1,10 @@
 """Modèle du ROV (Remotely Operated Vehicle)"""
 import numpy as np
 
+# Plafond des vitesses (m/s) pour le terme quadratique de traînée (évite overflow v*|v|).
+# Au-delà, la traînée est saturée comme si la vitesse était limitée à cette valeur.
+V_MAX_DRAG_M_S = 100.0
+
 
 class ROV:
     """Représente le ROV avec ses caractéristiques physiques"""
@@ -39,6 +43,7 @@ class ROV:
         # Coefficients de traînée
         self.Cx = params.get('Cx', 0.8)
         self.Cy = params.get('Cy', 1.0)
+        self.v_max_drag = float(params.get("v_max_drag", V_MAX_DRAG_M_S))
     
     def compute_drag_force(self, vx, vy, y_depth, environment):
         """
@@ -63,13 +68,14 @@ class ROV:
         # Vitesse relative horizontale (ROV - courant)
         v_courant = getattr(environment, "v_courant_raw", None)
         v_current = environment.get_current_velocity(y_depth, v_courant)
-        vx_rel = vx - v_current
-        
+        vx_rel = float(np.clip(float(vx) - float(v_current), -self.v_max_drag, self.v_max_drag))
+        vy_eff = float(np.clip(float(vy), -self.v_max_drag, self.v_max_drag))
+
         # Force de traînée horizontale
         Fx_drag = -self.Cx * 0.5 * environment.rho_eau * self.Sx * vx_rel * abs(vx_rel)
-        
+
         # Force de traînée verticale
-        Fy_drag = -self.Cy * 0.5 * environment.rho_eau * self.Sy * vy * abs(vy)
+        Fy_drag = -self.Cy * 0.5 * environment.rho_eau * self.Sy * vy_eff * abs(vy_eff)
         
         return Fx_drag, Fy_drag
     

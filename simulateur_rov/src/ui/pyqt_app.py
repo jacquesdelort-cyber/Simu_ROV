@@ -207,6 +207,9 @@ class ROVSimulatorApp(QMainWindow):
 def main():
     """Point d'entrée principal de l'application"""
     app = QApplication(sys.argv)
+    from src.ui.cable_snapshot_dialog import install_snapshot_bridge
+
+    install_snapshot_bridge(app)
     app.setStyle('Fusion')  # Style moderne
     
     # Personnaliser le style des tooltips (fond couleur sable, texte gris moyen)

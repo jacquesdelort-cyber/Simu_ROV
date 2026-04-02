@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -32,6 +32,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QMessageBox,
+    QLabel,
 )
 
 from src.tests.test_catalog import get_all_tests, TestEntry
@@ -147,6 +148,53 @@ class TestTab(QWidget):
             trace_print(10, f"[DEBUG] TestTab: erreur lors de la sauvegarde de {STATUS_PATH}: {exc}")
 
     # ------------------------------------------------------------------
+    # Colonne commentaires / rapport
+    # ------------------------------------------------------------------
+    def _make_comment_cell_widget(self, entry: TestEntry, st: TestStatus) -> QWidget:
+        """Commentaire texte + lien hypertexte vers le rapport (fichier local) si défini dans le catalogue."""
+        w = QWidget()
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(4)
+
+        if st.comment:
+            lab = QLabel(st.comment)
+            lab.setWordWrap(True)
+            lab.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            layout.addWidget(lab)
+
+        if entry.html_report:
+            abs_path = (BASE_DIR / entry.html_report).resolve()
+            url = QUrl.fromLocalFile(str(abs_path))
+            link = QLabel(f'<a href="{url.toString()}">📄 Ouvrir le rapport</a>')
+            link.setOpenExternalLinks(True)
+            link.setTextInteractionFlags(Qt.TextInteractionFlag.LinksAccessibleByMouse)
+            if abs_path.is_file():
+                link.setToolTip(str(abs_path))
+            else:
+                link.setToolTip(
+                    "Fichier absent pour l’instant — lancez le test associé pour générer le rapport.\n"
+                    + str(abs_path)
+                )
+            layout.addWidget(link)
+
+        if layout.count() == 0:
+            layout.addWidget(QLabel(""))
+
+        return w
+
+    def _set_comment_column(self, row: int, entry: TestEntry, st: TestStatus) -> None:
+        """Remplit la colonne commentaire : texte seul ou widget (texte + lien)."""
+        self.table.removeCellWidget(row, self.COL_COMMENT)
+        if self.table.item(row, self.COL_COMMENT) is not None:
+            self.table.takeItem(row, self.COL_COMMENT)
+
+        if st.comment or entry.html_report:
+            self.table.setCellWidget(row, self.COL_COMMENT, self._make_comment_cell_widget(entry, st))
+        else:
+            self.table.setItem(row, self.COL_COMMENT, QTableWidgetItem(""))
+
+    # ------------------------------------------------------------------
     # Remplissage du tableau
     # ------------------------------------------------------------------
     def _reload_catalog(self) -> None:
@@ -188,15 +236,8 @@ class TestTab(QWidget):
                 status_item.setForeground(Qt.GlobalColor.red)
             self.table.setItem(idx, self.COL_STATUS, status_item)
 
-            # Col 5 : commentaire (et éventuel lien vers rapport)
-            comment_parts: List[str] = []
-            if st.comment:
-                comment_parts.append(st.comment)
-            if entry.html_report:
-                rel = entry.html_report
-                comment_parts.append(f"Rapport: {rel}")
-            comment_text = " | ".join(comment_parts)
-            self.table.setItem(idx, self.COL_COMMENT, QTableWidgetItem(comment_text))
+            # Col 5 : commentaire + lien hypertexte vers le rapport
+            self._set_comment_column(idx, entry, st)
 
         self.table.resizeRowsToContents()
 
@@ -256,27 +297,22 @@ class TestTab(QWidget):
             try:
                 # On exécute la commande dans le dossier racine du projet
                 # entry.command est une ligne entière (ex: "python -m pytest -q tests/...")
+                # Pas de capture stdout/stderr : les trace_print et pytest s'affichent dans le
+                # même terminal que l'application (lancement depuis une console).
                 args = shlex.split(entry.command)
                 completed = subprocess.run(
                     args,
                     cwd=project_root,
-                    capture_output=True,
-                    text=True,
                 )
                 if completed.returncode == 0:
                     status = "PASS"
                     comment = "Succès."
                 else:
                     status = "FAIL"
-                    # On tronque la sortie pour éviter un commentaire trop long
-                    stderr = (completed.stderr or "").strip()
-                    stdout = (completed.stdout or "").strip()
-                    msg_parts: List[str] = []
-                    if stderr:
-                        msg_parts.append(stderr.splitlines()[-1])
-                    elif stdout:
-                        msg_parts.append(stdout.splitlines()[-1])
-                    comment = " / ".join(msg_parts) or "Échec (retour différent de 0)."
+                    comment = (
+                        f"Échec (code {completed.returncode}). "
+                        "Détail dans le terminal (sortie non capturée)."
+                    )
             except FileNotFoundError as exc:
                 status = "FAIL"
                 comment = f"Commande introuvable: {exc}"
@@ -319,15 +355,12 @@ class TestTab(QWidget):
             self.table.setItem(row, self.COL_STATUS, status_item)
 
             # Col 5 : commentaire + lien éventuel
-            # Retrouver l'entrée pour savoir s'il y a un rapport
             entry = next((e for e in self._entries if e.id == test_id), None)
-            comment_parts: List[str] = []
-            if st.comment:
-                comment_parts.append(st.comment)
-            if entry and entry.html_report:
-                comment_parts.append(f"Rapport: {entry.html_report}")
-            comment_text = " | ".join(comment_parts)
-            self.table.setItem(row, self.COL_COMMENT, QTableWidgetItem(comment_text))
+            if entry is not None:
+                self._set_comment_column(row, entry, st)
+            else:
+                self.table.removeCellWidget(row, self.COL_COMMENT)
+                self.table.setItem(row, self.COL_COMMENT, QTableWidgetItem(st.comment or ""))
             break
 
 

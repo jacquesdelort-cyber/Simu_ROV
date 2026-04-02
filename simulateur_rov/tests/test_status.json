@@ -66,16 +66,16 @@
     "comment": "Succès."
   },
   "visual_cable_normalize_segments": {
-    "checked": false,
-    "last_run": "2026-03-29T17:21:42",
+    "checked": true,
+    "last_run": "2026-04-02T21:35:25",
     "status": "PASS",
     "comment": "Succès."
   },
   "cable_normalize_segments_unit": {
     "checked": false,
-    "last_run": "2026-03-29T16:58:48",
-    "status": "FAIL",
-    "comment": "2 failed, 1 passed in 0.99s"
+    "last_run": "2026-04-02T17:12:07",
+    "status": "PASS",
+    "comment": "Succès."
   },
   "utils_aplatir_polyline_unit": {
     "checked": false,
@@ -90,8 +90,20 @@
     "comment": "Succès."
   },
   "visual_deformer_polyline": {
-    "checked": true,
+    "checked": false,
     "last_run": "2026-03-30T16:22:28",
+    "status": "PASS",
+    "comment": "Succès."
+  },
+  "cable_normalize_length_unit": {
+    "checked": false,
+    "last_run": null,
+    "status": null,
+    "comment": null
+  },
+  "visual_cable_normalize_length": {
+    "checked": true,
+    "last_run": "2026-04-02T21:35:23",
     "status": "PASS",
     "comment": "Succès."
   }

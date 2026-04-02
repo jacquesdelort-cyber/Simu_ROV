@@ -19,11 +19,37 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
 from src.utils.utils import create_point_with_target_length  # noqa: E402
+from src.visualization.cable_hover import (  # noqa: E402
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_vertex_tooltip,
+)
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
     figure_layout_square_subplots,
 )
 from tests._report_output import write_plotly_html_with_generation_line  # noqa: E402
+
+
+def _s_along_polyline_closest(P: np.ndarray, pt: np.ndarray) -> float:
+    """Abscisse curviligne du projeté de ``pt`` sur la polyligne ``P`` (segments)."""
+    P = np.asarray(P, dtype=float)
+    pt = np.asarray(pt, dtype=float).ravel()
+    s_cum = 0.0
+    for i in range(P.shape[0] - 1):
+        p0 = P[i]
+        p1 = P[i + 1]
+        v = p1 - p0
+        L = float(np.linalg.norm(v))
+        if L < 1e-15:
+            continue
+        t = float(np.dot(pt - p0, v)) / (L * L)
+        t = max(0.0, min(1.0, t))
+        proj = p0 + t * v
+        if float(np.linalg.norm(pt - proj)) <= 1e-4 * max(L, 1.0):
+            return s_cum + t * L
+        s_cum += L
+    return float(np.linalg.norm(pt - P[0]))
 
 
 @dataclass(frozen=True)
@@ -106,6 +132,13 @@ def generate_create_point_report(output_file: str | Path | None = None) -> Path:
 
         ok, C = create_point_with_target_length(P, case.l_seg_target)
 
+        Lp = (
+            float(np.sum(np.linalg.norm(np.diff(P_clip, axis=0), axis=1)))
+            if P_clip.shape[0] > 1
+            else 0.0
+        )
+        s_c = _s_along_polyline_closest(P_clip, C)
+
         fig.add_trace(
             go.Scatter(
                 x=P[:, 0],
@@ -116,6 +149,7 @@ def generate_create_point_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#7f7f7f", width=1, dash="dot"),
                 marker=dict(size=6),
+                **cable_polyline_hover_plotly_kwargs(P[:, 0], P[:, 1]),
             ),
             row=row,
             col=1,
@@ -130,6 +164,7 @@ def generate_create_point_report(output_file: str | Path | None = None) -> Path:
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=7),
+                **cable_polyline_hover_plotly_kwargs(P_clip[:, 0], P_clip[:, 1]),
             ),
             row=row,
             col=1,
@@ -158,6 +193,9 @@ def generate_create_point_report(output_file: str | Path | None = None) -> Path:
                 legendgroup="H",
                 showlegend=(idx == 0),
                 marker=dict(size=8, color="#9467bd"),
+                hovertext=[cable_vertex_tooltip("H", 0.5 * Lp, None, float(H[0]), float(H[1]))],
+                hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                hoverinfo="text",
             ),
             row=row,
             col=1,
@@ -173,6 +211,9 @@ def generate_create_point_report(output_file: str | Path | None = None) -> Path:
                 legendgroup="C",
                 showlegend=(idx == 0),
                 marker=dict(size=9, color=("#d62728" if ok else "#ff7f0e")),
+                hovertext=[cable_vertex_tooltip("C", s_c, None, float(C[0]), float(C[1]))],
+                hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                hoverinfo="text",
             ),
             row=row,
             col=1,

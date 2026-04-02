@@ -1,16 +1,15 @@
 """
-Rapport visuel Plotly pour CableSolver._normalize_cable_segments.
+Rapport visuel Plotly pour CableSolver._normalize_cable_length.
 
-Les cas (câble, bateau/ROV, L_target, N_target) sont ceux de ``tests/cable_shared_cases.py``,
-comme pour ``test_cable_normalization_visual.py``. Si un cas lève une exception dans le
-solveur, l’échec est indiqué dans l’encart et le tracé « Q » reprend _P.
+Les cas sont ceux de ``tests/cable_shared_cases.py``. En cas d'exception, l'encart
+l'indique et le tracé « Q » reprend le profil d'entrée P.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import plotly.graph_objects as go
@@ -36,7 +35,7 @@ class _DummyEnv:
 
 def _make_solver() -> CableSolver:
     params = {"d": 0.01, "rho_cable": 1500.0}
-    return CableSolver(N_segments=10, params=params, environment=_DummyEnv())
+    return CableSolver(N_segments=50, params=params, environment=_DummyEnv())
 
 
 def generate_report(output_file: str | Path | None = None) -> Path:
@@ -59,24 +58,26 @@ def generate_report(output_file: str | Path | None = None) -> Path:
         rov = case.rov
 
         seg_error: str | None = None
+        straight_mode = False
+        ncl_source = "—"
         try:
-            ok, x_new, y_new, _straight_mode, _expl = solver._normalize_cable_segments(
-                x_cable=P[:, 0],
-                y_cable=P[:, 1],
-                L_target=case.l_target,
-                bateau=bateau,
-                rov=rov,
-                N_target=case.n_target,
+            x_new, y_new, straight_mode, ncl_source = solver._normalize_cable_length(
+                P[:, 0],
+                P[:, 1],
+                case.l_target,
+                x_boat=float(bateau[0]),
+                y_boat=float(bateau[1]),
+                x_rov=float(rov[0]),
+                y_rov=float(rov[1]),
                 mode_test=True,
             )
             x_new = np.asarray(x_new, dtype=float)
             y_new = np.asarray(y_new, dtype=float)
         except Exception as e:
             seg_error = str(e)
-            ok = False
             x_new = P[:, 0].copy()
             y_new = P[:, 1].copy()
-        # Métriques P/Q pour l'encart
+
         segP = np.linalg.norm(np.diff(P, axis=0), axis=1)
         Lp = float(np.sum(segP)) if segP.size else 0.0
         minP = float(np.min(segP)) if segP.size else 0.0
@@ -125,15 +126,14 @@ def generate_report(output_file: str | Path | None = None) -> Path:
         y_min = float(y_rng[0])
         y_max = float(y_rng[1])
 
-        # Encart à droite du tracé (coordonnées papier + axe y du sous-graphique) pour
-        # éviter la coupure par la bordure (annotations en pixels + ax=… dépassaient).
         fig.add_annotation(
             xref="paper",
             yref=f"y{row}" if row > 1 else "y",
             x=1.08,
             y=y_max - 0.05 * max(y_max - y_min, 1.0),
             text=(
-                f"<b>{case.name}</b><br>ok={ok}"
+                f"<b>{case.name}</b><br>straight_mode={straight_mode}"
+                + f"<br><b>source</b> = {ncl_source}"
                 + (f"<br><span style='color:#b00'>Exception : {seg_error}</span>" if seg_error else "")
                 + f"<br>Nb points _P = {P.shape[0]}"
                 + f"<br>Longueur _P = {Lp:.3f}"
@@ -143,7 +143,7 @@ def generate_report(output_file: str | Path | None = None) -> Path:
                 + f"<br>Longueur _Q = {Lq:.3f}"
                 + f"<br>Min seg _Q = {minQ:.3f}"
                 + f"<br>Max seg _Q = {maxQ:.3f}"
-                + f"<br>N_target = {case.n_target}"
+                + f"<br>n_target (cas) = {case.n_target}"
                 + f"<br>L_target = {case.l_target:.3f}"
             ),
             showarrow=False,
@@ -159,7 +159,7 @@ def generate_report(output_file: str | Path | None = None) -> Path:
 
     w_px, h_px, margin = figure_layout_square_subplots(n_cases, margin_r=400, margin_t=100)
     fig.update_layout(
-        title="Visualisation _normalize_cable_segments",
+        title="Visualisation _normalize_cable_length",
         template="plotly_white",
         width=w_px,
         height=h_px,
@@ -169,9 +169,9 @@ def generate_report(output_file: str | Path | None = None) -> Path:
     )
 
     if output_file is None:
-        rel = get_visual_default_html_path("visual_cable_normalize_segments")
+        rel = get_visual_default_html_path("visual_cable_normalize_length")
         if rel is None:
-            raise RuntimeError("Catalogue: entrée visual_cable_normalize_segments introuvable.")
+            raise RuntimeError("Catalogue: entrée visual_cable_normalize_length introuvable.")
         output_file = Path(rel)
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -181,9 +181,8 @@ def generate_report(output_file: str | Path | None = None) -> Path:
 
 def main() -> None:
     output_path = generate_report()
-    print("Rapport visuel _normalize_cable_segments genere :", output_path)
+    print("Rapport visuel _normalize_cable_length genere :", output_path)
 
 
 if __name__ == "__main__":
     main()
-

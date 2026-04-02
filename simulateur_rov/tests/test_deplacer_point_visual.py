@@ -18,6 +18,12 @@ from plotly.subplots import make_subplots
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.tests.test_catalog import get_visual_default_html_path  # noqa: E402
+from src.visualization.cable_hover import (  # noqa: E402
+    CABLE_XY_HOVERTEMPLATE,
+    cable_polyline_hover_plotly_kwargs,
+    cable_polyline_hover_texts,
+    cable_vertex_tooltip,
+)
 from src.utils.utils import deplacer_point  # noqa: E402
 from tests._plotly_cable_axes import (  # noqa: E402
     data_ranges_for_cable_view,
@@ -94,6 +100,7 @@ def generate_deplacer_point_report(output_file: str | Path | None = None) -> Pat
                 showlegend=(idx == 0),
                 line=dict(color="#1f77b4", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([A[0], B[0]], [A[1], B[1]]),
             ),
             row=row,
             col=col,
@@ -108,6 +115,7 @@ def generate_deplacer_point_report(output_file: str | Path | None = None) -> Pat
                 showlegend=(idx == 0),
                 line=dict(color="#ff7f0e", width=2),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([B[0], C[0]], [B[1], C[1]]),
             ),
             row=row,
             col=col,
@@ -148,6 +156,7 @@ def generate_deplacer_point_report(output_file: str | Path | None = None) -> Pat
                 showlegend=(idx == 0),
                 line=dict(color="#2ca02c", width=2, dash="dot"),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([A[0], D[0]], [A[1], D[1]]),
             ),
             row=row,
             col=col,
@@ -162,10 +171,18 @@ def generate_deplacer_point_report(output_file: str | Path | None = None) -> Pat
                 showlegend=(idx == 0),
                 line=dict(color="#d62728", width=2, dash="dot"),
                 marker=dict(size=8),
+                **cable_polyline_hover_plotly_kwargs([C[0], D[0]], [C[1], D[1]]),
             ),
             row=row,
             col=col,
         )
+
+        chain = np.stack([A, B, C], axis=0)
+        h_abc = cable_polyline_hover_texts(chain[:, 0], chain[:, 1])
+        s_d = float(np.linalg.norm(D - A))
+        l_dc = float(np.linalg.norm(C - D))
+        h_d = cable_vertex_tooltip("D", s_d, l_dc, float(D[0]), float(D[1]))
+        point_hover = {"A": h_abc[0], "B": h_abc[1], "C": h_abc[2], "D": h_d}
 
         # Points A, B, C, D avec labels
         for pt, label, color in [
@@ -183,6 +200,9 @@ def generate_deplacer_point_report(output_file: str | Path | None = None) -> Pat
                     textposition="top center",
                     showlegend=False,
                     marker=dict(size=9, color=color),
+                    hovertext=[point_hover[label]],
+                    hovertemplate=CABLE_XY_HOVERTEMPLATE,
+                    hoverinfo="text",
                 ),
                 row=row,
                 col=col,
