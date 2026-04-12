@@ -10,7 +10,14 @@ import copy
 import re
 import json
 import concurrent.futures
-from src.utils.logger import trace_print, set_trace_file, close_trace_file, get_trace_level
+import threading
+from src.utils.logger import (
+    trace_print,
+    set_trace_file,
+    close_trace_file,
+    get_trace_level,
+    set_trace_level,
+)
 
 _ANSI_RESET = "\033[0m"
 _ANSI_RED = "\033[91m"
@@ -26,6 +33,9 @@ _ANSI_LIGHT_RED = "\033[91m"
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
+from src.models.state_projection import reconcile_straight_mode_after_normalize
+from src.utils.etat_systeme import str_etat_système
 
 
 class SimulationThread(QThread):
@@ -46,6 +56,17 @@ class SimulationThread(QThread):
         self.calc_params = calc_params
         self.init_params = init_params
         self.simulation_state = simulation_state
+
+        # Lock unique pour sécuriser l'accès concurrent à simulation_state (UI <-> thread).
+        # On stocke le lock dans le dict pour qu'il soit partagé entre tous les consommateurs.
+        if isinstance(self.simulation_state, dict):
+            lock = self.simulation_state.get("_lock")
+            if lock is None:
+                lock = threading.RLock()
+                self.simulation_state["_lock"] = lock
+            self._state_lock = lock
+        else:
+            self._state_lock = threading.RLock()
         
         # Variables de commande
         self.fx_rov = fx_rov
@@ -78,6 +99,7 @@ class SimulationThread(QThread):
         trace_print(9, f"\n{_ANSI_YELLOW}[DEBUG] simulation_thread: RUN :  TRACE_LEVEL ={get_trace_level()}{_ANSI_RESET}")
         try:
             from src.models.system_model import ROVSystem
+            from src.models.state_projection import compute_cable_constraint_metrics
             from src.utils.initial_conditions import get_initial_state
             from src.utils.scenario_utils import commande_scenario
             from src.utils import scenario_utils
@@ -137,6 +159,62 @@ class SimulationThread(QThread):
             t_final = self.calc_params.get('t_final', 60.0)
             dt_max = self.calc_params.get('dt_max', 0.1)
             steps_per_update = int(self.calc_params.get('steps_per_update', 5))
+            # Garde-fous anti-discontinuités (pics de tension / géométrie câble instable)
+            guard_profile = str(self.calc_params.get("guard_profile", "soft")).strip().lower()
+            if guard_profile == "strict":
+                guard_defaults = {
+                    "guard_enable": True,
+                    "guard_tension_spike_factor": 10.0,
+                    "guard_tension_abs": 900.0,
+                    "guard_geom_ds_ratio": 2.8,
+                    "guard_geom_rel_L": 0.05,
+                    "guard_hard_block_duration_s": 2.0,
+                }
+            else:
+                # "soft" (par défaut): limite les pics intermédiaires sans bloquer trop tôt.
+                guard_defaults = {
+                    "guard_enable": True,
+                    "guard_tension_spike_factor": 12.0,
+                    "guard_tension_abs": 1200.0,
+                    "guard_geom_ds_ratio": 3.2,
+                    "guard_geom_rel_L": 0.07,
+                    "guard_hard_block_duration_s": 1.5,
+                }
+            guard_enable = bool(self.calc_params.get("guard_enable", guard_defaults["guard_enable"]))
+            guard_tension_spike_factor = float(self.calc_params.get("guard_tension_spike_factor", guard_defaults["guard_tension_spike_factor"]))
+            guard_tension_abs = float(self.calc_params.get("guard_tension_abs", guard_defaults["guard_tension_abs"]))
+            guard_geom_ds_ratio = float(self.calc_params.get("guard_geom_ds_ratio", guard_defaults["guard_geom_ds_ratio"]))
+            guard_geom_rel_L = float(self.calc_params.get("guard_geom_rel_L", guard_defaults["guard_geom_rel_L"]))
+            guard_hard_block_duration_s = float(self.calc_params.get("guard_hard_block_duration_s", guard_defaults["guard_hard_block_duration_s"]))
+            # Filtre tension "de contrôle" (n'agit pas sur la physique, seulement sur la décision auto-L).
+            guard_use_max_tension_for_control = bool(self.calc_params.get("guard_use_max_tension_for_control", True))
+            guard_control_tension_clip_abs = float(self.calc_params.get("guard_control_tension_clip_abs", 120.0))
+            guard_control_tension_jump_abs = float(self.calc_params.get("guard_control_tension_jump_abs", 60.0))
+            guard_control_slack_min = float(self.calc_params.get("guard_control_slack_min", 2.0))
+            prev_t_boat_for_control = None
+            hard_mode_block_until_t = -1.0
+            # Boost de trace ponctuel autour des événements critiques.
+            # Le logger affiche si level >= TRACE_LEVEL, donc un TRACE_LEVEL plus petit est plus verbeux.
+            trace_boost_level = self.calc_params.get("trace_boost_level", None)
+            trace_boost_duration_s = float(self.calc_params.get("trace_boost_duration_s", 1.5))
+            base_trace_level = int(get_trace_level())
+            trace_boost_until_t = -1.0
+
+            def _activate_trace_boost(t_evt: float, reason: str) -> None:
+                nonlocal trace_boost_until_t
+                if trace_boost_level is None:
+                    return
+                try:
+                    boosted_level = min(int(get_trace_level()), int(trace_boost_level))
+                    set_trace_level(boosted_level)
+                    trace_boost_until_t = max(trace_boost_until_t, float(t_evt) + trace_boost_duration_s)
+                    trace_print(
+                        8,
+                        f"[TRACE BOOST] active jusqu'à t={trace_boost_until_t:.2f} "
+                        f"(level={boosted_level}, raison={reason})",
+                    )
+                except Exception:
+                    pass
             
             # Fonction de commande (lit les valeurs depuis simulation_state à chaque appel)
             # Cela permet de mettre à jour les commandes pendant la simulation
@@ -144,10 +222,12 @@ class SimulationThread(QThread):
                 # Lire les valeurs depuis simulation_state si disponible, sinon utiliser les valeurs initiales
                 # simulation_state est un dictionnaire
                 if isinstance(self.simulation_state, dict):
-                    fx_rov = self.simulation_state.get('fx_rov', self.fx_rov)
-                    fy_rov = self.simulation_state.get('fy_rov', self.fy_rov)
-                    vx_boat_cmd = self.simulation_state.get('vx_boat_cmd', self.vx_boat_cmd)
-                    dl_dt = self.simulation_state.get('dl_dt', self.dl_dt)
+                    # Snapshot atomique des commandes pour éviter des incohérences intra-pas.
+                    with self._state_lock:
+                        fx_rov = self.simulation_state.get('fx_rov', self.fx_rov)
+                        fy_rov = self.simulation_state.get('fy_rov', self.fy_rov)
+                        vx_boat_cmd = self.simulation_state.get('vx_boat_cmd', self.vx_boat_cmd)
+                        dl_dt = self.simulation_state.get('dl_dt', self.dl_dt)
                 else:
                     # Fallback sur les valeurs initiales si simulation_state n'est pas un dict
                     fx_rov = self.fx_rov
@@ -255,16 +335,24 @@ class SimulationThread(QThread):
                     # Réinjecter la géométrie corrigée dans l'état initial
                     idx_x_cable = 6
                     idx_y_cable = idx_x_cable + system.N + 1
+                    x_corr, y_corr, xr_u, yr_u = reconcile_straight_mode_after_normalize(
+                        x_corr,
+                        y_corr,
+                        straight_mode,
+                        float(x_rov_init),
+                        float(y_rov_init),
+                        float(x_boat_init),
+                        0.0,
+                    )
                     y_current[idx_x_cable:idx_y_cable] = x_corr
                     y_current[idx_y_cable:idx_y_cable + system.N + 1] = y_corr
-                    # Aligner le ROV sur l'extrémité câble si la branche corde > L a été utilisée
-                    if straight_mode:
-                        y_current[0] = float(x_corr[-1])
-                        y_current[1] = float(y_corr[-1])
+                    y_current[0] = float(xr_u)
+                    y_current[1] = float(yr_u)
 
                     # Mettre à jour les buffers précédents du système
                     system.x_cable_prev = np.asarray(x_corr, dtype=float).copy()
                     system.y_cable_prev = np.asarray(y_corr, dtype=float).copy()
+
             except Exception as e:
                 trace_print(9, f"[INIT] Échec renormalisation câble initial: {e}")
 
@@ -273,6 +361,26 @@ class SimulationThread(QThread):
             max_step_wall_time = float(self.calc_params.get('max_step_wall_time', 1.0))
             max_step_nfev = int(self.calc_params.get('max_step_nfev', 2000))
             ode_timeout_s = float(self.calc_params.get('ode_timeout_s', 2.0))
+            use_constrained_integrator = bool(self.calc_params.get("use_constrained_integrator", False))
+            dae_projection_substeps = max(1, int(self.calc_params.get("dae_projection_substeps", 4)))
+            guard_config_msg = (
+                "[GUARD CONFIG] "
+                f"use_constrained_integrator={use_constrained_integrator} "
+                f"guard_profile={guard_profile} guard_enable={guard_enable} "
+                f"guard_tension_spike_factor={guard_tension_spike_factor:.3f} "
+                f"guard_tension_abs={guard_tension_abs:.3f} "
+                f"guard_geom_ds_ratio={guard_geom_ds_ratio:.3f} "
+                f"guard_geom_rel_L={guard_geom_rel_L:.4f} "
+                f"guard_hard_block_duration_s={guard_hard_block_duration_s:.3f} "
+                f"guard_control_tension_clip_abs={guard_control_tension_clip_abs:.3f} "
+                f"guard_control_tension_jump_abs={guard_control_tension_jump_abs:.3f} "
+                f"guard_control_slack_min={guard_control_slack_min:.3f} "
+                f"guard_use_max_tension_for_control={guard_use_max_tension_for_control} "
+                f"trace_boost_level={trace_boost_level} "
+                f"trace_boost_duration_s={trace_boost_duration_s:.3f}"
+            )
+            # Important: logguer au niveau courant pour garantir l'apparition dans trace_print.txt.
+            trace_print(get_trace_level(), guard_config_msg)
             ode_fallback_mode = False
             ode_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             
@@ -1067,13 +1175,36 @@ class SimulationThread(QThread):
                     trace_print(1, f"[NON_FINITE] stage={stage_name} t={t_val:.2f} step={step_val} inspect_error={e_nf}")
             
             while t_current < t_final and not self._stop_requested:
+                # DEBUG: résumé d'état au début du pas
+                try:
+                    # Niveau 10 : avec trace_print(level), le message s'affiche si level >= TRACE_LEVEL
+                    # (spinbox 0..10). Un niveau 9 est masqué quand TRACE_LEVEL vaut 10.
+                    trace_print(
+                        10,
+                        f"\n{_ANSI_BLUE}[SimulationThread :]{_ANSI_RESET} : "
+                        + str_etat_système(system, y_current, t=t_current),
+                    )
+                except Exception:
+                    trace_print(
+                        10,
+                        f"{_ANSI_RED}[SimulationThread] état au début du pas indisponible (t={t_current:.2f})",
+                    )
+                # Restaurer le niveau de trace nominal quand la fenêtre critique est passée.
+                try:
+                    if trace_boost_until_t > 0.0 and t_current >= trace_boost_until_t:
+                        set_trace_level(base_trace_level)
+                        trace_boost_until_t = -1.0
+                        trace_print(8, f"[TRACE BOOST] retour niveau nominal={base_trace_level}")
+                except Exception:
+                    pass
                 trace_print(8, f"\n{_ANSI_YELLOW}[DEBUG] simulation_thread: LOOP : t_current={t_current:.2f} {_ANSI_RESET} ")
                 # Attendre si en pause
                 while self._paused and not self._stop_requested:
                     time.sleep(0.1)
                     # Vérifier l'état de pause depuis le state partagé
                     if hasattr(self.simulation_state, 'get'):
-                        self._paused = self.simulation_state.get('paused', False)
+                        with self._state_lock:
+                            self._paused = self.simulation_state.get('paused', False)
                 
                 if self._stop_requested:
                     break
@@ -1181,6 +1312,41 @@ class SimulationThread(QThread):
                             t_boat = None
                             if T_current is not None and len(T_current) > 0:
                                 t_boat = float(T_current[0])
+                                if guard_enable:
+                                    t_boat_raw = float(t_boat)
+                                    if guard_use_max_tension_for_control:
+                                        try:
+                                            t_boat_raw = float(np.max(np.asarray(T_current, dtype=float)))
+                                        except Exception:
+                                            t_boat_raw = float(t_boat)
+                                    t_boat = t_boat_raw
+                                    d_straight_ctrl = float(
+                                        np.hypot(float(x_rov_current) - float(x_boat_current), float(y_rov_current))
+                                    )
+                                    slack_ctrl = float(L_current) - d_straight_ctrl
+                                    reasons = []
+                                    if (
+                                        slack_ctrl > guard_control_slack_min
+                                        and t_boat_raw > guard_control_tension_clip_abs
+                                    ):
+                                        t_boat = guard_control_tension_clip_abs
+                                        reasons.append("clip_abs")
+                                    if (
+                                        prev_t_boat_for_control is not None
+                                        and slack_ctrl > guard_control_slack_min
+                                        and t_boat_raw - float(prev_t_boat_for_control) > guard_control_tension_jump_abs
+                                    ):
+                                        t_boat = min(float(t_boat), float(prev_t_boat_for_control) + guard_control_tension_jump_abs)
+                                        reasons.append("limit_jump")
+                                    if reasons:
+                                        _activate_trace_boost(t_current, "CONTROL_TENSION_FILTER")
+                                        trace_print(
+                                            7,
+                                            f"[GUARD CTRL] t={t_current:.2f} "
+                                            f"T_ctrl_raw={t_boat_raw:.2f} -> T_ctrl={float(t_boat):.2f} "
+                                            f"slack={slack_ctrl:.2f} reasons={'+'.join(reasons)}",
+                                        )
+                                    prev_t_boat_for_control = float(t_boat)
                                 auto_result = auto_func(
                                     t_current,
                                     y_rov_current,
@@ -1203,6 +1369,22 @@ class SimulationThread(QThread):
                                 dl_dt_auto_explain = str(auto_result[1])
                             else:
                                 dl_dt_cmd = auto_result
+                            # Si un événement critique a été détecté récemment,
+                            # neutraliser temporairement les branches "T_HARD_*".
+                            if (
+                                guard_enable
+                                and t_current < hard_mode_block_until_t
+                                and isinstance(dl_dt_auto_explain, str)
+                                and dl_dt_auto_explain.startswith("T_HARD")
+                            ):
+                                dl_dt_cmd = 0.0
+                                dl_dt_auto_explain = f"{dl_dt_auto_explain}_BLOCKED_GUARD"
+                                _activate_trace_boost(t_current, "T_HARD_BLOCKED")
+                                trace_print(
+                                    7,
+                                    f"[GUARD] blocage T_HARD à t={t_current:.2f}: "
+                                    f"dl_dt forcé à 0.0 jusqu'à t={hard_mode_block_until_t:.2f}",
+                                )
                             # DEBUG: Traçage de dL_dt calculé
                             trace_print(7, f"[DEBUG L] t={t_current:.2f} dL_dt_cmd={dl_dt_cmd:.6f} m/s "
                                 f"(L_current={L_current:.6f} m pour calcul)"
@@ -1247,18 +1429,20 @@ class SimulationThread(QThread):
                         pass
 
                 if isinstance(self.simulation_state, dict):
-                    if fx_rov_cmd is not None:
-                        self.simulation_state['fx_rov'] = float(fx_rov_cmd)
-                        self.simulation_state['fx_rov_source'] = "scenario"
-                    if fy_rov_cmd is not None:
-                        self.simulation_state['fy_rov'] = float(fy_rov_cmd)
-                        self.simulation_state['fy_rov_source'] = "scenario"
-                    if vx_boat_cmd is not None:
-                        self.simulation_state['vx_boat_cmd'] = float(vx_boat_cmd)
-                        self.simulation_state['vx_boat_cmd_source'] = "scenario"
-                    if dl_dt_cmd is not None:
-                        self.simulation_state['dl_dt'] = float(dl_dt_cmd)
-                        self.simulation_state['dl_dt_source'] = "auto" if dl_dt_mode == "auto" else "scenario"
+                    # Écritures groupées sous lock pour cohérence UI.
+                    with self._state_lock:
+                        if fx_rov_cmd is not None:
+                            self.simulation_state['fx_rov'] = float(fx_rov_cmd)
+                            self.simulation_state['fx_rov_source'] = "scenario"
+                        if fy_rov_cmd is not None:
+                            self.simulation_state['fy_rov'] = float(fy_rov_cmd)
+                            self.simulation_state['fy_rov_source'] = "scenario"
+                        if vx_boat_cmd is not None:
+                            self.simulation_state['vx_boat_cmd'] = float(vx_boat_cmd)
+                            self.simulation_state['vx_boat_cmd_source'] = "scenario"
+                        if dl_dt_cmd is not None:
+                            self.simulation_state['dl_dt'] = float(dl_dt_cmd)
+                            self.simulation_state['dl_dt_source'] = "auto" if dl_dt_mode == "auto" else "scenario"
 
                 # Fin de mission via événement de scénario
                 if hasattr(commande_scenario, "_mission_end") and commande_scenario._mission_end:
@@ -1287,6 +1471,7 @@ class SimulationThread(QThread):
                     success = False
                     retry_count = 0
                     used_fallback = False
+                    used_constrained_integrator_step = False
                     while retry_count < 5 and not success:
                         if ode_fallback_mode:
                             dy_dt = system.compute_derivatives(
@@ -1294,6 +1479,115 @@ class SimulationThread(QThread):
                             )
                             y_current = y_current + (t_next - t_current) * dy_dt
                             used_fallback = True
+                            success = True
+                            break
+
+                        if use_constrained_integrator and not ode_fallback_mode:
+                            step_start = time.perf_counter()
+                            future = ode_executor.submit(
+                                system.integrate_span_with_projection,
+                                [t_current, t_next],
+                                y_current,
+                                u_func,
+                                dt_max,
+                                n_substeps=dae_projection_substeps,
+                            )
+                            try:
+                                y_proj_end = future.result(timeout=ode_timeout_s)
+                            except concurrent.futures.TimeoutError:
+                                trace_print(
+                                    1,
+                                    f"[WARN] Timeout intégration contrainte à t={t_current:.2f} "
+                                    f"(dt={dt:.6f}, >{ode_timeout_s:.2f}s) -> fallback Euler",
+                                )
+                                ode_fallback_mode = True
+                                if ode_executor is not None:
+                                    ode_executor.shutdown(wait=False, cancel_futures=True)
+                                    ode_executor = None
+                                dy_dt = system.compute_derivatives(
+                                    t_current, y_current, u_func(t_current)
+                                )
+                                y_current = y_current + (t_next - t_current) * dy_dt
+                                used_fallback = True
+                                success = True
+                                break
+                            step_elapsed = time.perf_counter() - step_start
+                            y_proj_end = np.asarray(y_proj_end, dtype=float)
+                            if not np.all(np.isfinite(y_proj_end)):
+                                trace_print(
+                                    1,
+                                    f"[WARN] Intégration contrainte non finie à t={t_current:.2f} -> réduction pas",
+                                )
+                                dt = max(dt / 2.0, dt_min)
+                                t_next = min(t_current + dt, t_final)
+                                retry_count += 1
+                                continue
+                            if guard_enable:
+                                idx_t_guard = 6 + 2 * (system.N + 1)
+                                t_end = np.asarray(
+                                    y_proj_end[idx_t_guard:idx_t_guard + system.N + 1],
+                                    dtype=float,
+                                )
+                                max_t_end = float(np.max(t_end)) if t_end.size > 0 else 0.0
+                                tension_spike_limit = max(
+                                    float(t_rupt) * guard_tension_spike_factor,
+                                    guard_tension_abs,
+                                )
+                                m_guard = compute_cable_constraint_metrics(system, y_proj_end)
+                                ds_ratio = float(m_guard.get("ds_max_ratio", 0.0))
+                                rel_l = float(m_guard.get("rel_L_mismatch", 0.0))
+                                if (
+                                    max_t_end > tension_spike_limit
+                                    or ds_ratio > guard_geom_ds_ratio
+                                    or rel_l > guard_geom_rel_L
+                                ):
+                                    _activate_trace_boost(t_current, "CRITICAL_GUARD_ROLLBACK")
+                                    trace_print(
+                                        1,
+                                        f"[GUARD] rollback pas contraint à t={t_current:.2f}: "
+                                        f"Tmax={max_t_end:.2f} (lim={tension_spike_limit:.2f}), "
+                                        f"ds_ratio={ds_ratio:.3f} (lim={guard_geom_ds_ratio:.3f}), "
+                                        f"rel_L={rel_l:.4f} (lim={guard_geom_rel_L:.4f})",
+                                    )
+                                    try:
+                                        xr_b, yr_b = float(y_current[0]), float(y_current[1])
+                                        xr_e, yr_e = float(y_proj_end[0]), float(y_proj_end[1])
+                                        trace_print(
+                                            7,
+                                            f"[GUARD] delta ROV sous-pas: "
+                                            f"dx={xr_e - xr_b:.3f} dy={yr_e - yr_b:.3f} "
+                                            f"(avant=({xr_b:.3f},{yr_b:.3f}) après=({xr_e:.3f},{yr_e:.3f}))",
+                                        )
+                                    except Exception:
+                                        pass
+                                    hard_mode_block_until_t = max(
+                                        hard_mode_block_until_t,
+                                        float(t_current) + guard_hard_block_duration_s,
+                                    )
+                                    dt = max(dt / 2.0, dt_min)
+                                    t_next = min(t_current + dt, t_final)
+                                    retry_count += 1
+                                    continue
+                            nfev_est = 4 * dae_projection_substeps
+                            slow_step = (step_elapsed > max_step_wall_time) or (
+                                nfev_est > max_step_nfev
+                            )
+                            if slow_step:
+                                trace_print(
+                                    1,
+                                    f"[WARN] Pas intégration contrainte lent à t={t_current:.2f} "
+                                    f"({step_elapsed:.3f}s) -> fallback Euler",
+                                )
+                                dy_dt = system.compute_derivatives(
+                                    t_current, y_current, u_func(t_current)
+                                )
+                                y_current = y_current + (t_next - t_current) * dy_dt
+                                used_fallback = True
+                                success = True
+                                break
+                            y_current = y_proj_end
+                            used_constrained_integrator_step = True
+                            solution = None
                             success = True
                             break
 
@@ -1358,7 +1652,9 @@ class SimulationThread(QThread):
                         break
                     
                     # Mettre à jour l'état
-                    if not used_fallback:
+                    if used_constrained_integrator_step:
+                        pass  # y_current déjà mis à jour par integrate_span_with_projection
+                    elif not used_fallback:
                         if getattr(solution, "sol", None) is not None:
                             y_current = solution.sol(t_next)
                         else:
@@ -1397,8 +1693,14 @@ class SimulationThread(QThread):
 
                     # Projection finale du câble: imposer recollement/L_target sur l'état de fin de pas,
                     # puis redistribuer les tensions sur cette géométrie finale.
+                    # Sautée si intégration half-explicit déjà projetée à chaque sous-pas.
                     try:
-                        if (
+                        if use_constrained_integrator and used_constrained_integrator_step:
+                            trace_print(
+                                8,
+                                "[DAE] Projection finale câble ignorée (déjà appliquée par sous-pas RK4+projection).",
+                            )
+                        elif (
                             x_cable is not None and y_cable is not None
                             and len(x_cable) > 1 and L is not None and float(L) > 1e-9
                         ):
@@ -1418,12 +1720,15 @@ class SimulationThread(QThread):
                             y_proj = np.asarray(y_proj, dtype=float)
                             x_proj[0] = float(x_boat)
                             y_proj[0] = 0.0
-                            if straight_mode:
-                                x_rov = float(x_proj[-1])
-                                y_rov = float(y_proj[-1])
-                            else:
-                                x_proj[-1] = float(x_rov)
-                                y_proj[-1] = float(y_rov)
+                            x_proj, y_proj, x_rov, y_rov = reconcile_straight_mode_after_normalize(
+                                x_proj,
+                                y_proj,
+                                straight_mode,
+                                float(x_rov),
+                                float(y_rov),
+                                float(x_boat),
+                                0.0,
+                            )
 
                             weight_per_unit = (
                                 (system.cable.rho_cable - system.environment.rho_eau)
@@ -1633,7 +1938,7 @@ class SimulationThread(QThread):
                             dx_seg = x_cable_display[i + 1] - x_cable_display[i]
                             dy_seg = y_cable_display[i + 1] - y_cable_display[i]
                             L_seg += float(np.hypot(dx_seg, dy_seg))
-                    
+
                     # Calculer D_straight (distance en ligne droite entre bateau et ROV)
                     # IMPORTANT : Ne PAS forcer D_straight = L même si le câble est tendu
                     # Le ROV n'est plus recalculé, donc D_straight peut être > L

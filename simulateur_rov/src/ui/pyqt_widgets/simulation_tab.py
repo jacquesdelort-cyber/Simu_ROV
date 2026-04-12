@@ -394,6 +394,7 @@ class SimulationTab(QWidget):
         try:
             import numpy as np  # Import numpy au début de la fonction
             import copy
+            from src.models.state_projection import reconcile_straight_mode_after_normalize
             
             # Debug: Afficher le nom de la mission utilisée
             current_mission = self.main_window.mission_data.get('current') if hasattr(self.main_window, 'mission_data') else None
@@ -413,6 +414,10 @@ class SimulationTab(QWidget):
             
             from src.models.system_model import ROVSystem
             from src.utils.initial_conditions import get_initial_state
+            from src.utils.cable_init_buoyant import (
+                build_buoyant_cable_polyline,
+                is_buoyant_cable,
+            )
             
             # Créer le système ROV
             N_segments = int(self.main_window.calc_params.get('N_segments', 50))
@@ -450,6 +455,459 @@ class SimulationTab(QWidget):
             # Dépaqueter l'état initial
             (x_rov, y_rov, vx_rov, vy_rov, x_boat, vx_boat,
              x_cable, y_cable, T, L) = system.unpack_state(y0)
+
+            def _build_length_exact_polyline_case1_or_straight(xb, yb, xr, yr, L_target, n_segments):
+                """Construit la géométrie exacte pour le cas 1 (surface+vertical) ou cas 3 (straight)."""
+                dx = float(xr - xb)
+                dy = float(yr - yb)
+                d = float(np.hypot(dx, dy))
+                n_pts = max(int(n_segments), 1) + 1
+                if d <= 1e-12 or abs(L_target - d) <= 1e-9:
+                    # Cas 3 (ou dégénéré): câble rectiligne.
+                    x_line = np.linspace(float(xb), float(xr), n_pts)
+                    y_line = np.linspace(float(yb), float(yr), n_pts)
+                    y_line = np.clip(y_line, None, 0.0)
+                    y_line[0] = float(yb)
+                    y_line[-1] = float(yr)
+                    return x_line, y_line
+
+                # Fallback privilégié :
+                # 1) partie flottante en surface (y=0) avec éventuel aller-retour (slack),
+                # 2) tronçon vertical au droit du ROV jusqu'à y_rov.
+                y_depth = abs(float(yr - yb))
+                L_top = float(L_target) - y_depth
+                dx_abs = abs(dx)
+                manh_tol = max(1e-9, 1e-12 * max(abs(float(L_target)), 1.0))
+                extra_sv = L_top - dx_abs
+                # L = |dx| + |dy| (Manhattan géométrique) : un seul angle droit
+                # (xb,yb)--(xr,yb)--(xr,yr), sans slack horizontal supplémentaire.
+                if extra_sv < -manh_tol:
+                    return None, None
+                if extra_sv <= manh_tol:
+                    if y_depth <= 1e-12 or dx_abs <= 1e-12:
+                        return None, None
+                    L_h = dx_abs
+                    L_v = y_depth
+                    Ltot = L_h + L_v
+                    # Deux segments rectilignes avec nœud commun au coin (xr, yb) : longueur
+                    # totale exacte Ltot = L_h + L_v pour len = n1 + n2 - 1 == n_pts.
+                    n1 = max(2, int(round((n_pts - 1) * L_h / Ltot)) + 1)
+                    n1 = min(n1, n_pts)
+                    n2 = n_pts - n1 + 1
+                    if n2 < 2:
+                        n2 = 2
+                        n1 = n_pts - n2 + 1
+                        n1 = max(2, n1)
+                    x_first = np.linspace(float(xb), float(xr), n1)
+                    y_first = np.full(n1, float(yb), dtype=float)
+                    x_second = np.full(n2, float(xr), dtype=float)
+                    y_second = np.linspace(float(yb), float(yr), n2)
+                    x_new = np.concatenate((x_first, x_second[1:]))
+                    y_new = np.concatenate((y_first, y_second[1:]))
+                    y_new = np.clip(y_new, None, 0.0)
+                    y_new[0] = float(yb)
+                    y_new[-1] = float(yr)
+                    return x_new, y_new
+
+                # extra_sv > manh_tol : longueur horizontale « surface » au-delà du minimum |dx|.
+                sign = 1.0 if dx >= 0.0 else -1.0
+                extra = L_top - dx_abs
+                x_turn = float(xr) + sign * (0.5 * extra)
+
+                # Longueurs des 3 tronçons: surface (boat->turn), surface (turn->x_rov), vertical.
+                L1 = abs(x_turn - float(xb))
+                L2 = abs(x_turn - float(xr))
+                L3 = y_depth
+                Ltot = L1 + L2 + L3
+
+                s_vals = np.linspace(0.0, Ltot, n_pts)
+                x_new = np.empty(n_pts, dtype=float)
+                y_new = np.empty(n_pts, dtype=float)
+                for i, s in enumerate(s_vals):
+                    if s <= L1:
+                        a = s / max(L1, 1e-12)
+                        x_new[i] = (1.0 - a) * float(xb) + a * x_turn
+                        y_new[i] = 0.0
+                    elif s <= (L1 + L2):
+                        a = (s - L1) / max(L2, 1e-12)
+                        x_new[i] = (1.0 - a) * x_turn + a * float(xr)
+                        y_new[i] = 0.0
+                    else:
+                        a = (s - L1 - L2) / max(L3, 1e-12)
+                        x_new[i] = float(xr)
+                        y_new[i] = (1.0 - a) * 0.0 + a * float(yr)
+
+                y_new = np.clip(y_new, None, 0.0)
+                y_new[0] = float(yb)
+                y_new[-1] = float(yr)
+                return x_new, y_new
+
+            def _build_case2_catenary_chain(system, xb, yb, xr, yr, L_target):
+                """
+                Cas 2 sans courant : chaînette physique bateau -> ROV via ``CableSolver._solve_catenary``.
+
+                Les pentes discrètes sur le premier / dernier segment peuvent être de mauvais
+                estimateurs de la tangente (maillage fin près des extrémités) ; on journalise
+                des pentes lissées sur ~1 % de la longueur d'arc pour comparaison.
+                """
+                w_pa = (
+                    (system.cable.rho_cable - system.environment.rho_eau)
+                    * system.cable.A_cable
+                    * system.environment.g
+                )
+                try:
+                    x_cat, y_cat = system.cable.solver._solve_catenary(
+                        float(xr), float(yr), float(xb), float(L_target), float(w_pa)
+                    )
+                except Exception:
+                    return None, None
+                x_cat = np.asarray(x_cat, dtype=float).copy()
+                y_cat = np.asarray(y_cat, dtype=float).copy()
+                if len(x_cat) < 3:
+                    return None, None
+                # Extrémités exactes
+                x_cat[0], y_cat[0] = float(xb), float(yb)
+                x_cat[-1], y_cat[-1] = float(xr), float(yr)
+                y_cat = np.clip(y_cat, None, 0.0)
+                ds = np.hypot(np.diff(x_cat), np.diff(y_cat))
+                s = np.concatenate(([0.0], np.cumsum(ds)))
+                L_seg = float(s[-1])
+                tol_L = max(0.02, 1e-4 * float(L_target))
+                if abs(L_seg - float(L_target)) > tol_L:
+                    trace_print(
+                        5,
+                        f"[INIT] Chaînette cas2: longueur L_seg={L_seg:.3f} vs L={L_target:.3f}, repli heuristique"
+                    )
+                    return None, None
+
+                def _slope_over_arc_frac(from_start: bool, frac: float = 0.01):
+                    if len(x_cat) < 3:
+                        return None
+                    target = float(frac) * L_seg
+                    if from_start:
+                        idx = int(np.searchsorted(s, target, side="left"))
+                        idx = max(1, min(idx, len(x_cat) - 1))
+                        dx = float(x_cat[idx] - x_cat[0])
+                        dy = float(y_cat[idx] - y_cat[0])
+                    else:
+                        # Corde couvrant ~target (m) d'arc depuis le ROV vers le bateau.
+                        idx = int(np.searchsorted(s, L_seg - target, side="right")) - 1
+                        idx = max(0, min(idx, len(x_cat) - 2))
+                        dx = float(x_cat[-1] - x_cat[idx])
+                        dy = float(y_cat[-1] - y_cat[idx])
+                    if abs(dx) < 1e-12:
+                        return None
+                    return abs(dy / dx)
+
+                sb = _slope_over_arc_frac(True)
+                sr = _slope_over_arc_frac(False)
+                trace_print(
+                    5,
+                    f"[INIT] Chaînette cas2: L_seg={L_seg:.3f} "
+                    f"|pente~bateau(1% arc)|={sb} |pente~ROV(1% arc)|={sr}"
+                )
+                return x_cat, y_cat
+
+            def _build_length_exact_polyline_case2_curve(xb, yb, xr, yr, L_target, n_segments):
+                """Cas 2 sans courant: courbe type chaînette approchée + éventuel tronçon surface."""
+                n_pts = max(int(n_segments), 1) + 1
+                xb_f = float(xb)
+                yb_f = float(yb)
+                xr_f = float(xr)
+                yr_f = float(yr)
+                L_target_f = float(L_target)
+                if abs(yb_f) > 1e-9:
+                    return None, None
+
+                def _arc_points(x_start, q, n_dense=900, sag_amp=0.0):
+                    t = np.linspace(0.0, 1.0, int(n_dense))
+                    x = float(x_start) + (xr_f - float(x_start)) * t
+                    y = yr_f * np.power(t, float(q))
+                    # Terme de flèche (vers le bas) nul aux extrémités et à pente nulle
+                    # aux extrémités, pour ne pas perturber les tangentes bateau/ROV.
+                    bell = (t * t) * ((1.0 - t) * (1.0 - t))
+                    if sag_amp > 0.0:
+                        y = y - float(sag_amp) * bell
+
+                    # Forcer l'arc à rester du côté "bas" de la corde bateau->ROV:
+                    # y doit être <= y_ligne (rappel convention profondeur: y < 0).
+                    y_line = yb_f + (yr_f - yb_f) * t
+                    delta_up = float(np.max(y - y_line))
+                    if delta_up > 0.0:
+                        bell_max = max(float(np.max(bell)), 1e-12)
+                        sag_auto = (delta_up + 1e-6) / bell_max
+                        y = y - sag_auto * bell
+                    y = np.clip(y, None, 0.0)
+                    return x, y
+
+                def _polyline_len(x, y):
+                    return float(np.sum(np.hypot(np.diff(x), np.diff(y))))
+
+                dx_line = xr_f - xb_f
+                if abs(dx_line) < 1e-12:
+                    return None, None
+
+                # Seuil "pas trop long": arc depuis le bateau avec tangente horizontale en surface (q=2).
+                x_boat_arc, y_boat_arc = _arc_points(xb_f, q=2.0, n_dense=700)
+                L_arc_q2_from_boat = _polyline_len(x_boat_arc, y_boat_arc)
+
+                # Sous-cas A: L assez grand -> segment horizontal surface + arc avec tangente horizontale en H.
+                if L_target_f >= L_arc_q2_from_boat - 1e-6:
+                    def _total_len_alpha(alpha):
+                        x_h = xb_f + alpha * dx_line
+                        x_arc, y_arc = _arc_points(x_h, q=2.0, n_dense=700)
+                        return abs(x_h - xb_f) + _polyline_len(x_arc, y_arc), x_h, x_arc, y_arc
+
+                    a_lo, a_hi = 0.0, 1.0
+                    f_lo, _, _, _ = _total_len_alpha(a_lo)
+                    f_hi, _, _, _ = _total_len_alpha(a_hi)
+                    if not (f_lo - 1e-6 <= L_target_f <= f_hi + 1e-6):
+                        return None, None
+
+                    x_h_best = xb_f
+                    x_arc_best, y_arc_best = x_boat_arc, y_boat_arc
+                    for _ in range(60):
+                        a_mid = 0.5 * (a_lo + a_hi)
+                        f_mid, x_h_mid, x_arc_mid, y_arc_mid = _total_len_alpha(a_mid)
+                        x_h_best = x_h_mid
+                        x_arc_best, y_arc_best = x_arc_mid, y_arc_mid
+                        if abs(f_mid - L_target_f) <= 1e-6:
+                            break
+                        if f_mid < L_target_f:
+                            a_lo = a_mid
+                        else:
+                            a_hi = a_mid
+
+                    # Rééchantillonnage curviligne global (surface puis arc) pour obtenir N+1 points.
+                    x_surface = np.linspace(xb_f, x_h_best, 120)
+                    y_surface = np.zeros_like(x_surface)
+                    x_combo = np.concatenate((x_surface[:-1], x_arc_best))
+                    y_combo = np.concatenate((y_surface[:-1], y_arc_best))
+                else:
+                    # Sous-cas B: arc arrive au bateau, tangente au bateau libre.
+                    # On impose q>1 pour garantir une pente plus forte au ROV qu'au bateau.
+                    # Ajout d'une flèche contrôlée pour éviter la courbure "vers le haut".
+                    sag_case_b = 0.35 * abs(yr_f)
+
+                    def _len_q(q_val):
+                        x_arc, y_arc = _arc_points(xb_f, q=q_val, n_dense=900, sag_amp=sag_case_b)
+                        return _polyline_len(x_arc, y_arc), x_arc, y_arc
+
+                    q_eps = 1e-3
+                    q_lo, q_hi = 1.0 + q_eps, 3.0
+                    f_lo, x_lo_arc, y_lo_arc = _len_q(q_lo)
+                    f_hi, x_hi_arc, y_hi_arc = _len_q(q_hi)
+                    if not (f_lo - 1e-6 <= L_target_f <= f_hi + 1e-6):
+                        return None, None
+
+                    x_combo, y_combo = x_lo_arc, y_lo_arc
+                    for _ in range(60):
+                        q_mid = 0.5 * (q_lo + q_hi)
+                        f_mid, x_mid_arc, y_mid_arc = _len_q(q_mid)
+                        x_combo, y_combo = x_mid_arc, y_mid_arc
+                        if abs(f_mid - L_target_f) <= 1e-6:
+                            break
+                        if f_mid < L_target_f:
+                            q_lo = q_mid
+                        else:
+                            q_hi = q_mid
+
+                ds_combo = np.hypot(np.diff(x_combo), np.diff(y_combo))
+                s_combo = np.concatenate(([0.0], np.cumsum(ds_combo)))
+                if float(s_combo[-1]) <= 1e-12:
+                    return None, None
+                s_target = np.linspace(0.0, L_target_f, n_pts)
+                s_target = np.clip(s_target, 0.0, float(s_combo[-1]))
+                x_new = np.interp(s_target, s_combo, x_combo)
+                y_new = np.interp(s_target, s_combo, y_combo)
+                y_new = np.clip(y_new, None, 0.0)
+                x_new[0], y_new[0] = xb_f, yb_f
+                x_new[-1], y_new[-1] = xr_f, yr_f
+
+                # Vérification explicite:
+                # 1) signe de pente au ROV identique à la droite bateau-ROV
+                # 2) |pente tangente| au ROV > |pente tangente| au bateau.
+                if len(x_new) >= 3:
+                    dx_tan = float(x_new[-1] - x_new[-2])
+                    if dx_tan * dx_line <= 0.0:
+                        return None, None
+                    dx_boat = float(x_new[1] - x_new[0])
+                    dy_boat = float(y_new[1] - y_new[0])
+                    dx_rov = float(x_new[-1] - x_new[-2])
+                    dy_rov = float(y_new[-1] - y_new[-2])
+                    if abs(dx_boat) < 1e-12 or abs(dx_rov) < 1e-12:
+                        return None, None
+                    slope_boat = dy_boat / dx_boat
+                    slope_rov = dy_rov / dx_rov
+                    if abs(slope_rov) <= abs(slope_boat):
+                        return None, None
+                return x_new, y_new
+
+            # Contrainte physique forte : L (commande/état) doit rester égale à la
+            # longueur géométrique réelle du câble (somme des segments), même à t=0.
+            if x_cable is not None and y_cable is not None and len(x_cable) > 1:
+                try:
+                    x_cable_np = np.asarray(x_cable, dtype=float)
+                    y_cable_np = np.asarray(y_cable, dtype=float)
+                    x_corr, y_corr, straight_mode, _ = system.cable.solver._normalize_cable_length(
+                        x_cable_np,
+                        y_cable_np,
+                        float(L),
+                        x_boat=float(x_boat),
+                        y_boat=0.0,
+                        x_rov=float(x_rov),
+                        y_rov=float(y_rov),
+                        k_tail=10,
+                        t=0.0,
+                    )
+                    x_corr, y_corr, x_rov, y_rov = reconcile_straight_mode_after_normalize(
+                        x_corr,
+                        y_corr,
+                        straight_mode,
+                        float(x_rov),
+                        float(y_rov),
+                        float(x_boat),
+                        0.0,
+                    )
+                    x_cable = np.asarray(x_corr, dtype=float)
+                    y_cable = np.asarray(y_corr, dtype=float)
+                except Exception as e_norm:
+                    trace_print(8, f"[INIT] Échec normalisation géométrie câble: {e_norm}")
+
+                # Vérifier la cohérence longueur géométrique <-> longueur commandée.
+                # Si la normalisation n'atteint pas la cible, appliquer un fallback robuste
+                # qui garantit L_seg == L à tolérance numérique.
+                ds_after_norm = np.hypot(np.diff(np.asarray(x_cable, dtype=float)),
+                                         np.diff(np.asarray(y_cable, dtype=float)))
+                L_seg_after_norm = float(np.sum(ds_after_norm))
+                # Appliquer le modèle géométrique d'initialisation sans courant même
+                # si L_seg est déjà proche de L, pour garantir la forme voulue des cas 1/2/3.
+                no_current = False
+                try:
+                    env = system.environment
+                    v0 = float(np.asarray(env.get_current_velocity(0.0), dtype=float).reshape(-1)[0])
+                    vr = float(np.asarray(env.get_current_velocity(float(y_rov)), dtype=float).reshape(-1)[0])
+                    no_current = max(abs(v0), abs(vr)) <= 1e-9
+                except Exception:
+                    no_current = False
+
+                if no_current:
+                    L_cmd = float(L)
+                    dx_abs = abs(float(x_rov - x_boat))
+                    dy_abs = abs(float(y_rov - 0.0))
+                    L_straight = float(np.hypot(float(x_rov - x_boat), float(y_rov - 0.0)))
+                    L_surface_vertical = dx_abs + dy_abs
+                    tol = 1e-9
+
+                    # Cas 4: impossible physiquement.
+                    if L_cmd < L_straight - tol:
+                        raise ValueError(
+                            f"[INIT] Configuration mission impossible: L={L_cmd:.3f} < L_straight={L_straight:.3f}"
+                        )
+
+                    # Cas 1 et 3: géométrie déterministe exacte.
+                    if L_cmd >= L_surface_vertical - tol or abs(L_cmd - L_straight) <= tol:
+                        x_fix, y_fix = _build_length_exact_polyline_case1_or_straight(
+                            x_boat, 0.0, x_rov, y_rov, L_cmd, system.N
+                        )
+                        if x_fix is not None and y_fix is not None:
+                            x_cable = np.asarray(x_fix, dtype=float)
+                            y_cable = np.asarray(y_fix, dtype=float)
+                            trace_print(
+                                5,
+                                f"[INIT] Sans courant cas 1/3 appliqué: "
+                                f"L_cmd={L_cmd:.3f} L_seg_before={L_seg_after_norm:.3f} "
+                                f"L_seg_after={float(np.sum(np.hypot(np.diff(x_cable), np.diff(y_cable)))):.3f}"
+                            )
+                    else:
+                        # Cas 2 : câble flottant (spec chaînette z=-y) puis solveur / heuristique.
+                        used = ""
+                        x_fix, y_fix = None, None
+                        if is_buoyant_cable(system):
+                            try:
+                                x_fix, y_fix = build_buoyant_cable_polyline(
+                                    float(x_boat),
+                                    0.0,
+                                    float(x_rov),
+                                    float(y_rov),
+                                    L_cmd,
+                                    system.N,
+                                    slack_side="auto",
+                                )
+                                if x_fix is not None and y_fix is not None:
+                                    used = "buoyant_spec"
+                            except Exception as e_buoy:
+                                trace_print(
+                                    5,
+                                    f"[INIT] Chaînette flottante (spec analytique): {e_buoy}",
+                                )
+                                x_fix, y_fix = None, None
+                        if x_fix is None:
+                            x_fix, y_fix = _build_case2_catenary_chain(
+                                system, x_boat, 0.0, x_rov, y_rov, L_cmd
+                            )
+                            if x_fix is None or y_fix is None:
+                                x_fix, y_fix = _build_length_exact_polyline_case2_curve(
+                                    x_boat, 0.0, x_rov, y_rov, L_cmd, system.N
+                                )
+                                used = used or "heuristique"
+                            else:
+                                used = used or "chaînette"
+                        if x_fix is not None and y_fix is not None:
+                            x_cable = np.asarray(x_fix, dtype=float)
+                            y_cable = np.asarray(y_fix, dtype=float)
+                            if used == "buoyant_spec":
+                                try:
+                                    xc, yc, sm, _ = (
+                                        system.cable.solver._normalize_cable_length(
+                                            x_cable,
+                                            y_cable,
+                                            L_cmd,
+                                            x_boat=float(x_boat),
+                                            y_boat=0.0,
+                                            x_rov=float(x_rov),
+                                            y_rov=float(y_rov),
+                                            k_tail=10,
+                                            t=0.0,
+                                        )
+                                    )
+                                    x_cable = np.asarray(xc, dtype=float)
+                                    y_cable = np.asarray(yc, dtype=float)
+                                    if sm:
+                                        x_rov = float(x_cable[-1])
+                                        y_rov = float(y_cable[-1])
+                                except Exception as e_pn:
+                                    trace_print(
+                                        8,
+                                        f"[INIT] Post-normalisation câble flottant: {e_pn}",
+                                    )
+                            trace_print(
+                                5,
+                                f"[INIT] Sans courant cas 2 ({used or 'chaînette'}): "
+                                f"L_cmd={L_cmd:.3f} L_seg_before={L_seg_after_norm:.3f} "
+                                f"L_seg_after={float(np.sum(np.hypot(np.diff(x_cable), np.diff(y_cable)))):.3f}"
+                            )
+                        else:
+                            trace_print(
+                                5,
+                                f"[INIT] Sans courant cas 2 impossible: "
+                                f"L_cmd={L_cmd:.3f} L_seg={L_seg_after_norm:.3f}"
+                            )
+                elif abs(L_seg_after_norm - float(L)) > 1e-2:
+                    trace_print(
+                        5,
+                        f"[INIT] Dérive longueur conservée (courant non nul): "
+                        f"L_cmd={float(L):.3f} L_seg={L_seg_after_norm:.3f}"
+                    )
+
+                # Synchroniser explicitement l'état packé avec la géométrie corrigée.
+                idx_x_cable = 6
+                idx_y_cable = idx_x_cable + system.N + 1
+                idx_t_cable = idx_y_cable + system.N + 1
+                y0[idx_x_cable:idx_y_cable] = x_cable
+                y0[idx_y_cable:idx_t_cable] = y_cable
+                y0[0] = float(x_rov)
+                y0[1] = float(y_rov)
             
             
             # IMPORTANT: Dans solve_equilibrium_static, le câble va du ROV (index 0) au bateau (index -1)
@@ -2175,9 +2633,14 @@ class SimulationTab(QWidget):
                     # Si L > D_straight, le slack est positif (câble avec courbure)
                     slack = L - D_straight
                     self.slack_label.setText(f"{slack:.2f} m")
+                    if slack < 0.0:
+                        self.slack_label.setStyleSheet("color: #c62828; font-weight: bold;")
+                    else:
+                        self.slack_label.setStyleSheet("")
                 except Exception:
                     self.length_straight_label.setText("0.00 m")
                     self.slack_label.setText("0.00 m")
+                    self.slack_label.setStyleSheet("")
             else:
                 # Fallback : calculer depuis les positions si D_straight n'est pas disponible
                 if data.get('x_boat') and data.get('x_rov') and data.get('y_rov'):
@@ -2190,12 +2653,18 @@ class SimulationTab(QWidget):
                         self.length_straight_label.setText(f"{D_straight:.2f} m")
                         slack = L - D_straight
                         self.slack_label.setText(f"{slack:.2f} m")
+                        if slack < 0.0:
+                            self.slack_label.setStyleSheet("color: #c62828; font-weight: bold;")
+                        else:
+                            self.slack_label.setStyleSheet("")
                     except Exception:
                         self.length_straight_label.setText("0.00 m")
                         self.slack_label.setText("0.00 m")
+                        self.slack_label.setStyleSheet("")
                 else:
                     self.length_straight_label.setText("0.00 m")
                     self.slack_label.setText("0.00 m")
+                    self.slack_label.setStyleSheet("")
 
             if data.get('cable_mode'):
                 last_mode = data['cable_mode'][-1]
@@ -2214,17 +2683,37 @@ class SimulationTab(QWidget):
                     if len(x_cable) > 1 and len(y_cable) > 1:
                         ds = np.hypot(np.diff(x_cable), np.diff(y_cable))
                         length_segments = float(np.sum(ds))
+                        drift = float(length_segments - L)
                         self.length_segments_label.setText(f"{length_segments:.2f} m")
-                        self.length_drift_label.setText(f"{(length_segments - L):.2f} m")
+                        self.length_drift_label.setText(f"{drift:.2f} m")
+                        if abs(drift) > 1e-2:
+                            self.length_drift_label.setStyleSheet("color: #c62828; font-weight: bold;")
+                        else:
+                            self.length_drift_label.setStyleSheet("")
                     else:
                         self.length_segments_label.setText("0.00 m")
-                        self.length_drift_label.setText(f"{(0.0 - L):.2f} m")
+                        drift = float(0.0 - L)
+                        self.length_drift_label.setText(f"{drift:.2f} m")
+                        if abs(drift) > 1e-2:
+                            self.length_drift_label.setStyleSheet("color: #c62828; font-weight: bold;")
+                        else:
+                            self.length_drift_label.setStyleSheet("")
                 except Exception:
                     self.length_segments_label.setText("0.00 m")
-                    self.length_drift_label.setText(f"{(0.0 - L):.2f} m")
+                    drift = float(0.0 - L)
+                    self.length_drift_label.setText(f"{drift:.2f} m")
+                    if abs(drift) > 1e-2:
+                        self.length_drift_label.setStyleSheet("color: #c62828; font-weight: bold;")
+                    else:
+                        self.length_drift_label.setStyleSheet("")
             else:
                 self.length_segments_label.setText("0.00 m")
-                self.length_drift_label.setText(f"{(0.0 - L):.2f} m")
+                drift = float(0.0 - L)
+                self.length_drift_label.setText(f"{drift:.2f} m")
+                if abs(drift) > 1e-2:
+                    self.length_drift_label.setStyleSheet("color: #c62828; font-weight: bold;")
+                else:
+                    self.length_drift_label.setStyleSheet("")
             
             if data.get('T_max'):
                 T_max = data['T_max'][-1] if data['T_max'] else 0.0

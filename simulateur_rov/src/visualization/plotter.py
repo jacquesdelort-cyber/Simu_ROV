@@ -103,8 +103,8 @@ def create_system_plot(
             for i in range(len(hover_texts)):
                 hover_texts[i] += f"<br>Tension: {float(T_cable_complete[i]):.2f} N"
 
-        # Câble (profil complet avec courbe lisse)
-        # Afficher tous les points du câble pour montrer le vrai profil
+        # Câble : ligne brisée entre nœuds (pas de line.smoothing Plotly : la spline peut
+        # dépasser les points et donner une fausse « bosse vers la surface » sur une chaînette).
         if cable_mode == "straight":
             cable_color = "#d9534f"
         else:
@@ -115,7 +115,7 @@ def create_system_plot(
             'y': y_cable_complete,
             'mode': 'lines+markers',
             'name': 'Câble',
-            'line': dict(color=cable_color, width=3, smoothing=1.3),
+            'line': dict(color=cable_color, width=3, shape='linear'),
             'marker': dict(size=3, color=cable_color, opacity=0.5, symbol='circle'),
             'showlegend': True
         }
