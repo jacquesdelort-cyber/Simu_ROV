@@ -7,6 +7,9 @@ import numpy as np
 
 from src.utils.logger import trace_print
 
+_ANSI_RESET = "\033[0m"
+_ANSI_RED = "\033[91m"
+
 
 def contrôle_câble(
     x_cable: list[float] | np.ndarray,
@@ -17,7 +20,7 @@ def contrôle_câble(
     y_rov: float,
     L: float,
     tol_segment: float = 1e-2,
-) -> tuple[bool, bool, bool, bool, bool, list[int]]:
+) -> tuple[bool, bool, bool, bool, bool, list[int], str]:
     """
     Vérifie que la géométrie du câble respecte les contraintes suivantes :
     
@@ -44,18 +47,20 @@ def contrôle_câble(
     L : float
         Longueur totale du câble L(t)
     tol_segment : float
-        Tolérance pour la longueur des segments (défaut: 1e-3 m)
+        Tolérance pour la longueur des segments (défaut: 1e-2 m)
     
     Returns:
     --------
-    tuple[bool, bool, bool, bool, bool, list[int]]
-        (r1, r2, r3, r4, r5, ls) où :
+    tuple[bool, bool, bool, bool, bool, list[int], str]
+        (r1, r2, r3, r4, r5, ls, msg_err) où :
         - r1 : True si le point 0 correspond au bateau
         - r2 : True si le point N correspond au ROV
         - r3 : True si la somme des segments = L(t)
         - r4 : True si Slack(t) >= 0
         - r5 : True si tous les segments ont la longueur L(t)/N à tol_segment près
         - ls : Liste des indices de segments ne respectant pas la contrainte 5
+        - msg_err : concaténation (séparateur ``\\n``) des messages de violation,
+          même libellés que dans ``auto_L_7`` ; chaîne vide si tout est valide.
     """
     # Convertir en arrays numpy si nécessaire
     x_cable = np.asarray(x_cable, dtype=float)
@@ -63,18 +68,32 @@ def contrôle_câble(
     
     N = len(x_cable) - 1  # Nombre de segments
     if N <= 0:
-        return (False, False, False, False, False, [])
+        msg0 = "Géométrie câble invalide : moins d'un segment (N<=0)."
+        return (False, False, False, False, False, [], msg0)
     
+    errors: list[str] = []
+
     # Contrainte 1 : Le point 0 correspond au bateau
-    tol_position = 1e-2  # Tolérance pour la position
+    tol_position = tol_segment  
     r1 = (abs(x_cable[0] - x_boat) < tol_position and 
           abs(y_cable[0] - y_boat) < tol_position)
-    
+    if not r1:
+        errors.append(
+            f"Contrainte 1 violée : Le point 0 du câble ({x_cable[0]:.6f}, {y_cable[0]:.6f}) "
+            f"ne correspond pas au bateau ({float(x_boat):.6f}, {float(y_boat):.6f})"
+        )
+
     # Contrainte 2 : Le point N correspond au ROV
     r2 = (abs(x_cable[-1] - x_rov) < tol_position and 
           abs(y_cable[-1] - y_rov) < tol_position)
-    
+    if not r2:
+        errors.append(
+            f"Contrainte 2 violée : Le point N du câble ({x_cable[-1]:.6f}, {y_cable[-1]:.6f}) "
+            f"ne correspond pas au ROV ({float(x_rov):.6f}, {float(y_rov):.6f})"
+        )
+
     # Contrainte 3 : La somme des longueurs des N segments = L(t)
+    tol_total_length = 1e-3 * L
     L_total = 0.0
     segment_lengths = []
     for i in range(N):
@@ -84,16 +103,30 @@ def contrôle_câble(
         segment_lengths.append(ds)
         L_total += ds
     
-    tol_length = 1e-2  # Tolérance pour la longueur totale
-    r3 = abs(L_total - L) < tol_length
-    
+    r3 = abs(L_total - L) < tol_total_length
+    if not r3:
+        errors.append(
+            f"Contrainte 3 violée : La somme des longueurs des segments ({L_total:.6f} m) "
+            f"n'est pas égale à L(t) ({float(L):.6f} m)"
+        )
+
     # Contrainte 4 : Slack(t) = L(t) - L_straight(t) >= 0
+    tol_slack = -1e-2
     dx_straight = x_rov - x_boat
     dy_straight = y_rov - y_boat
     L_straight = np.sqrt(dx_straight**2 + dy_straight**2)
     slack = L - L_straight
-    r4 = slack >= -1e-2  # Tolérance de 1e-6 m pour le slack
-    
+    r4 = slack >= tol_slack  
+    if not r4:
+        dx_straight = float(x_rov - x_boat)
+        dy_straight = float(y_rov - y_boat)
+        L_straight = float(np.sqrt(dx_straight**2 + dy_straight**2))
+        slack = float(L) - L_straight
+        errors.append(
+            f"Contrainte 4 violée : Slack(t) = {slack:.6f} m < 0 "
+            f"(L={float(L):.6f} m, L_straight={L_straight:.6f} m)"
+        )
+
     # Contrainte 5 : Chaque segment a une longueur = L(t)/N à tol_segment près
     ds_target = L / N if N > 0 else 0.0
     r5 = True
@@ -103,8 +136,15 @@ def contrôle_câble(
         if abs(ds - ds_target) > tol_segment:
             r5 = False
             ls.append(i)
-    
-    return (r1, r2, r3, r4, r5, ls)
+    if not r5:
+        ds_target_msg = float(L) / N if N > 0 else 0.0
+        errors.append(
+            f"Contrainte 5 violée : {len(ls)} segment(s) ne respectent pas la longueur cible "
+            f"(ds_target={ds_target_msg:.6f} m, tol={tol_segment} m). Segments: {ls}"
+        )
+
+    msg_err = "\n".join(errors)
+    return (r1, r2, r3, r4, r5, ls, msg_err)
 
 # Pattern pour les noms de fonctions auto_L : auto_L_ suivi d'un identifiant (alphanumérique + _)
 # Permet auto_L_1, auto_L_7, auto_L_basic, etc. (nom complet doit être un identifiant Python valide)
@@ -1657,6 +1697,9 @@ def auto_L_7(
     Paramètres utilisés: t, y_rov, L, Fx_rov, Fy_rov, T_boat, x_rov, x_boat,
     Trupt, Tcible, Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, data, K, N.
     """
+
+    debug_auto_L_7 = 9
+
     if not hasattr(auto_L_7, "_history"):
         auto_L_7._history = []
 
@@ -1690,7 +1733,7 @@ def auto_L_7(
             y_cable_val = y_cable_curr if isinstance(y_cable_curr, list) else list(y_cable_curr)
             
             # Vérifier les contraintes
-            r1, r2, r3, r4, r5, ls = contrôle_câble(
+            r1, r2, r3, r4, r5, ls, msg_err = contrôle_câble(
                 x_cable_val, y_cable_val,
                 x_boat_val, y_boat_curr,
                 x_rov, y_rov,
@@ -1698,36 +1741,9 @@ def auto_L_7(
                 tol_segment=1e-2
             )
             
-            # Produire un message d'erreur si une contrainte n'est pas respectée
-            errors = []
-            if not r1:
-                errors.append(f"Contrainte 1 violée : Le point 0 du câble ({x_cable_val[0]:.6f}, {y_cable_val[0]:.6f}) "
-                            f"ne correspond pas au bateau ({x_boat_val:.6f}, {y_boat_curr:.6f})")
-            if not r2:
-                errors.append(f"Contrainte 2 violée : Le point N du câble ({x_cable_val[-1]:.6f}, {y_cable_val[-1]:.6f}) "
-                            f"ne correspond pas au ROV ({x_rov:.6f}, {y_rov:.6f})")
-            if not r3:
-                L_total = sum(np.sqrt((x_cable_val[i+1] - x_cable_val[i])**2 + 
-                                      (y_cable_val[i+1] - y_cable_val[i])**2) 
-                             for i in range(len(x_cable_val) - 1))
-                errors.append(f"Contrainte 3 violée : La somme des longueurs des segments ({L_total:.6f} m) "
-                            f"n'est pas égale à L(t) ({L:.6f} m)")
-            if not r4:
-                dx_straight = x_rov - x_boat_val
-                dy_straight = y_rov - y_boat_curr
-                L_straight = np.sqrt(dx_straight**2 + dy_straight**2)
-                slack = L - L_straight
-                errors.append(f"Contrainte 4 violée : Slack(t) = {slack:.6f} m < 0 "
-                            f"(L={L:.6f} m, L_straight={L_straight:.6f} m)")
-            if not r5:
-                N_seg = len(x_cable_val) - 1
-                ds_target = L / N_seg if N_seg > 0 else 0.0
-                errors.append(f"Contrainte 5 violée : {len(ls)} segment(s) ne respectent pas la longueur cible "
-                            f"(ds_target={ds_target:.6f} m, tol=1e-3 m). Segments: {ls}")
-            
-            if errors:
-                error_msg = f"[ERREUR contrôle_câble à t={t:.3f} s]\n" + "\n".join(errors)
-                trace_print(8, error_msg)
+            if msg_err:
+                error_msg = f"IC_L_7 :  t={t:.3f} s    {_ANSI_RED}Erreur contrôle_câble:{_ANSI_RESET}\n" + msg_err
+                trace_print(debug_auto_L_7, error_msg)
                 # Ne pas lever d'exception pour ne pas interrompre la simulation,
                 # mais afficher l'erreur dans les logs
     
@@ -1822,9 +1838,11 @@ def auto_L_7(
         return vals[-1] if isinstance(vals, list) and vals else None
 
     def _fmt(val):
+        # Renvoie un formatage de la valeur val avec 2 chiffres après la virgule
         return f"{val: 3.2f}" if isinstance(val, (int, float)) else "None"
     
     def _fmt_vec(val):
+        # Renvoie un formatage de la valeur val avec 2 chiffres après la virgule
         if isinstance(val, (list, tuple)) and len(val) == 2:
             return f"({val[0]: 3.2f}, {val[1]: 3.2f})"
         return "None"
@@ -1837,7 +1855,7 @@ def auto_L_7(
     t_soft = 0.80 * Trupt
     t_hard = 0.90 * Trupt
     if curr["T"] is None or Tcible in (None, 0):
-        trace_print(8, "IC_L_7: "
+        trace_print(debug_auto_L_7, "IC_L_7: "
             f"t={_fmt(t_display)}, "
             f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
             f"L_straight={L_straight: 6.2f}, "
@@ -2037,7 +2055,7 @@ def auto_L_7(
     L_param = L  # L passé en paramètre à auto_L_7
     L_curr = curr.get('L')
     if L_curr is not None and abs(L_param - L_curr) > 1e-2:
-        trace_print(8, f"[DEBUG L] auto_L_7 INCOHÉRENCE: "
+        trace_print(debug_auto_L_7, f"[DEBUG L] auto_L_7 INCOHÉRENCE: "
             f"L_param={L_param:.6f} m, curr['L']={L_curr:.6f} m, "
             f"ÉCART={abs(L_param - L_curr):.6f} m"
         )
@@ -2049,7 +2067,7 @@ def auto_L_7(
     T_rov_display = curr.get('T_rov')
     cable_drag_display = _last_val('cable_drag')
     
-    trace_print(8, "\nIC_L_7: "
+    trace_print(debug_auto_L_7, "\nIC_L_7: "
         f"t={_fmt(t_display)}, "
         f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
         f"L_straight={L_straight: 6.2f}, "
@@ -2061,7 +2079,7 @@ def auto_L_7(
         f"desired={desired: 6.2f}, ret={ret: 6.2f}, exp={exp}"
     )
     # DEBUG: Traçage supplémentaire pour diagnostic
-    trace_print(8, f"[DEBUG L] IC_L_7: t={_fmt(t_display)}, "
+    trace_print(debug_auto_L_7-2, f"[DEBUG L] IC_L_7: t={_fmt(t_display)}, "
         f"L_param={L_param:.6f} m, curr['L']={_fmt(L_curr)}, "
         f"L_last_data={_fmt(_last_val('L'))} m"
     )

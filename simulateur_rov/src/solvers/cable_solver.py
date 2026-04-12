@@ -8,6 +8,7 @@ from numpy._typing import _64Bit
 from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint
 from scipy.interpolate import interp1d
 from src.utils.logger import trace_print
+from src.utils.scenario_utils import contrôle_câble
 from src.utils.utils import (
     enforce_cable_segments_nb,
     scale_slack,
@@ -31,6 +32,32 @@ _ANSI_LIGHT_RED = "\033[91m"
 # Quatrième valeur de retour de ``_normalize_cable_length`` : origine de la géométrie renvoyée.
 NCL_SOURCE_NORMALIZE_SEGMENTS = "_normalize_cable_segments"
 NCL_SOURCE_HISTORICAL_FALLBACK = "_normalize_cable_length_historical_fallback"
+
+# Recalage ROV en mode straight : au-delà, on refuse le résultat segments et on enchaîne le fallback.
+STRAIGHT_ROV_SNAP_MAX_M = 0.1
+
+
+def apply_straight_mode_rov_snap(
+    straight_mode: bool,
+    x_rov: float,
+    y_rov: float,
+    x_cable,
+    y_cable,
+) -> tuple[float, float]:
+    """
+    Met à jour (x_rov, y_rov) depuis l'extrémité câble seulement si straight_mode et saut ≤ STRAIGHT_ROV_SNAP_MAX_M.
+    Sinon recolle ``x_cable[-1], y_cable[-1]`` au ROV (évite une fin de câble « mode straight » incohérente).
+    """
+    xc = np.asarray(x_cable, dtype=float)
+    yc = np.asarray(y_cable, dtype=float)
+    if not straight_mode:
+        return float(x_rov), float(y_rov)
+    snap = float(np.hypot(float(xc[-1]) - float(x_rov), float(yc[-1]) - float(y_rov)))
+    if snap <= STRAIGHT_ROV_SNAP_MAX_M:
+        return float(xc[-1]), float(yc[-1])
+    xc[-1] = float(x_rov)
+    yc[-1] = float(y_rov)
+    return float(x_rov), float(y_rov)
 
 
 def _ncl_trace_level(level: int, mode_test: bool) -> int:
@@ -67,6 +94,8 @@ class CableSolver:
         # Mis à jour à chaque pas dans ``simulation_thread`` ; utilisé si ``t`` est omis dans
         # ``_normalize_cable_length`` (ex. construction du câble initial).
         self._last_sim_time: float = 0.0
+        # Compteur d'échecs normalisation (limite les snapshots de debug) — ne pas attacher à la méthode.
+        self._normalize_cable_length_nb_echecs: int = 0
 
     def _str_cable_info(
         self,
@@ -240,6 +269,83 @@ class CableSolver:
         T = Q_proj + float(k) * (Q_arr - Q_proj)
         return T, "aplatir_polyline: OK"
 
+    def _remap_polyline_arclength_to_chord(self, P: np.ndarray) -> np.ndarray:
+        """
+        Même nombre de sommets : paramètre d'abscisse curviligne normalisée sur [0,1],
+        puis position sur la corde droite P[0] → P[-1]. La polyligne résultante est
+        monotone le long de la corde et sa longueur vaut exactement ||P[-1]-P[0]||.
+        """
+        P = np.asarray(P, dtype=float)
+        if P.ndim != 2 or P.shape[1] != 2 or P.shape[0] < 2:
+            return np.array(P, dtype=float, copy=True)
+        q0 = P[0].copy()
+        qn = P[-1].copy()
+        seg = np.linalg.norm(np.diff(P, axis=0), axis=1)
+        Lp = float(np.sum(seg))
+        if Lp <= 1e-15:
+            return P.copy()
+        u = np.zeros(P.shape[0], dtype=float)
+        u[1:] = np.cumsum(seg) / Lp
+        d = qn - q0
+        return q0 + u[:, None] * d
+
+    def _bisect_blend_polyline_length_to_target(
+        self,
+        Q_shorter: np.ndarray,
+        Q_longer: np.ndarray,
+        q0: np.ndarray,
+        qn: np.ndarray,
+        L_target: float,
+        tol: float,
+    ) -> tuple[np.ndarray | None, str]:
+        """
+        Trouve α ∈ [0,1] tel que la longueur de (1-α) Q_shorter + α Q_longer
+        (recollage des extrémités sur q0, qn et clip y <= 0) soit proche de L_target.
+        On suppose polyline_length(Q_shorter) < polyline_length(Q_longer).
+        """
+        Q_s = np.asarray(Q_shorter, dtype=float)
+        Q_l = np.asarray(Q_longer, dtype=float)
+        if Q_s.shape != Q_l.shape:
+            return None, "blend: formes différentes"
+        q0 = np.asarray(q0, dtype=float).reshape(2)
+        qn = np.asarray(qn, dtype=float).reshape(2)
+
+        def synth(alpha: float) -> tuple[float, np.ndarray]:
+            T = (1.0 - alpha) * Q_s + alpha * Q_l
+            T = np.asarray(T, dtype=float, copy=True)
+            T[0] = q0
+            T[-1] = qn
+            T[:, 1] = np.minimum(T[:, 1], 0.0)
+            T[0] = q0
+            T[-1] = qn
+            diffs = np.diff(T, axis=0)
+            return float(np.sum(np.linalg.norm(diffs, axis=1))), T
+
+        L_lo, T_lo = synth(0.0)
+        L_hi, T_hi = synth(1.0)
+        if abs(L_lo - L_target) <= tol:
+            return T_lo, "blend: alpha=0"
+        if abs(L_hi - L_target) <= tol:
+            return T_hi, "blend: alpha=1"
+        if L_target < L_lo - tol or L_target > L_hi + tol:
+            return None, "blend: L_target hors [L_courte, L_longue]"
+        a_lo, a_hi = 0.0, 1.0
+        for _ in range(100):
+            a_mid = 0.5 * (a_lo + a_hi)
+            L_mid, T_mid = synth(a_mid)
+            if abs(L_mid - L_target) <= tol:
+                return T_mid, "blend: dichotomie OK"
+            if L_mid < L_target:
+                a_lo = a_mid
+            else:
+                a_hi = a_mid
+            if a_hi - a_lo < 1e-14:
+                break
+        L_mid, T_mid = synth(0.5 * (a_lo + a_hi))
+        if abs(L_mid - L_target) <= 10.0 * tol:
+            return T_mid, "blend: dichotomie (tol élargie)"
+        return None, "blend: échec dichotomie"
+
     def deformer_polyline(self, Q: np.ndarray, L_target: float, atol: float, rtol: float) -> tuple[np.ndarray | None, str]:
         """
         Déforme la polyline `Q` en faisant varier un facteur d'aplatissement `k >= 0`.
@@ -301,9 +407,36 @@ class CableSolver:
         if abs(L_low - L_target) <= tol:
             return R_low, "deformer_polyline: L_low = L_target"
 
-        # Si L(k) ne peut pas descendre sous L_low (hypothèse monotone pour k>=0),
-        # alors c'est impossible si L_target < L_low.
+        # Si L(k=0) > L_target : la projection sur la corde dans l'ordre des indices peut
+        # zigzaguer (longueur > L_target alors que la corde géométrique est plus courte).
+        # On ramène d'abord sur la corde monotone (longueur = corde), puis on mélange avec Q.
         if L_target < L_low - tol:
+            Q_flat = self._remap_polyline_arclength_to_chord(Q_arr)
+            L_flat = polyline_length(Q_flat)
+            L_orig = polyline_length(Q_arr)
+            # Câble tendu (L_target ≈ corde) : pas de marge pour « mélanger » au‑dessus de L_flat.
+            # Sinon lo_b + tol < L_target échoue et on renvoyait None avec une géométrie encore folle.
+            if float(L_target) <= L_flat + tol:
+                Tq = np.asarray(Q_flat, dtype=float, copy=True)
+                Tq[0] = np.asarray(q0, dtype=float)
+                Tq[-1] = np.asarray(qn, dtype=float)
+                Tq[:, 1] = np.minimum(Tq[:, 1], 0.0)
+                Tq[0] = np.asarray(q0, dtype=float)
+                Tq[-1] = np.asarray(qn, dtype=float)
+                return Tq, "deformer_polyline: corde monotone (L_target ≤ L_chord+tol)"
+            lo_b, hi_b = min(L_flat, L_orig), max(L_flat, L_orig)
+            if lo_b + tol < float(L_target) < hi_b - tol and L_flat + 1e-9 < L_orig:
+                Q_s, Q_l = (Q_flat, Q_arr) if L_flat < L_orig else (Q_arr, Q_flat)
+                Tb, msg_b = self._bisect_blend_polyline_length_to_target(
+                    Q_s,
+                    Q_l,
+                    np.asarray(q0, dtype=float),
+                    np.asarray(qn, dtype=float),
+                    L_target,
+                    tol,
+                )
+                if Tb is not None:
+                    return Tb, msg_b
             return None, "deformer_polyline: L_target < L_low"
 
         k_high = 1.0
@@ -332,6 +465,24 @@ class CableSolver:
                 k_high = k_mid
 
         return None, "deformer_polyline: Aucun k ne satisfait la tolérance"
+
+    def _pure_catenary_equilibrium_buoyant_cable(
+        self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None
+    ):
+        """
+        Poids linéique apparent négatif (ρ_cable < ρ_eau) : éviter ``solve_equilibrium_constrained``.
+
+        L'optimisation sous contraintes minimise les résidus avec une charge distribuée vers
+        le haut, ce qui recourbe artificiellement le câble vers la surface. Pour garder une
+        chaînette « pendante » (sous la corde bateau–ROV, y <= corde), on retient uniquement
+        ``_solve_catenary`` + tensions cohérentes.
+        """
+        w = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        x_cable, y_cable = self._solve_catenary(x_rov, y_rov, x_boat, L, w)
+        T = self._compute_catenary_tensions(
+            x_cable, y_cable, w, rov_m=rov_m, rov_vol=rov_vol
+        )
+        return x_cable, y_cable, T
 
     def solve_equilibrium_static(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None):
         """
@@ -372,6 +523,16 @@ class CableSolver:
         if L <= 0:
             # Câble de longueur nulle
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
+
+        weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        if weight_per_unit < 0.0:
+            trace_print(
+                5,
+                "[DEBUG] Câble flottant (w<0) : pas d'optimisation contrainte, chaînette pendante.",
+            )
+            return self._pure_catenary_equilibrium_buoyant_cable(
+                x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+            )
         
         # Préparer les paramètres pour le wrapper de forces
         params_forces = {
@@ -403,7 +564,6 @@ class CableSolver:
         
         # Recalculer les tensions correctement en utilisant l'équilibre des forces
         # (le solveur avec contraintes retourne une estimation simple)
-        weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
         T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol)
         
         return x_cable, y_cable, T
@@ -425,6 +585,16 @@ class CableSolver:
         
         if L <= 0:
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
+
+        weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        if weight_per_unit < 0.0:
+            trace_print(
+                5,
+                "[DEBUG] Câble flottant (w<0) + courant : géométrie chaînette pendante (sans opt. contrainte).",
+            )
+            return self._pure_catenary_equilibrium_buoyant_cable(
+                x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+            )
         
         # Préparer les paramètres pour le wrapper de forces
         params_forces = {
@@ -456,7 +626,6 @@ class CableSolver:
         
         # Recalculer les tensions correctement en utilisant l'équilibre des forces
         # (le solveur avec contraintes retourne une estimation simple)
-        weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
         T = self._compute_catenary_tensions(x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol)
         
         return x_cable, y_cable, T
@@ -803,25 +972,9 @@ class CableSolver:
         if points_above_surface > 0:
             trace_print(7, f"[DEBUG] _solve_catenary: ⚠️  {points_above_surface} points étaient au-dessus de la surface et ont été clippés")
 
-        # Si la flottabilité est positive (w < 0), inverser la caténaire
-        # par rapport à la droite bateau-ROV pour obtenir une courbure vers le haut.
-        if w < 0:
-            dx_line = x_rov - x_boat
-            dy_line = y_rov - 0.0
-            if abs(dx_line) > 1e-9:
-                s = (x_cable - x_boat) / dx_line
-                s = np.clip(s, 0.0, 1.0)
-                y_line = s * dy_line
-            else:
-                s = np.linspace(0.0, 1.0, len(x_cable))
-                y_line = s * dy_line
-            y_cable = 2.0 * y_line - y_cable
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
-            # Re-clipper après inversion
-            y_cable = np.clip(y_cable, None, 0.0)
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
+        # Câble flottant (w < 0) ou lourd (w > 0) : même géométrie de chaînette « pendante »
+        # (courbure vers le bas, sous la corde bateau–ROV, y <= 0). L’ancienne inversion
+        # par rapport à la corde pour w < 0 est retirée (affichage / init cohérents missions test).
         
         # Vérifier la longueur
         L_actual = 0.0
@@ -841,9 +994,7 @@ class CableSolver:
                 x_rov=x_rov,
                 y_rov=y_rov
             )
-            if straight_mode:
-                x_rov = float(x_cable[-1])
-                y_rov = float(y_cable[-1])
+            x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
             
             # CONTRAINTE PHYSIQUE : Après normalisation, forcer y <= 0
             y_cable = np.clip(y_cable, None, 0.0)
@@ -975,9 +1126,7 @@ class CableSolver:
                         x_rov=float(x_rov),
                         y_rov=float(y_rov),
                     )
-                    if straight_mode:
-                        x_rov = float(x_cable[-1])
-                        y_rov = float(y_cable[-1])
+                    x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
                 except Exception:
                     # Fallback : interpolation linéaire en abscisse curviligne
                     s_points = np.linspace(0.0, L, self.N + 1)
@@ -1173,9 +1322,7 @@ class CableSolver:
                     x_rov=float(x_rov),
                     y_rov=float(y_rov),
                 )
-                if straight_mode:
-                    x_rov = float(x_cable[-1])
-                    y_rov = float(y_cable[-1])
+                x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
             except Exception:
                 pass
             return x_cable, y_cable, T
@@ -1320,9 +1467,7 @@ class CableSolver:
         # Normaliser la géométrie finale pour garantir Σds = L et segments égaux
         try:
             x_cable, y_cable, straight_mode, _ = self._normalize_cable_length(x_cable, y_cable, L)
-            if straight_mode:
-                x_rov = float(x_cable[-1])
-                y_rov = float(y_cable[-1])
+            x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
         except Exception:
             pass
         # CONTRAINTE PHYSIQUE : Le câble ne peut pas être au-dessus de la surface (y > 0)
@@ -1663,21 +1808,7 @@ class CableSolver:
         x_cable[-1] = x_rov
         y_cable[-1] = y_rov
 
-        # Si la flottabilité est positive (w < 0), inverser la caténaire
-        # par rapport à la droite bateau-ROV pour obtenir une courbure vers le haut.
-        if w < 0:
-            dx_line = x_rov - x_boat
-            dy_line = y_rov - 0.0
-            if abs(dx_line) > 1e-9:
-                s = (x_cable - x_boat) / dx_line
-                s = np.clip(s, 0.0, 1.0)
-                y_line = s * dy_line
-            else:
-                s = np.linspace(0.0, 1.0, len(x_cable))
-                y_line = s * dy_line
-            y_cable = 2.0 * y_line - y_cable
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
+        # Câble flottant (w < 0) ou lourd : même géométrie de chaînette pendante (voir première définition).
         
         # Vérifier la longueur
         L_actual = 0.0
@@ -1698,9 +1829,7 @@ class CableSolver:
                 x_rov=x_rov,
                 y_rov=y_rov
             )
-            if straight_mode:
-                x_rov = float(x_cable[-1])
-                y_rov = float(y_cable[-1])
+            x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
             
             # CONTRAINTE PHYSIQUE : Après normalisation, forcer y <= 0
             y_cable = np.clip(y_cable, None, 0.0)
@@ -2266,27 +2395,16 @@ class CableSolver:
         
         # Forcer les extrémités exactement (important pour la continuité)
         # Index 0 = bateau, index -1 = ROV (convention cohérente avec le système)
-            x_cable[0] = x_boat
-            y_cable[0] = 0.0
-            x_cable[-1] = x_rov
-            y_cable[-1] = y_rov
-            
-        # Si la flottabilité est positive (w < 0), inverser la caténaire
-        # par rapport à la droite bateau-ROV pour obtenir une courbure vers le haut.
-        if w < 0:
-            dx_line = x_rov - x_boat
-            dy_line = y_rov - 0.0
-            if abs(dx_line) > 1e-9:
-                s = (x_cable - x_boat) / dx_line
-                s = np.clip(s, 0.0, 1.0)
-                y_line = s * dy_line
-            else:
-                s = np.linspace(0.0, 1.0, len(x_cable))
-                y_line = s * dy_line
-            y_cable = 2.0 * y_line - y_cable
-            y_cable[0] = 0.0
-            y_cable[-1] = y_rov
-            
+        x_cable[0] = x_boat
+        y_cable[0] = 0.0
+        x_cable[-1] = x_rov
+        y_cable[-1] = y_rov
+
+        # CONTRAINTE PHYSIQUE : y <= 0 (surface). Même géométrie pour câble flottant (w < 0) ou lourd.
+        y_cable = np.clip(y_cable, None, 0.0)
+        y_cable[0] = 0.0
+        y_cable[-1] = y_rov
+
         # Vérifier la longueur
         L_actual = 0.0
         for i in range(self.N):
@@ -2305,16 +2423,14 @@ class CableSolver:
                 x_rov=x_rov,
                 y_rov=y_rov
             )
-            if straight_mode:
-                x_rov = float(x_cable[-1])
-                y_rov = float(y_cable[-1])
-        
+            x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
+
             # CONTRAINTE PHYSIQUE : Après normalisation, forcer y <= 0
             y_cable = np.clip(y_cable, None, 0.0)
             if x_boat is not None:
                 x_cable[0] = float(x_boat)
             y_cable[0] = 0.0
-        
+
         # Vérification finale de la longueur
         L_final = 0.0
         for i in range(self.N):
@@ -2908,9 +3024,7 @@ class CableSolver:
                     y_rov=float(y_rov),
                     k_max=k_max
                 )
-                if straight_mode:
-                    x_rov = float(x_cable[-1])
-                    y_rov = float(y_cable[-1])
+                x_rov, y_rov = apply_straight_mode_rov_snap(straight_mode, x_rov, y_rov, x_cable, y_cable)
                 trace_print(5, "[DEBUG] solve_equilibrium_constrained: _normalize_cable_length terminé avec succès")
             except Exception as e:
                 trace_print(7, f"[DEBUG] solve_equilibrium_constrained: Échec de _normalize_cable_length: {e}")
@@ -2968,6 +3082,18 @@ class CableSolver:
 
         if L <= 0:
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
+
+        weight_per_unit_dyn = (
+            (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        )
+        if weight_per_unit_dyn < 0.0:
+            trace_print(
+                5,
+                "[DEBUG] solve_equilibrium_dynamic : câble flottant (w<0), chaînette pendante sans optimisation.",
+            )
+            return self._pure_catenary_equilibrium_buoyant_cable(
+                x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+            )
         
         # Vitesses des points du câble (interpolation linéaire entre ROV et bateau)
         vx_cable = np.linspace(vx_rov, vx_boat, self.N + 1)
@@ -3203,7 +3329,7 @@ class CableSolver:
 
         # Export trace file moved to simulation-level CSV logging.
   
-    def _normalize_cable_geometry(
+    def deformer_polyline_cable_geometry(
         self, x_cable, y_cable, L_target, bateau, rov, N_target
     ) -> tuple[np.ndarray, np.ndarray, float, int, str]:
         """
@@ -3474,11 +3600,8 @@ class CableSolver:
         atol = 1e-3
         rtol = 1e-3
 
-        # Tolérance pour la postion des poinst et les segments
+        # Tolérance pour la postion des points et les segments
         atol_point, rtol_point = atol, rtol
-
-
-
         x_arr = np.asarray(x_cable, dtype=float).reshape(-1)
         y_arr = np.asarray(y_cable, dtype=float).reshape(-1)
         if x_arr.size != y_arr.size or x_arr.size < 2:
@@ -3518,7 +3641,7 @@ class CableSolver:
 
         P = np.stack([x_arr, y_arr], axis=1)
 
-        infos_cable_initial = self._str_cable_info(P, L_target, N_target, str_info=True)
+        infos_cable_initial = self._str_cable_info(P, L_target, N_target, str_info=False)
         L_cable_initial, N_cable_initial, ds_target_initial, min_seg_initial, max_seg_initial, str_info_initial = infos_cable_initial
         trace_print(debug_ncs, f"[normalize_segments] param 2 : {str_info_initial}")
         # trace_print(debug_ncs, f"[normalize_segments] param 3 : {self._str_cable_format(P)}")
@@ -3532,7 +3655,7 @@ class CableSolver:
         y_arr = P[:, 1]
         P[:, 1] = np.minimum(y_arr, 0.0)
 
-        info_clippling = self._str_cable_info(P, L_target, N_target, str_info=True)
+        info_clippling = self._str_cable_info(P, L_target, N_target, str_info=False)
         L_cable_clippling, N_cable_clippling, ds_target_clippling, min_seg_clippling, max_seg_clippling, str_info_clippling = info_clippling
         trace_print(debug_ncs, f"[normalize_segments] P clip  : {str_info_clippling}")
 
@@ -3558,15 +3681,18 @@ class CableSolver:
         boat_vec = np.asarray(bateau, dtype=float).reshape(-1)[:2]
         rov_vec = np.asarray(rov, dtype=float).reshape(-1)[:2]
         L_straight_bateau_rov = float(np.linalg.norm(rov_vec - boat_vec))
-        if L_straight_bateau_rov > float(L_target):
+        # Tolérance : éviter le mode « corde > L » pour des écarts purement numériques
+        # (sinon straight_mode + recalage ROV → sauts brutaux en projection).
+        tol_straight = max(1e-3, 1e-5 * max(abs(float(L_target)), L_straight_bateau_rov))
+        if L_straight_bateau_rov > float(L_target) + tol_straight:
             mode_straight = True
             rov_vec = boat_vec + (rov_vec - boat_vec) * (float(L_target) / L_straight_bateau_rov)
             rov = rov_vec.tolist()
             x_line = np.linspace(float(boat_vec[0]), float(rov_vec[0]), N_target + 1)
             y_line = np.linspace(float(boat_vec[1]), float(rov_vec[1]), N_target + 1)
             y_line = np.minimum(y_line, 0.0)
-            trace_print(debug_ncs - 2, f"[normalize_segments] P    : L_straight_bateau_rov ({L_straight_bateau_rov:8.3f}) > L_target ({L_target:8.3f})")
-            trace_print(debug_ncs - 2, f"[normalize_segments] -->   : {self._str_cable_format(P, L_target_initial / N_target_initial)}")
+            trace_print(debug_ncs - 5, f"[normalize_segments] P    : L_straight_bateau_rov ({L_straight_bateau_rov:8.3f}) > L_target ({L_target:8.3f})")
+            trace_print(debug_ncs - 5, f"[normalize_segments] -->   : {self._str_cable_format(P, L_target_initial / N_target_initial)}")
             return True, x_line, y_line, mode_straight, ""
         # endregion
 
@@ -3605,14 +3731,14 @@ class CableSolver:
         l_seg_target_blk = float(L_target) / float(N_target)
         if N_target % 2 == 1:
             # TODO cas où P[0] et P[1] sont confondus
-            trace_print(debug_ncs - 2, f"[normalize_segments] P  pair : {self._str_cable_format(P)}")
+            trace_print(debug_ncs - 5, f"[normalize_segments] P  pair : {self._str_cable_format(P)}")
             P[1] = P[0] + (P[1] - P[0]) * l_seg_target_blk / np.linalg.norm(P[1] - P[0])
-            trace_print(debug_ncs - 2, f"[normalize_segments] P  pair : {self._str_cable_format(P)}")
+            trace_print(debug_ncs - 5, f"[normalize_segments] P  pair : {self._str_cable_format(P)}")
             N_target = N_target - 1
             L_target = float(L_target_initial) - l_seg_target_blk
             # On supprime le premier point de P (le bateau)
             P = P[1:]
-            trace_print(debug_ncs - 2, f"[normalize_segments] P' pair : {self._str_cable_format(P)}")
+            trace_print(debug_ncs - 5, f"[normalize_segments] P' pair : {self._str_cable_format(P)}")
             if not (np.array_equal(P[-1], np.asarray(rov, dtype=float))):
                 raise ValueError(f"_ncs ERREUR INITIALISATION 4: P[-1] != rov: {P[-1]} != {rov}")
         # endregion
@@ -3635,7 +3761,7 @@ class CableSolver:
         # On a déjà vérifié que N_target est pair.
 
         # Si L_P > L_target, on déforme le câble pour l'aplatir et le ramener à L_target (deformer_polyline)
-        infos_P = self._str_cable_info(P, L_target, N_target, str_info=True)
+        infos_P = self._str_cable_info(P, L_target, N_target, str_info=False)
         L_P, N_P, ds_target_P, min_seg_P, max_seg_P, str_info_P = infos_P
         trace_print(debug_ncs, f"[normalize_segments] P 2     : {str_info_P} ")
 
@@ -3651,7 +3777,7 @@ class CableSolver:
                 raise ValueError(err_message)
             P = np.asarray(P_def, dtype=float)
 
-        infos_P = self._str_cable_info(P, L_target, N_target, str_info=True)
+        infos_P = self._str_cable_info(P, L_target, N_target, str_info=False)
         L_P, N_P, ds_target_P, min_seg_P, max_seg_P, str_info_P = infos_P
         trace_print(debug_ncs, f"[normalize_segments] P 3     : {str_info_P} ")
 
@@ -3693,7 +3819,7 @@ class CableSolver:
             raise ValueError(f"_ncs ERREUR INITIALISATION 5: R[0] != bateau or R[-1] != rov: {R[0]} != {boat2.tolist()} or {R[-1]} != {rov2.tolist()}")
 
         trace_print(debug_ncs, f"[normalize_segments] R 1 ct1: R[0]=({R[0, 0]:8.3f}, {R[0, 1]:8.3f}), R[-1]=({R[-1, 0]:8.3f}, {R[-1, 1]:8.3f})")
-        infos_R1 = self._str_cable_info(R, L_target, N_target, str_info=True)
+        infos_R1 = self._str_cable_info(R, L_target, N_target, str_info=False)
         L_R1, N_R1, ds_target_R1, min_seg_R1, max_seg_R1, str_info_R1 = infos_R1
         trace_print(debug_ncs, f"[normalize_segments] R 1     : {str_info_R1}")
 
@@ -3735,10 +3861,10 @@ class CableSolver:
         if not (np.array_equal(Q[0], np.asarray(bateau, dtype=float)) and np.array_equal(Q[-1], np.asarray(rov, dtype=float))):
             raise ValueError(f"_ncs ERREUR INITIALISATION 6: Q[0] != bateau or Q[-1] != rov: {Q[0]} != {bateau} or {Q[-1]} != {rov}")
 
-        infos_Q = self._str_cable_info(Q, L_target, N_target, str_info=True)
+        infos_Q = self._str_cable_info(Q, L_target, N_target, str_info=False)
         L_Q, N_Q, ds_target_Q, min_seg_Q, max_seg_Q, str_info_Q = infos_Q
         trace_print(debug_ncs, f"[normalize_segments] Q       : {str_info_Q}  l_seg_target={l_seg_target:8.4f}")
-        trace_print(debug_ncs - 2, f"[normalize_segments] Q       : {self._str_result_cable_format(Q, L_target, N_target)}")
+        trace_print(debug_ncs - 5, f"[normalize_segments] Q       : {self._str_result_cable_format(Q, L_target, N_target)}")
         # endregion
 
         # region : Cas N_target_initial impair. Il faut insérer le ROV en début de Q.
@@ -3746,7 +3872,7 @@ class CableSolver:
             Q.insert(0, bateau)
             L_target = L_target_initial
             N_target = N_target_initial
-            trace_print(debug_ncs - 2, f"[normalize_segments] Q'      : {self._str_cable_format(Q, l_seg_target)}")
+            trace_print(debug_ncs - 5, f"[normalize_segments] Q'      : {self._str_cable_format(Q, l_seg_target)}")
         # endregion
 
         # region : vérifications et packaging du retour
@@ -3786,7 +3912,7 @@ class CableSolver:
                 f"allowed in [{ds_min_allowed:.4f},{ds_max_allowed:.4f}]  ok_len~{ok_len} ok_segs={ok_segs}",
             )
 
-        trace_print(debug_ncs - 2, f"[normalize_segments] -->     : {self._str_result_cable_format(Q_stack, L_target_initial, N_target_initial)}")
+        trace_print(debug_ncs - 5, f"[normalize_segments] -->     : {self._str_result_cable_format(Q_stack, L_target_initial, N_target_initial)}")
         expl_tail = "" if ok_segs else "_ncs: Segments hors bornes"
         return bool(ok_segs), Q_stack[:, 0], Q_stack[:, 1], mode_straight, expl_tail
         # endregion
@@ -3883,28 +4009,79 @@ class CableSolver:
         #else:
         #    trace_print(9, f"\n[DEBUG] _normalize_cable_length: Démarrage de la normalisation du câble. t={t_eff:8.2f}   mode_test={mode_test}")
 
+
+        # Ne pas appeler ``contrôle_câble`` ici : à l'entrée, L_geom ≠ L_target est fréquent
+        # (c'est l'objet de la normalisation). Un rapport « erreur » serait un faux positif au démarrage.
+
         x_boat_eff = x_boat if x_boat is not None else float(x_cable[0])
         y_boat_eff = y_boat if y_boat is not None else float(y_cable[0])
         x_rov_eff = x_rov if x_rov is not None else float(x_cable[-1])
         y_rov_eff = y_rov if y_rov is not None else float(y_cable[-1])
+
+        # Recoller explicitement bateau / ROV sur la copie travaillée : après intégration RK,
+        # les extrémités peuvent dériver (d'où pics de tension et échecs _normalize_cable_segments).
+        x_cable = np.asarray(x_cable, dtype=float).copy()
+        y_cable = np.asarray(y_cable, dtype=float).copy()
+        x_cable[0] = float(x_boat_eff)
+        y_cable[0] = float(y_boat_eff)
+        x_cable[-1] = float(x_rov_eff)
+        y_cable[-1] = float(y_rov_eff)
+        y_cable = np.clip(y_cable, None, 0.0)
+        y_cable[0] = float(y_boat_eff)
+        y_cable[-1] = float(y_rov_eff)
+        x_cable[0] = float(x_boat_eff)
+        x_cable[-1] = float(x_rov_eff)
 
         N_initial = max(len(x_cable) - 1, 1)
         dx = np.diff(x_cable)
         dy = np.diff(y_cable)
         L_cable_initial = float(np.sum(np.hypot(dx, dy))) 
 
+        _t_ncl = f"{float(t_eff):8.2f}" if t_eff is not None else "   N/A"
+
         # region : 1) Normalisation par segments
         try:
-            trace_print(debug_ncl,f"\n[DEBUG] _try: {_ANSI_BLUE}_normalize_cable_segments_{_ANSI_RESET} : L_cable_initial={L_cable_initial:8.3f}  N_initial={N_initial:4}")
+            trace_print(debug_ncl-2,f"\n[DEBUG] _try: {_ANSI_BLUE}_normalize_cable_segments_{_ANSI_RESET} : "
+                                  f"L_cable_initial={L_cable_initial:8.3f}  N_initial={N_initial:4},  L_target={L_target:8.3f}")
             ok_seg, x_new, y_new, straight_mode, _expl_seg = self._normalize_cable_segments( x_cable, y_cable, float(L_target),
                     [float(x_boat_eff), float(y_boat_eff)], [float(x_rov_eff), float(y_rov_eff)], N_initial, t=t_eff, mode_test=mode_test)
-            _t_ncl = f"{float(t_eff):8.2f}" if t_eff is not None else "   N/A"
             if ok_seg:
-                trace_print(debug_ncl, f"[DEBUG] _ncl: _normalize_cable_segments --> {_ANSI_GREEN}OK.{_ANSI_RESET}   t={_t_ncl}   source={NCL_SOURCE_NORMALIZE_SEGMENTS}")
-                return x_new, y_new, straight_mode, NCL_SOURCE_NORMALIZE_SEGMENTS
+                trace_print(debug_ncl-2, f"[DEBUG] _ncl: _normalize_cable_segments --> {_ANSI_GREEN}OK.{_ANSI_RESET}   t={_t_ncl}   source={NCL_SOURCE_NORMALIZE_SEGMENTS}")
+                _, _, _, _, _, _, _msg_cc_out = contrôle_câble(
+                    x_new,
+                    y_new,
+                    float(x_boat_eff),
+                    float(y_boat_eff),
+                    float(x_rov_eff),
+                    float(y_rov_eff),
+                    float(L_target),
+                    tol_segment=1e-2,
+                )
+                if _msg_cc_out:
+                    trace_print(
+                        debug_ncl,
+                        f"[DEBUG] _ncl: {_ANSI_RED}contrôle_câble{_ANSI_RESET} (sortie _normalize_cable_segments) t={_t_ncl}\n{_msg_cc_out}",
+                    )
+                if straight_mode:
+                    snap_rov = float(
+                        np.hypot(
+                            float(x_new[-1]) - float(x_rov_eff),
+                            float(y_new[-1]) - float(y_rov_eff),
+                        )
+                    )
+                    if snap_rov > STRAIGHT_ROV_SNAP_MAX_M:
+                        trace_print(
+                            debug_ncl,
+                            f"[DEBUG] _ncl: straight_mode refusé (snap={snap_rov:.4f} m > "
+                            f"{STRAIGHT_ROV_SNAP_MAX_M} m) → fallback   t={_t_ncl}",
+                        )
+                    else:
+                        return x_new, y_new, straight_mode, NCL_SOURCE_NORMALIZE_SEGMENTS
+                else:
+                    return x_new, y_new, straight_mode, NCL_SOURCE_NORMALIZE_SEGMENTS
             trace_print(debug_ncl, f"[DEBUG] _ncl: _normalize_cable_segments --> {_ANSI_YELLOW}KO.{_ANSI_RESET}   t={_t_ncl}")
         except Exception as e:
-            trace_print(9, f"[DEBUG] _ncl: _normalize_cable_segments --> {_ANSI_YELLOW}Infos additionnelles{_ANSI_RESET}   t={_t_ncl}")
+            trace_print(debug_ncl, f"[DEBUG] _ncl: _normalize_cable_segments --> {_ANSI_YELLOW}Infos additionnelles{_ANSI_RESET}   t={_t_ncl}")
             # Rejeu de la config fautive + visu snapshot et enregistrement de ma config en cas d'échec 
             if not mode_test: # ou bien ?  os.environ.get("PYTEST_CURRENT_TEST") is None:
                 try:
@@ -3912,14 +4089,18 @@ class CableSolver:
                                 [float(x_boat_eff), float(y_boat_eff)], [float(x_rov_eff), float(y_rov_eff)], N_initial, t=t_eff, mode_test=True)
                 except Exception as e_new:
                     pass
-                self.visu_snapshot(x_new, y_new, L_target, x_boat_eff, y_boat_eff, x_rov_eff, y_rov_eff, 
+                _r1, _r2, _r3, _r4, _r5, _ls, _msg_cc = contrôle_câble(x_cable,y_cable,x_boat_eff,y_boat_eff,x_rov_eff,y_rov_eff,L_target,tol_segment=1e-2)
+                if _msg_cc:
+                    trace_print(debug_ncl, f"[DEBUG] _ncl: {_ANSI_RED}contrôle_câble{_ANSI_RESET} (entrée, après exception _normalize_cable_segments) t={_t_ncl}\n{_msg_cc}")
+                if self._normalize_cable_length_nb_echecs <= 1:
+                    self._normalize_cable_length_nb_echecs += 1
+                    x_vis = np.asarray(x_cable, dtype=float)
+                    y_vis = np.asarray(y_cable, dtype=float)
+                    self.visu_snapshot(x_vis, y_vis, L_target, x_boat_eff, y_boat_eff, x_rov_eff, y_rov_eff, 
                                              k_tail, k_max, bidirectional, _from_direction, t=t_eff, Id = f"Snapshot input _normalize_cable_segments --> KO :\n{e}")
                 add_cable_to_test_cases( x_cable, y_cable, L_target, x_boat_eff, y_boat_eff, x_rov_eff, y_rov_eff, 
                                              k_tail, k_max, bidirectional, _from_direction, t=t_eff)
-
-                trace_print(debug_ncl, f"[DEBUG] _ncl: add_cable_to_test_cases ignoré ({_e_add}).")
                     
-            _t_ncl = f"{float(t_eff):8.2f}" if t_eff is not None else "   N/A"
             trace_print(debug_ncl, f"[DEBUG] _ncl: _normalize_cable_segments --> {_ANSI_RED}({e}).{_ANSI_RESET}   t={_t_ncl}")
             import traceback
             trace_print(debug_ncl, f"[DEBUG] _ncl: _normalize_cable_segments traceback:\n{traceback.format_exc()}   t={_t_ncl}")
@@ -3930,8 +4111,10 @@ class CableSolver:
         x_fb, y_fb, mode_fb = self._normalize_cable_length_historical_fallback(x_cable, y_cable, L_target, x_boat_eff, y_boat_eff, x_rov_eff, y_rov_eff, 
                                                                                k_tail, k_max, bidirectional, _from_direction, mode_test=mode_test,)
         
-        self.visu_snapshot(x_fb, y_fb, L_target, x_boat_eff, y_boat_eff, x_rov_eff, y_rov_eff, 
-                                       k_tail, k_max, bidirectional, _from_direction, t=t_eff, Id = "Snapshot output _normalize_cable_length_historical_fallback")  
+        if self._normalize_cable_length_nb_echecs <= 1:
+            self._normalize_cable_length_nb_echecs += 1
+            self.visu_snapshot(x_fb, y_fb, L_target, x_boat_eff, y_boat_eff, x_rov_eff, y_rov_eff, 
+                    k_tail, k_max, bidirectional, _from_direction, t=t_eff, Id = "Snapshot output _normalize_cable_length_historical_fallback")  
 
         return x_fb, y_fb, mode_fb, NCL_SOURCE_HISTORICAL_FALLBACK
         # endregion
