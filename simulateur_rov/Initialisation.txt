@@ -1,0 +1,54 @@
+
+
+
+C'est mieux mais dans le cas de M_test_init_3, le profil devrait être un arc de chainette reliant le ROV au bateau tel que la pente (en valeur absolue) du câble au niveau du ROV soit supérieur à la pente au niveau du bateau.
+
+On se place dans le repère (0,x,y) avec y orienté vers le bas. 
+
+Je te propose de revoir l'initialisation du câble comme suit: 
+
+On se place dans le cas où le câble a une flottabilité positive.
+On considère tout d'abord l'équation d'une chainette de courbure positive (ie avec les conventions choisies une courbure orientée vers le bas) passant par le ROV et possédant une tangente horizontale au point H (xH, yH) 
+Une telle chainette a pour équation y = yH + a (ch(x - xH)/a) -1)  avec yrov = yH + a (ch(xrov -xh)/a -1)
+
+La longueur de l'arc de chainette H--rov est : a sh((xrov - xH)/a)
+
+On cherche tout d'abord quelle devrait être la longueur L0 du câble pour que le point H soit confondu avec le bateau de coordonnées (0,0)
+Si H = (0, 0) l'équation de la chainette devient y = a ch(x/a) 
+On cherche tout d'abord a tel que yrov = a (ch(xrov/a) -1)
+On calcule ensuite L0 = a sh(xrov/a)
+
+On vérifie que L_straight < L0 < |xrov| + |yrov|
+
+Je te propose maintenant de reformuler de manière précise la méthode d'initialisation du câble. 
+Les paramètres en entrée sont la position du bateau (0,0), la position du ROV (xrov, yrov) et la longueur initiale du câble, L.
+
+On va distinguer plusieurs cas:
+
+1) L >= |xrov| + |yrov|
+Le câble comprend deux parties: une partie slack qui flotte à la surface et un tronçon vertical rejoignant le rov à la surface.
+
+2) L_straight <L < |xrov| + |yrov|
+La partie du câble qui relie le ROV à la surface est un arc de chaînette. Plus précisément :
+
+si L >= L0 : on pose xH = L0 - L. Entre xH et xRov, le câble a alors un profil de chainette y = a ch((x - xH)/a  -1) et entre le bateau (0,0) et le point H (xH, 0) le câble est un tronçon rectiligne, de longueur xH.
+On a donc:
+       yrov = a (ch((xrov - xH) -1)  (le cable passe par le ROV)
+       L = xH + a sh((xrov-xH)/a)  (la longueur total du cable est L)
+
+A partir de ces deux équation on peut calculer a et xH et donc l'équation du câble
+
+Si L0 < L : on cherche le point H (xH, yH) qui serait le sommet d'une chainette de courbure positiove (orientée vers le bas du fait de nos conventions), d'équation  y = yH + a ch(((x - xH)/a -1), avec a> 0 et  passsant par le point bateau (0, 0) et par le rov (xrov, yrov)/
+On cherche donc xH et yH tels que : 
+       0 = yH + a (ch(-xH) -1)                (l'arc de chainette passe (0,0)
+       yrov = yH + a ch((xrov - xH)/a -1)     (le cable passe par le ROV)
+       L = a (sh((xrov-xH)/a) - sh(0 -xH/a)   (la longueur deu cable entre le bateau et le rov est L)	
+
+A partir de ces 3 équations, claucler xH, yH et a et en déduire l'équation du câble.
+
+3) L_straight = L : mode straight. Le câble est rectiligne entre le ROV et le bateau.
+
+4) L < L_straight : cas impossible le fichier de configuration de la mission est erroné.
+
+
+Es-ce que cette spécification te parait claire, complète et correcte ? 

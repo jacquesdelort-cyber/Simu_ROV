@@ -247,6 +247,18 @@ class PlotlyWidget(QWidget):
             x_range_js = json_module.dumps(x_range_update) if x_range_update else 'null'
             y_range_js = json_module.dumps(y_range_update) if y_range_update else 'null'
             shapes_json = json_module.dumps(shapes_data) if shapes_data else '[]'
+
+            # Toujours synchroniser la taille du div Plotly avec le widget : les onglets
+            # masqués au premier affichage avaient souvent width/height erronés, et cette
+            # branche JS ne mettait pas à jour le layout (contrairement au chemin to_html).
+            plot_w = fig.layout.width
+            plot_h = fig.layout.height
+            if plot_w is None:
+                plot_w = 800
+            if plot_h is None:
+                plot_h = 600
+            plot_w = int(plot_w)
+            plot_h = int(plot_h)
             
             js_update = f"""
             (function() {{
@@ -294,6 +306,8 @@ class PlotlyWidget(QWidget):
                     
                     // Mettre à jour le layout séparément avec Plotly.relayout
                     var layoutUpdate = {{}};
+                    layoutUpdate.width = {plot_w};
+                    layoutUpdate.height = {plot_h};
                     {f"layoutUpdate.title = {{text: '{title_update}'}};" if title_update else ""}
                     if ({x_range_js} !== null) {{
                         layoutUpdate['xaxis.range'] = {x_range_js};

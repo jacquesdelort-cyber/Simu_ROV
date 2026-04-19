@@ -9,6 +9,12 @@ from src.visualization.cable_hover import (
     cable_vertex_tooltip,
 )
 
+# Légende horizontale au-dessus du graphique (comme « Tension vs cible », onglet Simulation)
+_LAYOUT_LEGEND_TOP = dict(
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    margin=dict(b=60),
+)
+
 
 def create_system_plot(
     x_rov,
@@ -455,7 +461,14 @@ def create_position_plot(time, x_rov, y_rov, title="Positions du ROV"):
     return fig
 
 
-def create_velocity_plot(time, vx_rov, vy_rov, title="Vitesses du ROV"):
+def create_velocity_plot(
+    time,
+    vx_rov,
+    vy_rov,
+    v_rov=None,
+    title="Vitesses du ROV",
+    scenario_triggers: list[list[str]] | None = None,
+):
     """
     Crée un graphique des vitesses du ROV
     
@@ -464,7 +477,9 @@ def create_velocity_plot(time, vx_rov, vy_rov, title="Vitesses du ROV"):
     time : array
         Temps (s)
     vx_rov, vy_rov : array
-        Vitesses du ROV (m/s)
+        Composantes de vitesse du ROV (m/s)
+    v_rov : array, optional
+        Module de la vitesse du ROV (m/s). Si None, est calculé avec sqrt(vx^2 + vy^2).
     title : str
         Titre du graphique
     
@@ -475,19 +490,77 @@ def create_velocity_plot(time, vx_rov, vy_rov, title="Vitesses du ROV"):
     """
     fig = go.Figure()
     
+    vx_arr = np.asarray(vx_rov, dtype=float) if vx_rov is not None else np.asarray([], dtype=float)
+    vy_arr = np.asarray(vy_rov, dtype=float) if vy_rov is not None else np.asarray([], dtype=float)
+    n = min(len(time), len(vx_arr), len(vy_arr))
+    time_arr = np.asarray(time[:n], dtype=float) if n > 0 else np.asarray([], dtype=float)
+    vx_arr = vx_arr[:n]
+    vy_arr = vy_arr[:n]
+    if v_rov is None:
+        v_arr = np.hypot(vx_arr, vy_arr)
+    else:
+        v_arr = np.asarray(v_rov, dtype=float)[:n]
+
     fig.add_trace(go.Scatter(
-        x=time, y=vx_rov,
+        x=time_arr, y=vx_arr,
         mode='lines',
-        name='Vitesse horizontale',
+        name='vx_rov',
         line=dict(color='blue', width=2)
     ))
     
     fig.add_trace(go.Scatter(
-        x=time, y=vy_rov,
+        x=time_arr, y=vy_arr,
         mode='lines',
-        name='Vitesse verticale',
+        name='vy_rov',
         line=dict(color='red', width=2)
     ))
+
+    fig.add_trace(go.Scatter(
+        x=time_arr, y=v_arr,
+        mode='lines',
+        name='vrov',
+        line=dict(color='green', width=2)
+    ))
+
+    max_abs = 0.0
+    if v_arr.size > 0:
+        finite = v_arr[np.isfinite(v_arr)]
+        if finite.size > 0:
+            max_abs = max(max_abs, float(np.max(np.abs(finite))))
+    if vx_arr.size > 0:
+        finite = vx_arr[np.isfinite(vx_arr)]
+        if finite.size > 0:
+            max_abs = max(max_abs, float(np.max(np.abs(finite))))
+    if vy_arr.size > 0:
+        finite = vy_arr[np.isfinite(vy_arr)]
+        if finite.size > 0:
+            max_abs = max(max_abs, float(np.max(np.abs(finite))))
+    y_events = max_abs * 0.98 if max_abs > 0.0 else 0.0
+
+    if scenario_triggers:
+        n_trig = min(len(time_arr), len(scenario_triggers))
+        trig_x = []
+        trig_y = []
+        trig_text = []
+        for i in range(n_trig):
+            triggers = scenario_triggers[i]
+            if triggers:
+                trig_x.append(float(time_arr[i]))
+                trig_y.append(y_events)
+                trig_text.append("<br>".join(triggers))
+        if trig_x:
+            fig.add_trace(
+                go.Scatter(
+                    x=trig_x,
+                    y=trig_y,
+                    mode="markers",
+                    name="",
+                    showlegend=False,
+                    marker=dict(color="black", size=6, symbol="square"),
+                    hovertemplate="%{hovertext}<extra></extra>",
+                    hovertext=trig_text,
+                )
+            )
     
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
     
@@ -497,9 +570,100 @@ def create_velocity_plot(time, vx_rov, vy_rov, title="Vitesses du ROV"):
         title=title,
         hovermode='x unified',
         width=600,
-        height=400
+        height=400,
+        **_LAYOUT_LEGEND_TOP,
     )
     
+    return fig
+
+
+def create_position_rov_plot(
+    time,
+    x_rov,
+    y_rov,
+    title="Position ROV",
+    scenario_triggers: list[list[str]] | None = None,
+):
+    """
+    Crée un graphique des positions du ROV.
+
+    - x_rov : position horizontale (m)
+    - y_rov : profondeur / ordonnée (m), convention habituelle y ≤ 0 sous la surface
+    """
+    fig = go.Figure()
+
+    x_arr = np.asarray(x_rov, dtype=float) if x_rov is not None else np.asarray([], dtype=float)
+    y_arr = np.asarray(y_rov, dtype=float) if y_rov is not None else np.asarray([], dtype=float)
+    n = min(len(time), len(x_arr), len(y_arr))
+    time_arr = np.asarray(time[:n], dtype=float) if n > 0 else np.asarray([], dtype=float)
+    x_arr = x_arr[:n]
+    y_arr = y_arr[:n]
+
+    fig.add_trace(
+        go.Scatter(
+            x=time_arr,
+            y=x_arr,
+            mode="lines",
+            name="x_rov",
+            line=dict(color="blue", width=2),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=time_arr,
+            y=y_arr,
+            mode="lines",
+            name="y_rov",
+            line=dict(color="red", width=2),
+        )
+    )
+
+    max_abs = 0.0
+    if x_arr.size > 0:
+        finite = x_arr[np.isfinite(x_arr)]
+        if finite.size > 0:
+            max_abs = max(max_abs, float(np.max(np.abs(finite))))
+    if y_arr.size > 0:
+        finite = y_arr[np.isfinite(y_arr)]
+        if finite.size > 0:
+            max_abs = max(max_abs, float(np.max(np.abs(finite))))
+    y_events = max_abs * 0.98 if max_abs > 0.0 else 0.0
+
+    if scenario_triggers:
+        n_trig = min(len(time_arr), len(scenario_triggers))
+        trig_x = []
+        trig_y = []
+        trig_text = []
+        for i in range(n_trig):
+            triggers = scenario_triggers[i]
+            if triggers:
+                trig_x.append(float(time_arr[i]))
+                trig_y.append(y_events)
+                trig_text.append("<br>".join(triggers))
+        if trig_x:
+            fig.add_trace(
+                go.Scatter(
+                    x=trig_x,
+                    y=trig_y,
+                    mode="markers",
+                    name="",
+                    showlegend=False,
+                    marker=dict(color="black", size=6, symbol="square"),
+                    hovertemplate="%{hovertext}<extra></extra>",
+                    hovertext=trig_text,
+                )
+            )
+
+    fig.add_hline(y=0, line_dash="dash", line_color="gray")
+    fig.update_layout(
+        xaxis_title="Temps (s)",
+        yaxis_title="x_rov, y_rov (m)",
+        title=title,
+        hovermode="x unified",
+        width=600,
+        height=400,
+        **_LAYOUT_LEGEND_TOP,
+    )
     return fig
 
 
@@ -617,7 +781,8 @@ def create_dl_dt_plot(
         title=title,
         hovermode='x unified',
         width=600,
-        height=400
+        height=400,
+        **_LAYOUT_LEGEND_TOP,
     )
     return fig
 
@@ -659,7 +824,8 @@ def create_slack_plot(
         title=title,
         hovermode='x unified',
         width=600,
-        height=400
+        height=400,
+        **_LAYOUT_LEGEND_TOP,
     )
 
     return fig
@@ -783,8 +949,7 @@ def create_tension_vs_target_plot(
         hovermode="x unified",
         width=600,
         height=400,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(b=60),
+        **_LAYOUT_LEGEND_TOP,
     )
     return fig
 

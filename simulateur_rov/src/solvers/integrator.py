@@ -1,4 +1,9 @@
-"""Intégrateur temporel"""
+"""Intégrateur temporel (ODE lisse via solve_ivp).
+
+Pour une intégration avec projection géométrique du câble (half-explicit), voir
+``projected_integrator.integrate_span_with_projection`` et la doc
+``docs/dae_cable_rov_spec.md``.
+"""
 from scipy.integrate import solve_ivp
 import numpy as np
 

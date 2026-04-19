@@ -14,3 +14,5 @@ format: "Markdown"
 6. [Etat systeme - Data](05_etat_systeme_data.md)
 7. [Manuel utilisateur](06_Manuel_utilisateur.md)
 8. [Ordres de grandeur](07_Ordres_de_grandeur.md)
+9. [Spécification DAE / contraintes câble–ROV–bateau](dae_cable_rov_spec.md)
+10. [Guide développeur interface PyQt](README_PYQT.md)

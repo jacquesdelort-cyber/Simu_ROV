@@ -59,6 +59,15 @@ class ROVSimulatorApp(QMainWindow):
             'N_segments': 50,
             'straight_blend_alpha': 1.0,
             'Tcible': None,
+            'guard_profile': 'soft',
+            'guard_enable': True,
+            'guard_tension_spike_factor': 12.0,
+            'guard_tension_abs': 1200.0,
+            'guard_geom_ds_ratio': 3.2,
+            'guard_geom_rel_L': 0.07,
+            'guard_hard_block_duration_s': 1.5,
+            'trace_boost_level': 7,
+            'trace_boost_duration_s': 2.0,
         }
         
         self.init_params = {
@@ -79,6 +88,7 @@ class ROVSimulatorApp(QMainWindow):
         
         # Créer l'interface
         self.init_ui()
+        self._show_loaded_cable_solver_identity()
     
     def load_default_parameters(self):
         """Charge les paramètres par défaut"""
@@ -130,6 +140,22 @@ class ROVSimulatorApp(QMainWindow):
         self.tabs.currentChanged.connect(self._on_tab_changed)
         
         layout.addWidget(self.tabs)
+
+    def _show_loaded_cable_solver_identity(self):
+        """Permet de vérifier que l'instance PyQt charge bien le bon ``cable_solver.py`` (pas une vieille copie)."""
+        try:
+            import src.solvers.cable_solver as cable_mod
+
+            bid = getattr(cable_mod, "CABLE_SOLVER_BUILD_ID", "")
+            path = os.path.normpath(getattr(cable_mod, "__file__", "") or "")
+            if bid:
+                self.setWindowTitle(
+                    f"🌊 Simulateur ROV - Application Windows  |  câble [{bid}]"
+                )
+            if path:
+                self.statusBar().showMessage(f"Fichier solveur câble chargé : {path}", 0)
+        except Exception:
+            pass
 
     def _load_help_toc(self):
         """Charge ou recharge la table des matières de l'aide dans l'onglet Aide."""
@@ -229,6 +255,18 @@ def main():
     app.setStyleSheet(tooltip_style)
     
     # Créer et afficher la fenêtre principale
+    try:
+        import src.solvers.cable_solver as _cable_mod
+
+        print(
+            "[Simulateur] cable_solver BUILD:",
+            getattr(_cable_mod, "CABLE_SOLVER_BUILD_ID", "(absent)"),
+            flush=True,
+        )
+        print("[Simulateur] cable_solver fichier:", _cable_mod.__file__, flush=True)
+    except Exception as _e:
+        print("[Simulateur] import cable_solver:", _e, flush=True)
+
     window = ROVSimulatorApp()
     window.show()
     

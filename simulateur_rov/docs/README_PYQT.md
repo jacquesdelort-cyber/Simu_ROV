@@ -4,6 +4,8 @@
 
 Cette application PyQt est la version Windows native du simulateur ROV. Elle offre une interface de bureau native avec des performances améliorées et une expérience utilisateur plus fluide.
 
+Documentation technique du projet (modélisation, résolution numérique, implémentation, tests) : voir la [table des matières Markdown](00_table_des_matieres.md) dans le dossier `docs/`.
+
 ## 🚀 Installation
 
 ### Prérequis

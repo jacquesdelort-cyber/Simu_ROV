@@ -6,6 +6,10 @@ from .rov_model import ROV
 # L'état intégré (y[2], y[3]) n'est pas modifié ; seules les grandeurs utilisées dans compute_derivatives
 # passent par vx_rov_f / vy_rov_f pour limiter les termes sensibles (réaction surface, câble, etc.).
 V_MAX_ROV_VELOCITY_FORCES_MS = 500.0
+# Plafond d'accélération ROV (m/s²) dans compute_derivatives — évite sauts numériques extrêmes.
+A_MAX_ROV_MS2 = 45.0
+# Plafond des vitesses ROV dans le vecteur d'état après intégration (m/s) — distinct des 500 m/s pour les forces.
+V_MAX_ROV_STATE_IN_Y_MS = 80.0
 from .cable_model import Cable
 from .boat_model import Boat
 from .environment import Environment
@@ -109,7 +113,19 @@ class ROVSystem:
         
         return (x_rov, y_rov, vx_rov, vy_rov, x_boat, vx_boat,
                 x_cable, y_cable, T, L)
-    
+
+    def _abs_tension_cap_n(self) -> float:
+        """
+        Plafond absolu (N) pour les tensions du câble dans l'ODE.
+        Dérivé de ``tension_rupture`` (paramètres câble) avec bornes sûres pour le simulateur.
+        """
+        try:
+            tr = float(self.cable.solver.params.get("tension_rupture", 4.0e4))
+        except Exception:
+            tr = 4.0e4
+        tr = max(tr, 500.0)
+        return float(min(max(tr * 2.5, 2.0e3), 1.8e5))
+
     def compute_derivatives(self, t, y, u):
         """
         Calcule les dérivées du système
@@ -137,7 +153,10 @@ class ROVSystem:
         # Elle évolue selon dL_dt = u['dL_dt'] et est transmise au solveur
         (x_rov, y_rov, vx_rov, vy_rov, x_boat, vx_boat,
          x_cable, y_cable, T, L) = self.unpack_state(y)
-        
+
+        T_cap = self._abs_tension_cap_n()
+        T = np.clip(np.asarray(T, dtype=float), 0.0, T_cap)
+
         # Vérifications de validité optimisées (seulement les valeurs critiques)
         # Vérifier seulement les premières valeurs (ROV et longueur) pour éviter le ralentissement
         if not np.isfinite(x_rov) or not np.isfinite(y_rov) or not np.isfinite(vx_rov) or not np.isfinite(vy_rov):
@@ -267,7 +286,9 @@ class ROVSystem:
                     T_new = np.asarray(T, dtype=float).copy()
             except Exception:
                 pass
-        
+
+        T_new = np.clip(np.asarray(T_new, dtype=float), 0.0, T_cap)
+
         # Mettre à jour pour la prochaine itération
         self.x_cable_prev = x_cable_new.copy()
         self.y_cable_prev = y_cable_new.copy()
@@ -302,22 +323,15 @@ class ROVSystem:
         
         # Si slack < 0, augmenter la tension pour forcer slack >= 0
         if slack_curr < 0.0:
-            # Le slack est négatif, le câble est tendu
-            # Augmenter la tension au ROV pour tirer le ROV vers le bateau
-            # La tension doit être suffisante pour réduire L_straight jusqu'à slack >= 0
-            # Facteur d'augmentation basé sur la magnitude du slack négatif
+            # Le slack est négatif : loi modérée + plafond absolu (l'ancienne loi ×20 puis ×50
+            # sur T_static pouvait envoyer des centaines de kN en quelques pas).
             slack_deficit = abs(slack_curr)
-            # Augmenter la tension proportionnellement au déficit de slack
-            # Utiliser un facteur qui augmente rapidement quand slack devient très négatif
-            # Plus le slack est négatif, plus la tension doit être forte
-            tension_multiplier = 1.0 + min(20.0, slack_deficit / max(L, 1e-9) * 50.0)
+            tension_multiplier = 1.0 + min(5.0, slack_deficit / max(L, 1e-9) * 18.0)
             T_rov_target = T_rov_target_static * tension_multiplier
-            # Assurer une tension minimale même si T_rov_target_static est faible
-            # La tension doit être au moins suffisante pour créer une force significative
-            min_tension = abs(F_apparent_weight_temp) * 2.0  # Au moins 2x le poids apparent
+            min_tension = abs(F_apparent_weight_temp) * 1.5
             T_rov_target = max(T_rov_target, min_tension)
-            # Limiter la tension maximale pour éviter des valeurs irréalistes
-            T_rov_target = min(T_rov_target, T_rov_target_static * 50.0)
+            T_rov_target = min(T_rov_target, max(T_rov_target_static, min_tension) * 6.0)
+            T_rov_target = float(np.clip(T_rov_target, 0.0, T_cap))
         
         # Si le ROV remonte alors qu'il devrait descendre, réduire la tension cible
         # pour permettre à la force apparente (vers le bas) de dominer
@@ -332,7 +346,9 @@ class ROVSystem:
             target_cap = abs(F_apparent_weight_temp)
             T_rov_target = min(T_rov_target, target_cap * 0.2)
             T_rov_target = max(T_rov_target, target_cap * 0.1)
-        
+
+        T_rov_target = float(np.clip(T_rov_target, 0.0, T_cap))
+
         # Utiliser la tension de l'état actuel au niveau du ROV (index -1)
         # La tension T[-1] est mise à jour dynamiquement via dT_dt vers T_rov_target
         # IMPORTANT : Si slack < 0, utiliser directement T_rov_target pour un effet immédiat
@@ -343,7 +359,8 @@ class ROVSystem:
         else:
             # Slack >= 0 : utiliser la tension dynamique qui évolue progressivement
             T_rov = T[-1] if len(T) > 0 else T_rov_target
-        
+        T_rov = float(np.clip(T_rov, 0.0, T_cap))
+
         # Calculer le vecteur unitaire au niveau du ROV (direction vers le bateau)
         # CORRECTION: Après correction de _compute_catenary_tensions :
         # Les positions sont ordonnées : index 0 = bateau, index -1 = ROV
@@ -430,7 +447,7 @@ class ROVSystem:
         # la tension s'adaptera progressivement, permettant le mouvement
         Fy_total = F_apparent_weight + Fy_drag_rov + T_rov * sin_theta0 + u['Fy_rov']
         dvy_rov_dt = Fy_total / self.rov.m
-        
+
         # Contrainte de surface : y_rov <= 0 (profondeur négative)
         # Si le ROV est à la surface et remonte, ajouter une force de réaction du sol
         # Cette force a une origine physique : la réaction du sol/surface de l'eau
@@ -447,15 +464,15 @@ class ROVSystem:
                 Fy_total = Fy_total + Fy_surface_reaction
                 dvy_rov_dt = Fy_total / self.rov.m
 
+        dvx_rov_dt = float(np.clip(dvx_rov_dt, -A_MAX_ROV_MS2, A_MAX_ROV_MS2))
+        dvy_rov_dt = float(np.clip(dvy_rov_dt, -A_MAX_ROV_MS2, A_MAX_ROV_MS2))
+
         # Si le câble est tendu, la cinématique est imposée par dL/dt.
         # On annule l'accélération pour éviter des valeurs incohérentes.
         if cable_taut:
             dvx_rov_dt = 0.0
             dvy_rov_dt = 0.0
-        
-        # Forces sur le bateau
-        # Les tensions T_new conservent l'ordre original: T_new[-1] = tension au bateau
-        T_L = T_new[-1] if len(T_new) > 0 else 0.0
+
         # Vérifier si le câble est vertical : tous les points doivent avoir la même position x
         is_vertical_boat = False
         if len(x_cable_new) > 1:
@@ -547,8 +564,8 @@ class ROVSystem:
         
         # Mettre à jour T_new[-1] (ROV) avec la tension cible dynamique calculée plus haut
         if len(T_new) > 0:
-            T_new[-1] = T_rov_target
-        
+            T_new[-1] = float(np.clip(T_rov_target, 0.0, T_cap))
+
         # Empêcher les chutes brutales de tension quand le câble est quasi droit
         if len(T_new) > 0 and len(T) > 0 and L_straight > 1e-9:
             try:
@@ -609,15 +626,21 @@ class ROVSystem:
             except Exception:
                 pass
 
-        dT_dt = (T_new - T) / tau_tension
-        
+        T_new = np.clip(np.asarray(T_new, dtype=float), 0.0, T_cap)
+
+        dT_dt_abs_cap = max(800.0, 4.0 * T_cap / max(tau_tension, 0.02))
+        dT_dt = np.clip((T_new - T) / tau_tension, -dT_dt_abs_cap, dT_dt_abs_cap)
+
         # IMPORTANT : Si slack < 0, forcer une adaptation immédiate de la tension au ROV
         # pour ramener rapidement slack >= 0
         if slack_curr < 0.0 and len(T) > 0 and len(T_new) > 0:
-            # Forcer une adaptation très rapide de la tension au ROV (index -1)
-            # pour que l'effet soit immédiat sur le mouvement
-            dT_dt[-1] = (T_rov_target - T[-1]) / max(tau_tension, 0.001)  # Adaptation très rapide
-        
+            dT_dt = np.asarray(dT_dt, dtype=float)
+            dT_dt[-1] = np.clip(
+                (T_rov_target - T[-1]) / max(tau_tension, 0.001),
+                -dT_dt_abs_cap,
+                dT_dt_abs_cap,
+            )
+
         # Assembler les dérivées
         dydt = np.zeros_like(y)
         # Ramener progressivement la position ROV de l'état vers l'extrémité câble (solveur / straight)
@@ -668,4 +691,47 @@ class ROVSystem:
         
         sol = self.integrator.integrate(system_ode, t_span, y0)
         return sol
+
+    def compute_constraint_residuals(self, y):
+        """
+        Métriques / résidus des contraintes géométriques câble (longueur, surface, segments).
+        Voir docs/dae_cable_rov_spec.md.
+        """
+        from .state_projection import compute_constraint_residuals as _ccr
+
+        return _ccr(self, np.asarray(y, dtype=float))
+
+    def integrate_span_with_projection(
+        self,
+        t_span,
+        y0,
+        u_func,
+        dt_max=0.1,
+        *,
+        n_substeps=4,
+        k_tail=10,
+    ):
+        """
+        Intégration half-explicit : RK4 par sous-pas avec projection câble après chaque sous-pas.
+
+        Paramètres
+        ----------
+        dt_max : float
+            Conservé pour homogénéité avec integrate() ; le pas effectif est |t1-t0|/n_substeps.
+        n_substeps : int
+            Nombre de sous-pas RK4 sur l'intervalle t_span.
+        k_tail : int
+            Paramètre k_tail passé à la normalisation du câble.
+        """
+        from ..solvers.projected_integrator import integrate_span_with_projection_simple
+
+        return integrate_span_with_projection_simple(
+            self,
+            tuple(t_span),
+            np.asarray(y0, dtype=float),
+            u_func,
+            float(dt_max),
+            n_substeps=int(n_substeps),
+            k_tail=int(k_tail),
+        )
 

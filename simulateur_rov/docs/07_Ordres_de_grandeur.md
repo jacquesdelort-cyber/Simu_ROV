@@ -115,6 +115,12 @@ La traînée verticale est plus forte que la horizontale car Sy (0,28 m²) > Sx 
 python docs/scripts/gen_graphique_trainee_rov.py
 ```
 
+Pour regénérer aussi d’éventuelles autres figures pilotées par script :
+
+```bash
+python docs/scripts/regenerate_documentation.py
+```
+
 ---
 
 ## 4. Traînée sur un câble de 100 m — courant perpendiculaire

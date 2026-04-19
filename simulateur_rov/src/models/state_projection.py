@@ -212,3 +212,82 @@ def project_cable_state_inplace(
         return True
     except Exception:
         return False
+
+
+def repack_cable_static_equilibrium_inplace(system: Any, y: np.ndarray) -> bool:
+    """
+    Remplace la géométrie et les tensions du câble dans ``y`` par une solution statique cohérente
+    (même pipeline que l'init : ``solve_equilibrium_static`` + tensions caténaire).
+
+    Utilisé en secours lorsque la projection normale échoue, pour éviter de poursuivre avec
+    L_seg ≠ L ou des extrémités décollées.
+    """
+    y_arr = np.asarray(y, dtype=float)
+    try:
+        (
+            x_rov,
+            y_rov,
+            _vx,
+            _vy,
+            x_boat,
+            _vx_boat,
+            _xc,
+            _yc,
+            _T,
+            L,
+        ) = system.unpack_state(y_arr)
+    except Exception:
+        return False
+    if L is None or float(L) <= 1e-9:
+        return False
+    try:
+        xc, yc, _Tn = system.cable.solver.solve_equilibrium_static(
+            float(x_rov),
+            float(y_rov),
+            float(x_boat),
+            float(L),
+            rov_m=system.rov.m,
+            rov_vol=system.rov.V,
+        )
+        xc = np.asarray(xc, dtype=float).reshape(-1)
+        yc = np.asarray(yc, dtype=float).reshape(-1)
+        if xc.size != system.N + 1 or yc.size != system.N + 1:
+            return False
+        xc = xc.copy()
+        yc = yc.copy()
+        xc[0] = float(x_boat)
+        yc[0] = 0.0
+        xc[-1] = float(x_rov)
+        yc[-1] = float(y_rov)
+
+        weight_per_unit = (
+            (system.cable.rho_cable - system.environment.rho_eau)
+            * system.cable.A_cable
+            * system.environment.g
+        )
+        T_proj = system.cable.solver._compute_catenary_tensions(
+            xc,
+            yc,
+            weight_per_unit,
+            rov_m=system.rov.m,
+            rov_vol=system.rov.V,
+        )
+        T_proj = np.asarray(T_proj, dtype=float).reshape(-1)
+        if T_proj.size != system.N + 1:
+            return False
+
+        try:
+            T_cap = float(system._abs_tension_cap_n())
+        except Exception:
+            T_cap = 1.8e5
+        T_proj = np.clip(T_proj, 0.0, T_cap)
+
+        idx_x = 6
+        idx_y = idx_x + system.N + 1
+        idx_t = idx_y + system.N + 1
+        y_arr[idx_x:idx_y] = xc
+        y_arr[idx_y:idx_t] = yc
+        y_arr[idx_t : idx_t + system.N + 1] = T_proj
+        return True
+    except Exception:
+        return False

@@ -62,6 +62,8 @@ Le vecteur de commande u(t) contient :
 - vx_boat_cmd : vitesse commandée du bateau (m/s)
 - dL_dt : variation de la longueur de câble (m/s)
 
+**Remarque (cohérence géométrie / longueur).** La longueur scalaire `L` (moulinet) et la longueur curviligne discrète du maillage câble peuvent diverger sous une intégration ODE pure. Le simulateur propose une intégration **avec projection** (chantier DAE) : voir `03_resolution_numerique.md` (§ 1bis) et `dae_cable_rov_spec.md`.
+
 ## 3. Modèle ROV
 
 ### 3.1 Traînée

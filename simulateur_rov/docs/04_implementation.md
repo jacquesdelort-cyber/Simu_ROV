@@ -81,12 +81,23 @@ Autres répertoires :
 - empaquetage/dépaquetage de l’état
 - calcul des dérivées (couplage complet)
 - intégration temporelle via `TimeIntegrator`
+- intégration sur un pas avec projection câble (`integrate_span_with_projection`) lorsque l’option « intégration contrainte » est active
+
+### 3.5 Projection d’état câble
+
+`state_projection.py` :
+
+- `project_cable_state_inplace` : après un pas d’intégration, recolle la géométrie du câble (normalisation de longueur, surface) et recalcule les tensions compatibles avec la géométrie projetée.
 
 ## 4. Solveurs (src/solvers)
 
 ### 4.1 Intégrateur temporel
 
 `integrator.py` encapsule `solve_ivp` (SciPy). Utilisation de `RK45` par défaut.
+
+### 4.1bis Intégrateur avec projection (half-explicit)
+
+`projected_integrator.py` : sous-pas RK4 sur l’ODE, puis projection du câble via `state_projection` à chaque sous-pas. Paramétré depuis la mission / l’UI (`use_constrained_integrator`, `dae_projection_substeps`). Décrit plus en détail dans `03_resolution_numerique.md` (§ 1bis) et `dae_cable_rov_spec.md`.
 
 ### 4.2 Solveur de câble
 
@@ -144,7 +155,12 @@ Point important sur les tensions : `_normalize_cable_geometry` ne recalcule pas 
 `initial_conditions.py` :
 
 - génération de l’état initial par résolution statique du câble
-- option d’initialisation prenant en compte le courant
+- option d’initialisation prenant en compte le courant (`use_current_geometry`)
+- **modes câble** : `cable_init_mode` (`strict_static` par défaut, ou `legacy_geometry`) et compatibilité `legacy_init_geometry` ; en mode strict, les extrémités du polygone câble sont figées sur bateau / ROV après le statique
+
+`cable_init_buoyant.py` :
+
+- construction de polylignes initiales pour ROV **flottant** (longueur cible, slack, eau libre / chaînette) utilisée par les chemins d’init buoyant
 
 ### 5.3 Scénarios
 
@@ -197,15 +213,11 @@ La configuration est chargée depuis l’onglet Paramètres et propagée au mod�
 
 ## 8. Tests
 
-Le répertoire `tests/` contient des tests unitaires ciblant :
+Le répertoire `tests/` contient les tests `pytest` et scripts visuels Plotly.
 
-- modèles physiques
-- solveur câble
-- scénarios
-- environnement courant
+Le catalogue de l’onglet **🧪 Tests** de l’UI est défini dans `src/tests/test_catalog.py` (groupes : géométrie câble, normalisation, rapports graphiques, **initialisation missions**). L’état des cases à cocher et des dernières exécutions est persisté dans `tests/test_status.json`.
 
-Des scripts de test supplémentaires existent à la racine pour des validations
-spécifiques.
+Des scripts de diagnostic existent aussi à la racine du dépôt (voir `docs/05_tests.md`).
 
 ## 9. Extensibilité et maintenance
 

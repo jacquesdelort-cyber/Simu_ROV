@@ -5,7 +5,7 @@ Organisé en 3 colonnes
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QGroupBox, QGridLayout,
                              QFileDialog, QMessageBox, QScrollArea, QComboBox,
-                             QInputDialog, QTextEdit)
+                             QInputDialog, QTextEdit, QCheckBox)
 from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtGui import QCursor
 from pathlib import Path
@@ -400,6 +400,35 @@ class AllParametersTab(QWidget):
             2,
         )
 
+        sim_layout.addWidget(QLabel("Intégration contrainte (DAE, RK4+projection):"), 5, 0)
+        self.use_constrained_integrator = QCheckBox("Activer (use_constrained_integrator)")
+        self.use_constrained_integrator.setToolTip(
+            "Half-explicit : sous-pas RK4 avec projection câble après chaque sous-pas "
+            "(voir docs/dae_cable_rov_spec.md). Désactivé par défaut."
+        )
+        sim_layout.addWidget(self.use_constrained_integrator, 5, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Réduit les incohérences L vs Σds en forçant la normalisation du câble "
+                "plusieurs fois par pas de simulation. Coût CPU plus élevé.",
+                self,
+            ),
+            5,
+            2,
+        )
+        sim_layout.addWidget(QLabel("Sous-pas projection (dae_projection_substeps):"), 6, 0)
+        self.dae_projection_substeps = QLineEdit()
+        sim_layout.addWidget(self.dae_projection_substeps, 6, 1)
+        sim_layout.addWidget(
+            HelpButton(
+                "Nombre de sous-pas RK4 sur chaque intervalle [t, t+dt] de la boucle UI. "
+                "Plus grand = plus stable géométriquement, plus lent (défaut: 4).",
+                self,
+            ),
+            6,
+            2,
+        )
+
         sim_group.setLayout(sim_layout)
         layout.addWidget(sim_group)
         
@@ -770,6 +799,14 @@ class AllParametersTab(QWidget):
             self.excel_write_interval.setText(str(calc_params.get('excel_write_interval', 50)))
         if hasattr(self, "plot_points_limit"):
             self.plot_points_limit.setText(str(calc_params.get('plot_points_limit', 1000)))
+        if hasattr(self, "use_constrained_integrator"):
+            self.use_constrained_integrator.setChecked(
+                bool(calc_params.get("use_constrained_integrator", False))
+            )
+        if hasattr(self, "dae_projection_substeps"):
+            self.dae_projection_substeps.setText(
+                str(calc_params.get("dae_projection_substeps", 4))
+            )
         self.sc_fx_rov.setPlainText(str(calc_params.get('sc_fx_rov', '')))
         self.sc_fy_rov.setPlainText(str(calc_params.get('sc_fy_rov', '')))
         self.sc_v_bateau.setText(str(calc_params.get('sc_v_bateau', '')))
@@ -796,6 +833,8 @@ class AllParametersTab(QWidget):
         
         # Conditions initiales
         init_params = self.main_window.init_params
+        init_params.setdefault('cable_init_mode', 'strict_static')
+        init_params.setdefault('legacy_init_geometry', False)
         self.x_rov_init.setText(str(init_params.get('x_rov_init', 0.0)))
         self.y_rov_init.setText(str(init_params.get('y_rov_init', -10.0)))  # Profondeur négative
         self.x_boat_init.setText(str(init_params.get('x_boat_init', 0.0)))
@@ -968,6 +1007,27 @@ class AllParametersTab(QWidget):
                 'sc_v_moulinet': (self.sc_v_moulinet.text() or "").strip(),
                 'auto_L': self.auto_L_combo.currentText() if hasattr(self, "auto_L_combo") else "auto_L_1",
                 'Tcible': parse_float(self.tcible.text(), None, "Tension cible") if hasattr(self, "tcible") else None,
+                'guard_profile': self.main_window.calc_params.get('guard_profile', 'soft'),
+                'guard_enable': bool(self.main_window.calc_params.get('guard_enable', True)),
+                'guard_tension_spike_factor': float(self.main_window.calc_params.get('guard_tension_spike_factor', 12.0)),
+                'guard_tension_abs': float(self.main_window.calc_params.get('guard_tension_abs', 1200.0)),
+                'guard_geom_ds_ratio': float(self.main_window.calc_params.get('guard_geom_ds_ratio', 3.2)),
+                'guard_geom_rel_L': float(self.main_window.calc_params.get('guard_geom_rel_L', 0.07)),
+                'guard_hard_block_duration_s': float(self.main_window.calc_params.get('guard_hard_block_duration_s', 1.5)),
+                'trace_boost_level': self.main_window.calc_params.get('trace_boost_level', 7),
+                'trace_boost_duration_s': float(self.main_window.calc_params.get('trace_boost_duration_s', 2.0)),
+                'use_constrained_integrator': (
+                    self.use_constrained_integrator.isChecked()
+                    if hasattr(self, "use_constrained_integrator")
+                    else False
+                ),
+                'dae_projection_substeps': parse_int(
+                    self.dae_projection_substeps.text(),
+                    4,
+                    "Sous-pas DAE (dae_projection_substeps)",
+                )
+                if hasattr(self, "dae_projection_substeps")
+                else 4,
             }
 
             if not self._validate_scenarios(self.main_window.calc_params):
@@ -982,7 +1042,9 @@ class AllParametersTab(QWidget):
                 'y_rov_init': parse_float(self.y_rov_init.text(), -10.0, "Profondeur y_rov_init (m)"),  # Profondeur négative
                 'x_boat_init': parse_float(self.x_boat_init.text(), 0.0, "Position x_boat_init (m)"),
                 'L_init': parse_float(self.L_init.text(), 50.0, "Longueur initiale L_init (m)"),
-                'v_courant': v_courant_value
+                'v_courant': v_courant_value,
+                'cable_init_mode': str(self.main_window.init_params.get('cable_init_mode', 'strict_static')),
+                'legacy_init_geometry': bool(self.main_window.init_params.get('legacy_init_geometry', False)),
             }
             
             # Réinitialiser automatiquement le système après sauvegarde des paramètres
@@ -1262,6 +1324,10 @@ class AllParametersTab(QWidget):
                 if isinstance(y_val, (int, float)) and y_val > 0:
                     init_params["y_rov_init"] = -y_val
                     trace_print(8, f"⚠️  Conversion automatique : y_rov_init={y_val} -> {init_params['y_rov_init']} (profondeur négative)")
+            if init_params and "cable_init_mode" not in init_params:
+                init_params["cable_init_mode"] = "strict_static"
+            if init_params and "legacy_init_geometry" not in init_params:
+                init_params["legacy_init_geometry"] = False
 
             if not isinstance(parameters, dict) or not isinstance(calc_params, dict) or not isinstance(init_params, dict):
                 raise ValueError("Le fichier ne contient pas les sections attendues (parameters, calc_params, init_params).")
@@ -1441,13 +1507,26 @@ class AllParametersTab(QWidget):
             'straight_blend_alpha': 1.0,
             'auto_L': 'auto_L_1',
             'Tcible': None,
+            'guard_profile': 'soft',
+            'guard_enable': True,
+            'guard_tension_spike_factor': 12.0,
+            'guard_tension_abs': 1200.0,
+            'guard_geom_ds_ratio': 3.2,
+            'guard_geom_rel_L': 0.07,
+            'guard_hard_block_duration_s': 1.5,
+            'trace_boost_level': 7,
+            'trace_boost_duration_s': 2.0,
+            'use_constrained_integrator': False,
+            'dae_projection_substeps': 4,
         }
         self.main_window.init_params = {
             'x_rov_init': 0.0,
             'y_rov_init': -10.0,  # Profondeur négative (convention : y < 0 = sous la surface)
             'x_boat_init': 0.0,
             'L_init': 50.0,
-            'v_courant': "0.0"
+            'v_courant': "0.0",
+            'cable_init_mode': 'strict_static',
+            'legacy_init_geometry': False,
         }
         
         self.load_all_parameters_display()

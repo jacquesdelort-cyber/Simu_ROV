@@ -107,3 +107,38 @@ class Environment:
             return np.interp(depth, depths, speeds)
         return float(parsed)
 
+    def max_abs_current_on_vertical_segment(self, y_a: float, y_b: float, n: int = 21) -> float:
+        """
+        Plus grande valeur absolue du courant le long d'un segment vertical (repère simulateur :
+        y = 0 à la surface, y < 0 en profondeur). Utilisé pour l'init statique et l'UI.
+        """
+        v_raw = getattr(self, "v_courant_raw", None)
+        ya, yb = float(y_a), float(y_b)
+        ys = np.linspace(ya, yb, max(2, int(n)))
+        m = 0.0
+        for y in ys:
+            vc = self.get_current_velocity(float(y), v_raw)
+            val = float(np.asarray(vc, dtype=float).reshape(-1)[0])
+            m = max(m, abs(val))
+        return m
+
+    def max_abs_speed_declared_in_raw_profile(self, v_courant=None) -> float:
+        """
+        Plus grande vitesse (valeur absolue) présente dans la chaîne / scalaire ``v_courant``,
+        indépendamment de la profondeur du ROV. Sert à savoir si la mission « déclare » un
+        courant (ex. 0:0 50:0 100:1 → 1.0 m/s) alors que le câble, lui, peut n'être que dans
+        une couche à vitesse nulle.
+        """
+        if v_courant is None:
+            v_courant = getattr(self, "v_courant_raw", None)
+        if v_courant is None:
+            return 0.0
+        parsed = self._parse_current_profile_string(v_courant)
+        if isinstance(parsed, tuple):
+            _, speeds = parsed
+            return float(max(abs(float(s)) for s in speeds))
+        try:
+            return abs(float(parsed))
+        except (TypeError, ValueError):
+            return 0.0
+

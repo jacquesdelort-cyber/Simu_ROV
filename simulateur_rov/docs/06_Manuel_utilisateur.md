@@ -345,6 +345,8 @@ python run_pyqt.py
 
 ## Références
 
-- **Documentation technique** : `docs/02_modelisation.md`, `docs/05_etat_systeme_data.md`
+- **Documentation technique** : `docs/02_modelisation.md`, `docs/03_resolution_numerique.md`, `docs/04_implementation.md`, `docs/05_etat_systeme_data.md`, `docs/dae_cable_rov_spec.md`
+- **Tests et lancement automatisé** : `docs/05_tests.md`
 - **Guide de lancement** : `GUIDE_LANCEMENT_PYQT.md`
 - **README PyQt** : `docs/README_PYQT.md`
+- **Table des matières** : `docs/00_table_des_matieres.md`

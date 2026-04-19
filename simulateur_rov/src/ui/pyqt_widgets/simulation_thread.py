@@ -34,7 +34,11 @@ _ANSI_LIGHT_RED = "\033[91m"
 # Ajouter le répertoire parent au path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from src.models.state_projection import reconcile_straight_mode_after_normalize
+from src.models.state_projection import (
+    reconcile_straight_mode_after_normalize,
+    repack_cable_static_equilibrium_inplace,
+)
+from src.models.system_model import V_MAX_ROV_STATE_IN_Y_MS
 from src.utils.etat_systeme import str_etat_système
 
 
@@ -149,7 +153,9 @@ class SimulationThread(QThread):
                     y_rov=y_rov_init,
                     x_boat=x_boat_init,
                     L=L_init,
-                    use_current_geometry=bool(self.init_params.get('use_current_geometry', True))
+                    use_current_geometry=bool(self.init_params.get('use_current_geometry', True)),
+                    cable_init_mode=self.init_params.get('cable_init_mode', 'strict_static'),
+                    legacy_init_geometry=bool(self.init_params.get('legacy_init_geometry', False)),
                 )
             
             if self.mission_name and not getattr(system.environment, "mission_name", None):
@@ -1675,7 +1681,18 @@ class SimulationThread(QThread):
                         t_slice = y_current[idx_t:idx_t + system.N + 1]
                         t_slice = np.clip(t_slice, 0.0, t_max_clip)
                         y_current[idx_t:idx_t + system.N + 1] = t_slice
-                    
+
+                    try:
+                        vlim = float(V_MAX_ROV_STATE_IN_Y_MS)
+                        y_current[2] = float(
+                            np.clip(y_current[2], -vlim, vlim)
+                        )
+                        y_current[3] = float(
+                            np.clip(y_current[3], -vlim, vlim)
+                        )
+                    except Exception:
+                        pass
+
                     # Vérification optimisée : seulement tous les N pas et seulement les valeurs critiques
                     if step_count % 10 == 0:  # Vérifier seulement tous les 10 pas
                         if (not np.isfinite(y_current[0]) or not np.isfinite(y_current[1]) or 
@@ -1759,6 +1776,16 @@ class SimulationThread(QThread):
                             _trace_non_finite_rov("post_projection", y_current, t_current, step_count)
                     except Exception as e:
                         trace_print(9, f"[FINAL PROJECTION] Échec projection finale câble: {e}")
+                        if repack_cable_static_equilibrium_inplace(system, y_current):
+                            trace_print(
+                                8,
+                                f"[FINAL PROJECTION] Récupération équilibre statique câble à t={t_next:.3f} s",
+                            )
+                        else:
+                            trace_print(
+                                8,
+                                f"[FINAL PROJECTION] Récupération statique impossible à t={t_next:.3f} s",
+                            )
 
                     # DEBUG: Traçage de L après intégration et comparaison avec L_current
                     # Récupérer la commande dL_dt qui a été utilisée pour cette intégration

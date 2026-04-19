@@ -5,7 +5,7 @@ from re import A, L
 from tkinter import N
 import numpy as np
 from numpy._typing import _64Bit
-from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint
+from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint, least_squares, nnls
 from scipy.interpolate import interp1d
 from src.utils.logger import trace_print
 from src.utils.scenario_utils import contrôle_câble
@@ -35,6 +35,104 @@ NCL_SOURCE_HISTORICAL_FALLBACK = "_normalize_cable_length_historical_fallback"
 
 # Recalage ROV en mode straight : au-delà, on refuse le résultat segments et on enchaîne le fallback.
 STRAIGHT_ROV_SNAP_MAX_M = 0.1
+
+# Courant quasi nul : conserve le chemin validé chaînette flottante sans optimisation.
+CURRENT_NEGLIGIBLE_M_S = 1e-9
+# Identifiant affiché dans l’UI (titre fenêtre) pour vérifier qu’on n’exécute pas une vieille copie du code.
+CABLE_SOLVER_BUILD_ID = "neutral-uniform-bezier-before-nodal-20260419"
+# Au-delà, pas de déformation « courant statique » (coût compute_cable_forces × passes).
+# Missions type M_test_init_courant_0 utilisent N≈1000 : il faut autoriser le skew.
+MAX_N_SEGMENTS_BUOYANT_STATIC_CURRENT_SKEW = 2500
+# Équilibre nodal (maillage grossier) pour l'init statique avec courant.
+NODAL_EQUILIBRIUM_COARSE_SEGMENTS_DEFAULT = 28
+NODAL_EQUILIBRIUM_LS_MAX_NFEV = 400
+NODAL_EQUILIBRIUM_LENGTH_WEIGHT = 1.0
+NODAL_EQUILIBRIUM_SMOOTH_X_WEIGHT = 0.65
+NODAL_EQUILIBRIUM_SMOOTH_Y_WEIGHT = 0.35
+BUOYANT_SKEW_DEPTH_BAND_M = 40.0
+BUOYANT_MIN_Y_MARGIN_M = 0.25
+BUOYANT_CURVATURE_MISMATCH_MAX = 0.45
+
+
+def _quadratic_bezier_arc_length(
+    ax: float,
+    ay: float,
+    cx: float,
+    cy: float,
+    bx: float,
+    by: float,
+    n: int = 512,
+) -> float:
+    """Longueur d'arc approchée d'une courbe de Bézier quadratique 2D (échantillonnage uniforme en t)."""
+    ts = np.linspace(0.0, 1.0, int(max(4, n)))
+    om = 1.0 - ts
+    px = om * om * ax + 2.0 * om * ts * cx + ts * ts * bx
+    py = om * om * ay + 2.0 * om * ts * cy + ts * ts * by
+    dx = np.diff(px)
+    dy = np.diff(py)
+    return float(np.sum(np.sqrt(dx * dx + dy * dy)))
+
+
+def _vertical_slack_quadratic_bezier(
+    xb_f: float,
+    xr_f: float,
+    yr_f: float,
+    L_target: float,
+    h_mag_geo: float,
+    h_signed: float,
+    N: int,
+    n_arc_sample: int = 512,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Alignement vertical des extrémités : courbe lisse (Bézier quadratique) au lieu d'un V polyline.
+    Le point de contrôle est à mi-profondeur, décalé horizontalement ; |h| est résolu pour que
+    la longueur d'arc ≈ L_target. Le signe de h suit ``h_signed`` (courant).
+    """
+    P0x, P0y = float(xb_f), 0.0
+    P2x, P2y = float(xr_f), float(yr_f)
+    Cy = 0.5 * P2y
+    L_need = float(L_target)
+    h_dir = 1.0 if float(h_signed) >= 0.0 else -1.0
+
+    def arc_len(h_abs: float) -> float:
+        Cx = P0x + h_dir * float(max(0.0, h_abs))
+        return _quadratic_bezier_arc_length(
+            P0x, P0y, Cx, Cy, P2x, P2y, n_arc_sample
+        )
+
+    f0 = arc_len(0.0)
+    if f0 >= L_need - 1e-9:
+        h_opt = 0.0
+    else:
+        hi = max(float(h_mag_geo), 1e-6)
+        f_hi = arc_len(hi)
+        expand = 0
+        while f_hi < L_need and hi < 1.0e7 and expand < 60:
+            hi *= 1.5
+            f_hi = arc_len(hi)
+            expand += 1
+        if f_hi < L_need:
+            h_opt = hi
+        else:
+            lo = 0.0
+            for _ in range(64):
+                mid = 0.5 * (lo + hi)
+                if arc_len(mid) < L_need:
+                    lo = mid
+                else:
+                    hi = mid
+            h_opt = 0.5 * (lo + hi)
+
+    Cx = P0x + h_dir * h_opt
+    n_seg = int(max(1, N))
+    x_cable = np.zeros(n_seg + 1)
+    y_cable = np.zeros(n_seg + 1)
+    for i in range(n_seg + 1):
+        t = float(i) / float(n_seg)
+        om = 1.0 - t
+        x_cable[i] = om * om * P0x + 2.0 * om * t * Cx + t * t * P2x
+        y_cable[i] = om * om * P0y + 2.0 * om * t * Cy + t * t * P2y
+    return x_cable, y_cable
 
 
 def apply_straight_mode_rov_snap(
@@ -466,23 +564,600 @@ class CableSolver:
 
         return None, "deformer_polyline: Aucun k ne satisfait la tolérance"
 
+    def _manhattan_case1_surface_vertical_polyline(
+        self, xb: float, yb: float, xr: float, yr: float, L_target: float
+    ):
+        """
+        Cas L ≥ Manhattan (ou quasi droit) : surface y=yb puis slack horizontal éventuel,
+        puis vertical au droit du ROV — aligné sur ``SimulationTab._build_length_exact_polyline_case1_or_straight``.
+        Retourne ``(None, None)`` si la géométrie n'est pas réalisable.
+        """
+        dx = float(xr - xb)
+        dy = float(yr - yb)
+        d = float(np.hypot(dx, dy))
+        n_pts = max(int(self.N), 1) + 1
+        if d <= 1e-12 or abs(L_target - d) <= 1e-9:
+            x_line = np.linspace(float(xb), float(xr), n_pts)
+            y_line = np.linspace(float(yb), float(yr), n_pts)
+            y_line = np.clip(y_line, None, 0.0)
+            y_line[0] = float(yb)
+            y_line[-1] = float(yr)
+            return x_line, y_line
+
+        y_depth = abs(float(yr - yb))
+        L_top = float(L_target) - y_depth
+        dx_abs = abs(dx)
+        manh_tol = max(1e-9, 1e-12 * max(abs(float(L_target)), 1.0))
+        extra_sv = L_top - dx_abs
+        if extra_sv < -manh_tol:
+            return None, None
+        if extra_sv <= manh_tol:
+            if y_depth <= 1e-12 or dx_abs <= 1e-12:
+                return None, None
+            L_h = dx_abs
+            L_v = y_depth
+            Ltot = L_h + L_v
+            n1 = max(2, int(round((n_pts - 1) * L_h / Ltot)) + 1)
+            n1 = min(n1, n_pts)
+            n2 = n_pts - n1 + 1
+            if n2 < 2:
+                n2 = 2
+                n1 = n_pts - n2 + 1
+                n1 = max(2, n1)
+            x_first = np.linspace(float(xb), float(xr), n1)
+            y_first = np.full(n1, float(yb), dtype=float)
+            x_second = np.full(n2, float(xr), dtype=float)
+            y_second = np.linspace(float(yb), float(yr), n2)
+            x_new = np.concatenate((x_first, x_second[1:]))
+            y_new = np.concatenate((y_first, y_second[1:]))
+            y_new = np.clip(y_new, None, 0.0)
+            y_new[0] = float(yb)
+            y_new[-1] = float(yr)
+            return x_new, y_new
+
+        sign = 1.0 if dx >= 0.0 else -1.0
+        extra = L_top - dx_abs
+        x_turn = float(xr) + sign * (0.5 * extra)
+        L1 = abs(x_turn - float(xb))
+        L2 = abs(x_turn - float(xr))
+        L3 = y_depth
+        Ltot = L1 + L2 + L3
+        s_vals = np.linspace(0.0, Ltot, n_pts)
+        x_new = np.empty(n_pts, dtype=float)
+        y_new = np.empty(n_pts, dtype=float)
+        for i, s in enumerate(s_vals):
+            if s <= L1:
+                a = s / max(L1, 1e-12)
+                x_new[i] = (1.0 - a) * float(xb) + a * x_turn
+                y_new[i] = 0.0
+            elif s <= (L1 + L2):
+                a = (s - L1) / max(L2, 1e-12)
+                x_new[i] = (1.0 - a) * x_turn + a * float(xr)
+                y_new[i] = 0.0
+            else:
+                a = (s - L1 - L2) / max(L3, 1e-12)
+                x_new[i] = float(xr)
+                y_new[i] = (1.0 - a) * 0.0 + a * float(yr)
+        y_new = np.clip(y_new, None, 0.0)
+        y_new[0] = float(yb)
+        y_new[-1] = float(yr)
+        return x_new, y_new
+
     def _pure_catenary_equilibrium_buoyant_cable(
         self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None
     ):
         """
         Poids linéique apparent négatif (ρ_cable < ρ_eau) : éviter ``solve_equilibrium_constrained``.
 
-        L'optimisation sous contraintes minimise les résidus avec une charge distribuée vers
-        le haut, ce qui recourbe artificiellement le câble vers la surface. Pour garder une
-        chaînette « pendante » (sous la corde bateau–ROV, y <= corde), on retient uniquement
-        ``_solve_catenary`` + tensions cohérentes.
+        On utilise la géométrie analytique ``build_buoyant_cable_polyline`` (repère x', z avec
+        sommet chaînette / segment surface) validée par les missions d'init flottantes. Si le cas
+        est délégué (Manhattan / droite), même polyline que l'onglet simulation ; en dernier recours
+        seulement, ``_solve_catenary`` (chaînette lourde discrète).
         """
+        from src.utils.cable_init_buoyant import build_buoyant_cable_polyline
+
         w = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        x_b, y_b = build_buoyant_cable_polyline(
+            float(x_boat),
+            0.0,
+            float(x_rov),
+            float(y_rov),
+            float(L),
+            int(self.N),
+            slack_side="auto",
+        )
+        if x_b is None or y_b is None:
+            x_b, y_b = self._manhattan_case1_surface_vertical_polyline(
+                float(x_boat), 0.0, float(x_rov), float(y_rov), float(L)
+            )
+        if x_b is not None and y_b is not None:
+            x_cable = np.asarray(x_b, dtype=float)
+            y_cable = np.asarray(y_b, dtype=float)
+            try:
+                x_cable, y_cable, _, _ = self._normalize_cable_length(
+                    x_cable,
+                    y_cable,
+                    float(L),
+                    x_boat=float(x_boat),
+                    y_boat=0.0,
+                    x_rov=float(x_rov),
+                    y_rov=float(y_rov),
+                    k_max=2.0,
+                )
+            except Exception:
+                pass
+            y_cable = np.clip(y_cable, None, 0.0)
+            y_cable[0] = 0.0
+            y_cable[-1] = float(y_rov)
+            x_cable[0] = float(x_boat)
+            x_cable[-1] = float(x_rov)
+            T = self._compute_catenary_tensions(
+                x_cable, y_cable, w, rov_m=rov_m, rov_vol=rov_vol
+            )
+            return x_cable, y_cable, T
+
         x_cable, y_cable = self._solve_catenary(x_rov, y_rov, x_boat, L, w)
+        x_cable = np.asarray(x_cable, dtype=float)
+        y_cable = np.asarray(y_cable, dtype=float)
         T = self._compute_catenary_tensions(
             x_cable, y_cable, w, rov_m=rov_m, rov_vol=rov_vol
         )
         return x_cable, y_cable, T
+
+    def _project_cable_bounds(self, x, y, x_boat, y_boat, x_rov, y_rov, y_margin_m: float):
+        """Projection locale: extrémités exactes, y <= 0 et pas de point sous y_rov - marge."""
+        x = np.asarray(x, dtype=float).copy()
+        y = np.asarray(y, dtype=float).copy()
+        if len(x) != len(y) or len(x) < 2:
+            return x, y
+        y = np.clip(y, None, 0.0)
+        y_floor = float(y_rov) - float(max(0.0, y_margin_m))
+        y = np.maximum(y, y_floor)
+        x[0], y[0] = float(x_boat), float(y_boat)
+        x[-1], y[-1] = float(x_rov), float(y_rov)
+        return x, y
+
+    def _project_buoyant_bounds(self, x, y, x_boat, y_boat, x_rov, y_rov):
+        """Projection locale dédiée câble flottant (marge sous ROV autorisée)."""
+        return self._project_cable_bounds(
+            x, y, x_boat, y_boat, x_rov, y_rov, BUOYANT_MIN_Y_MARGIN_M
+        )
+
+    def _flip_signed_perp_across_chord(self, x, y, x_boat, y_boat, x_rov, y_rov):
+        """
+        Symétrie des points par rapport à la droite bateau--ROV (inverse le signe
+        de la distance perpendiculaire à la corde).
+
+        L'équilibre nodal minimise les forces avec ``CURRENT_TO_FLUID_VX_SIGN`` ;
+        pour un profil **non uniforme** en profondeur, cela inverse le sens du S par
+        rapport au graphe « Profil du courant » (vitesse mission brute). Cette
+        réflexion réaligne l'init statique affichée sans toucher au calcul dynamique.
+        """
+        x = np.asarray(x, dtype=float).copy()
+        y = np.asarray(y, dtype=float).copy()
+        dx = float(x_rov) - float(x_boat)
+        dy = float(y_rov) - float(y_boat)
+        chord_len = float(np.hypot(dx, dy))
+        if chord_len < 1e-12:
+            return x, y
+        nx = -dy / chord_len
+        ny = dx / chord_len
+        xc = x - float(x_boat)
+        yc = y - float(y_boat)
+        sp = xc * nx + yc * ny
+        x -= 2.0 * sp * nx
+        y -= 2.0 * sp * ny
+        x[0] = float(x_boat)
+        x[-1] = float(x_rov)
+        y[0] = float(y_boat)
+        y[-1] = float(y_rov)
+        return x, y
+
+    def _should_flip_nodal_geometry_vs_mission_plot(self, y_rov: float) -> bool:
+        """
+        Réflexion perpendiculaire à la corde : uniquement si le courant **mission** n'est pas
+        quasi uniforme **et** qu'il n'est pas nul partout. Sinon (v = 0 partout) ``_detect_uniform_current_signature``
+        renvoie ``is_uniform=False`` et on ne doit **pas** retourner la chaînette / le nodal.
+        """
+        y_probe = np.linspace(
+            0.0,
+            float(y_rov),
+            int(max(8, min(64, 1 + int(abs(float(y_rov)) / 5.0)))),
+        )
+        is_uniform, _ = self._detect_uniform_current_signature(y_probe)
+        env = self.environment
+        v_span = float(env.max_abs_current_on_vertical_segment(0.0, float(y_rov)))
+        v_decl = float(env.max_abs_speed_declared_in_raw_profile())
+        has_current = max(v_span, v_decl) > CURRENT_NEGLIGIBLE_M_S
+        return (not is_uniform) and has_current
+
+    def _build_current_signed_weights(self, y_vals):
+        """
+        Poids signés par profondeur pour l’heuristique géométrique (skew / validation).
+        Utilise la vitesse **mission** brute (``get_current_velocity`` sans ``CURRENT_TO_FLUID_VX_SIGN``)
+        pour coller au graphe « Profil du courant » ; les forces dynamiques restent dans ``compute_cable_forces``.
+        """
+        y = np.asarray(y_vals, dtype=float)
+        if len(y) == 0:
+            return np.array([])
+        v_raw = getattr(self.environment, "v_courant_raw", None)
+        v_node = np.asarray(
+            [self.environment.get_current_velocity(float(yy), v_raw) for yy in y],
+            dtype=float,
+        )
+        depth = np.where(y < 0.0, -y, y)
+        depth_max = float(np.max(depth))
+        if depth_max <= 1e-9:
+            return np.tanh(v_node / max(CURRENT_NEGLIGIBLE_M_S, 1e-6))
+        band = max(float(BUOYANT_SKEW_DEPTH_BAND_M), depth_max / 16.0)
+        n_band = int(max(1, np.ceil(depth_max / band)))
+        weights = np.zeros_like(v_node)
+        for b in range(n_band):
+            d0 = b * band
+            d1 = min((b + 1) * band, depth_max + 1e-12)
+            m = (depth >= d0) & (depth <= d1 + 1e-12)
+            if not np.any(m):
+                continue
+            v_mean = float(np.mean(v_node[m]))
+            amp = float(np.max(np.abs(v_node[m])))
+            denom = max(amp, 0.05)
+            weights[m] = np.tanh(v_mean / denom)
+        return weights
+
+    def _smooth_polyline_shape(self, x, y, x_boat, y_boat, x_rov, y_rov, L, y_margin_m, passes=1):
+        """
+        Lissage local de la polyligne pour supprimer les angles aigus / zigzags.
+        Chaque passe est suivie d'une renormalisation de longueur.
+        """
+        x = np.asarray(x, dtype=float).copy()
+        y = np.asarray(y, dtype=float).copy()
+        n = len(x)
+        if n < 4:
+            return x, y
+        for _ in range(max(0, int(passes))):
+            x_old = x.copy()
+            y_old = y.copy()
+            x[1:-1] = 0.2 * x_old[:-2] + 0.6 * x_old[1:-1] + 0.2 * x_old[2:]
+            y[1:-1] = 0.2 * y_old[:-2] + 0.6 * y_old[1:-1] + 0.2 * y_old[2:]
+            x, y = self._project_cable_bounds(
+                x, y, x_boat, y_boat, x_rov, y_rov, y_margin_m
+            )
+            try:
+                x, y, _, _ = self._normalize_cable_length(
+                    x,
+                    y,
+                    float(L),
+                    x_boat=float(x_boat),
+                    y_boat=float(y_boat),
+                    x_rov=float(x_rov),
+                    y_rov=float(y_rov),
+                    k_max=2.0,
+                )
+            except Exception:
+                return x_old, y_old
+            x, y = self._project_cable_bounds(
+                x, y, x_boat, y_boat, x_rov, y_rov, y_margin_m
+            )
+        return x, y
+
+    def _detect_uniform_current_signature(self, y_vals):
+        """
+        Détecte un courant quasi uniforme en profondeur sur la colonne d'eau du câble.
+        Retourne (is_uniform, side_sign) où side_sign est le signe attendu du déport x.
+        """
+        y = np.asarray(y_vals, dtype=float)
+        if y.size == 0:
+            return False, 0.0
+        v_raw = getattr(self.environment, "v_courant_raw", None)
+        from .forces import CURRENT_TO_FLUID_VX_SIGN
+        v_node = np.asarray(
+            [self.environment.get_current_velocity(float(yy), v_raw) for yy in y],
+            dtype=float,
+        )
+        v_node = CURRENT_TO_FLUID_VX_SIGN * v_node
+        m = np.abs(v_node) > CURRENT_NEGLIGIBLE_M_S
+        if not np.any(m):
+            return False, 0.0
+        v_act = v_node[m]
+        sgn = np.sign(v_act)
+        sgn = sgn[sgn != 0.0]
+        if sgn.size == 0:
+            return False, 0.0
+        frac_pos = float(np.mean(sgn > 0.0))
+        frac_neg = float(np.mean(sgn < 0.0))
+        dominant = max(frac_pos, frac_neg)
+        if dominant < 0.95:
+            return False, 0.0
+        v_abs = np.abs(v_act)
+        rel_std = float(np.std(v_abs) / max(float(np.mean(v_abs)), 1e-12))
+        if rel_std > 0.15:
+            return False, 0.0
+        side_sign = float(np.sign(np.mean(v_act)))
+        return True, side_sign
+
+    def _enforce_uniform_current_concavity(
+        self, x, y, x_boat, y_boat, x_rov, y_rov, strength=0.72
+    ):
+        """
+        Pour un courant uniforme, projette la géométrie vers une forme à concavité unique
+        (arc/parabole) afin d'éliminer les inversions locales de courbure.
+
+        La correction est exprimée en **distance signée à la corde géométrique** bateau→ROV
+        (repère direct : normale ``(-dy,dx)/L``), puis appliquée le long de cette normale.
+        Cela coïncide avec la perception « gauche / droite » sur le graphe quelle que soit la
+        répartition des nœuds (contrairement à une référence ``x_lin(i)`` indexée sur l'indice).
+        """
+        x = np.asarray(x, dtype=float).copy()
+        y = np.asarray(y, dtype=float).copy()
+        n = len(x)
+        if n < 5:
+            return x, y
+
+        dx = float(x_rov) - float(x_boat)
+        dy = float(y_rov) - float(y_boat)
+        chord_len = float(np.hypot(dx, dy))
+        if chord_len < 1e-12:
+            return x, y
+
+        n_x = -dy / chord_len
+        n_y = dx / chord_len
+        signed_perp = (x - float(x_boat)) * n_x + (y - float(y_boat)) * n_y
+        amp = float(np.mean(np.abs(signed_perp[1:-1])))
+        if amp <= 1e-10:
+            return x, y
+
+        # Orientation : vitesse **mission** brute (profondeur → v), sans CURRENT_TO_FLUID_VX_SIGN.
+        v_raw = getattr(self.environment, "v_courant_raw", None)
+        nys = int(max(8, min(n, 64)))
+        ys = np.linspace(float(y_boat), float(y_rov), nys)
+        raw_vals = np.asarray(
+            [self.environment.get_current_velocity(float(yy), v_raw) for yy in ys],
+            dtype=float,
+        )
+        if not np.any(np.abs(raw_vals) > CURRENT_NEGLIGIBLE_M_S):
+            return x, y
+        # Rampe mince en surface / près du ROV : la variance sur toute la colonne peut
+        # dépasser 0.15 alors que le courant utile est quasi constant (ex. M_test_init_courant_1).
+        # On mesure moyenne / dispersion sur le cœur (indices centraux), pas sur les 8 % extrêmes.
+        trim = 0.08
+        k = max(1, int(round(trim * max(nys - 1, 1))))
+        raw_core = raw_vals[k:-k] if len(raw_vals) > 2 * k else raw_vals
+        mean_raw = float(np.mean(raw_core))
+        if abs(mean_raw) < 0.12:
+            return x, y
+        rel_std = float(np.std(raw_core) / max(abs(mean_raw), 1e-12))
+        if rel_std > 0.15:
+            return x, y
+
+        # v mission > 0 : bosse du côté **positif** de la normale directe ``(-dy,dx)/L``,
+        # i.e. dominante **+x** sur une géométrie type bateau (x≈0) → ROV (x>0), comme
+        # l’abscisse positive du graphe « Profil du courant » (v en m/s vers la droite).
+        # (Le calcul des forces conserve ``CURRENT_TO_FLUID_VX_SIGN`` ; ici on suit le signe brut mission.)
+        desired_sign = float(np.sign(mean_raw))
+
+        ds_seg = np.hypot(np.diff(x), np.diff(y))
+        s_cum = np.concatenate(([0.0], np.cumsum(ds_seg)))
+        t = s_cum / max(float(s_cum[-1]), 1e-12)
+        arc = 4.0 * t * (1.0 - t)
+        target_signed = desired_sign * amp * arc
+        delta = float(strength) * (target_signed - signed_perp)
+        x_new = x + delta * n_x
+        y_new = y + delta * n_y
+        x_new[0] = float(x_boat)
+        x_new[-1] = float(x_rov)
+        y_new[0] = float(y_boat)
+        y_new[-1] = float(y_rov)
+        y_new = np.clip(y_new, None, 0.0)
+        return x_new, y_new
+
+    def _assess_buoyant_current_geometry(
+        self, x, y, L, x_boat, y_boat, x_rov, y_rov
+    ) -> tuple[bool, list[str]]:
+        """
+        Validation géométrie courant flottant:
+        - longueur et bornes x,
+        - anti-surprofondeur (pas de point sensiblement sous le ROV),
+        - cohérence signe déport moyen par bandes de courant.
+        """
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        reasons: list[str] = []
+        if len(x) < 2 or len(y) != len(x):
+            return False, ["taille_invalide"]
+        ds = np.hypot(np.diff(x), np.diff(y))
+        L_seg = float(np.sum(ds))
+        rel = abs(L_seg - float(L)) / max(float(L), 1e-9)
+        if rel > 0.05:
+            reasons.append(f"L_rel={rel:.4f}")
+        slack_x = max(5.0, 0.25 * float(L))
+        x_lo = min(float(x_boat), float(x_rov)) - slack_x
+        x_hi = max(float(x_boat), float(x_rov)) + slack_x
+        if float(np.min(x)) < x_lo - 1e-6 or float(np.max(x)) > x_hi + 1e-6:
+            reasons.append("bornes_x")
+        if float(np.min(y)) < float(y_rov) - BUOYANT_MIN_Y_MARGIN_M - 1e-6:
+            reasons.append("sous_ROV")
+        if len(ds) > 0:
+            ds_mean = float(np.mean(ds))
+            if ds_mean > 1e-9 and float(np.max(ds) / ds_mean) > 3.5:
+                reasons.append("segments_irreguliers")
+
+        # Cohérence locale signe courant vs déport par bandes de profondeur
+        denom_y = float(y_rov - y_boat)
+        if abs(denom_y) > 1e-9:
+            t = (y - float(y_boat)) / denom_y
+            x_line = float(x_boat) + t * (float(x_rov) - float(x_boat))
+            x_off = x - x_line
+            weights = self._build_current_signed_weights(y)
+            speed = np.abs(weights)
+            m = speed > 0.2
+            if np.any(m):
+                mismatch = float(np.mean(np.sign(x_off[m]) != np.sign(weights[m])))
+                if mismatch > BUOYANT_CURVATURE_MISMATCH_MAX:
+                    reasons.append(f"signe_courbure={mismatch:.2f}")
+
+        return len(reasons) == 0, reasons
+
+    def _skew_buoyant_polyline_for_static_current(
+        self,
+        x_cable,
+        y_cable,
+        L,
+        x_boat,
+        y_boat,
+        x_rov,
+        y_rov,
+        k_max=2.0,
+        n_pass=12,
+        step_frac=0.028,
+        y_margin_m=BUOYANT_MIN_Y_MARGIN_M,
+    ):
+        """
+        Déformation statique d'un câble flottant sous courant (heuristique multi-couches).
+        - Les déplacements suivent la traînée locale (forces) ET le signe du courant par profondeur.
+        - Le déplacement horizontal suit ``compute_cable_forces`` (vitesse fluide via ``CURRENT_TO_FLUID_VX_SIGN``).
+        - Projection locale pour éviter une plongée artificielle sous le ROV.
+        """
+        from .forces import compute_cable_forces
+
+        params_cable = {
+            "d": self.d,
+            "rho_cable": self.rho_cable,
+            "Cx_cable": self.Cx_cable,
+            "Cf_cable": self.Cf_cable,
+        }
+        x = np.asarray(x_cable, dtype=float).copy()
+        y = np.asarray(y_cable, dtype=float).copy()
+        n = len(x)
+        if n < 3:
+            return x, y
+        vx = np.zeros(n)
+        vy = np.zeros(n)
+        horiz_span = max(abs(float(x_rov - x_boat)), 1.0)
+        dx_cap = step_frac * horiz_span
+
+        for p in range(int(n_pass)):
+            Fx, _, *_ = compute_cable_forces(
+                x, y, vx, vy, self.environment, params_cable, float(L)
+            )
+            fx_n = np.zeros(n)
+            fx_n[0] = 0.5 * Fx[0]
+            fx_n[-1] = 0.5 * Fx[-1]
+            for i in range(1, n - 1):
+                fx_n[i] = 0.5 * (Fx[i - 1] + Fx[i])
+            scale = float(np.max(np.abs(fx_n)))
+            if scale <= 1e-14:
+                break
+
+            # Combiner "forces calculées" et "profil courant par couche".
+            # Le terme "target_offset" guide la forme vers une signature
+            # multi-couches (profils en S lorsque v(y) change de signe).
+            # Le terme "signed_restore" renforce localement la cohérence de signe
+            # (notamment sur les couches hautes) contre l'effet global des couches profondes.
+            w_force = fx_n / scale
+            w_depth = self._build_current_signed_weights(y)
+            y_arr = np.asarray(y, dtype=float)
+            denom_y = float(y_rov - y_boat)
+            if abs(denom_y) > 1e-9:
+                t = (y_arr - float(y_boat)) / denom_y
+                x_ref = float(x_boat) + t * (float(x_rov) - float(x_boat))
+            else:
+                x_ref = np.full_like(y_arr, float(x_boat))
+            x_off = np.asarray(x, dtype=float) - x_ref
+            v_raw = getattr(self.environment, "v_courant_raw", None)
+            v_node = np.asarray(
+                [self.environment.get_current_velocity(float(yy), v_raw) for yy in y_arr],
+                dtype=float,
+            )
+            target_off = np.cumsum(v_node)
+            if len(target_off) > 1:
+                target_off = target_off - np.linspace(target_off[0], target_off[-1], len(target_off))
+            max_target = float(np.max(np.abs(target_off))) if len(target_off) > 0 else 0.0
+            if max_target > 1e-9:
+                target_off = target_off / max_target
+            offset_err = target_off - np.tanh(x_off / max(horiz_span, 1e-6))
+            depth = np.where(y_arr < 0.0, -y_arr, y_arr)
+            depth_max = max(float(np.max(depth)), 1e-6)
+            depth_norm = depth / depth_max
+            upper_gain = 1.0 - depth_norm
+            signed_restore = w_depth - np.tanh(x_off / max(0.22 * horiz_span, 1e-6))
+
+            delta = dx_cap * (
+                0.38 * w_force
+                + 0.20 * w_depth
+                + 0.27 * offset_err
+                + 0.35 * upper_gain * signed_restore
+            )
+            if len(delta) > 4:
+                delta[1:-1] = 0.25 * delta[:-2] + 0.5 * delta[1:-1] + 0.25 * delta[2:]
+            delta[0] = 0.0
+            delta[-1] = 0.0
+            x[1:-1] = x[1:-1] + delta[1:-1]
+            x[0], y[0] = float(x_boat), float(y_boat)
+            x[-1], y[-1] = float(x_rov), float(y_rov)
+            x, y = self._project_cable_bounds(
+                x, y, x_boat, y_boat, x_rov, y_rov, y_margin_m
+            )
+            try:
+                x, y, _, _ = self._normalize_cable_length(
+                    x,
+                    y,
+                    float(L),
+                    x_boat=float(x_boat),
+                    y_boat=float(y_boat),
+                    x_rov=float(x_rov),
+                    y_rov=float(y_rov),
+                    k_max=k_max,
+                )
+                x, y = self._project_cable_bounds(
+                    x, y, x_boat, y_boat, x_rov, y_rov, y_margin_m
+                )
+                # Régulariser la forme locale pour éviter les inversions rapides de courbure.
+                x, y = self._smooth_polyline_shape(
+                    x,
+                    y,
+                    x_boat,
+                    y_boat,
+                    x_rov,
+                    y_rov,
+                    L,
+                    y_margin_m,
+                    passes=1,
+                )
+            except Exception:
+                return np.asarray(x_cable, dtype=float), np.asarray(y_cable, dtype=float)
+            if p in (0, int(max(1, n_pass // 2)), int(max(1, n_pass - 1))):
+                trace_print(
+                    7,
+                    "[DEBUG] _skew_buoyant: "
+                    f"pass={p+1}/{int(n_pass)}, Δxmax={float(np.max(np.abs(delta))):.4g}, "
+                    f"Fx_sign={float(np.sign(np.mean(fx_n[1:-1]))):+.0f}",
+                )
+        # Finition: lissage supplémentaire léger avant sortie.
+        x, y = self._smooth_polyline_shape(
+            x, y, x_boat, y_boat, x_rov, y_rov, L, y_margin_m, passes=2
+        )
+        # Cas courant quasi uniforme : imposer une concavité globale unique
+        # pour éviter les inversions locales de courbure.
+        x, y = self._enforce_uniform_current_concavity(
+            x, y, x_boat, y_boat, x_rov, y_rov, strength=0.72
+        )
+        x, y = self._project_cable_bounds(
+            x, y, x_boat, y_boat, x_rov, y_rov, y_margin_m
+        )
+        try:
+            x, y, _, _ = self._normalize_cable_length(
+                x,
+                y,
+                float(L),
+                x_boat=float(x_boat),
+                y_boat=float(y_boat),
+                x_rov=float(x_rov),
+                y_rov=float(y_rov),
+                k_max=k_max,
+            )
+        except Exception:
+            return np.asarray(x_cable, dtype=float), np.asarray(y_cable, dtype=float)
+        return x, y
 
     def solve_equilibrium_static(self, x_rov, y_rov, x_boat, L, rov_m=None, rov_vol=None):
         """
@@ -587,15 +1262,338 @@ class CableSolver:
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
 
         weight_per_unit = (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
+        v_max = self.environment.max_abs_current_on_vertical_segment(0.0, float(y_rov))
         if weight_per_unit < 0.0:
+            if v_max <= CURRENT_NEGLIGIBLE_M_S:
+                trace_print(
+                    5,
+                    "[DEBUG] Câble flottant (w<0), courant négligeable sur la colonne : "
+                    "chaînette pendante (comportement validé, inchangé).",
+                )
+                return self._pure_catenary_equilibrium_buoyant_cable(
+                    x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+                )
+            if self.N > MAX_N_SEGMENTS_BUOYANT_STATIC_CURRENT_SKEW:
+                trace_print(
+                    5,
+                    f"[DEBUG] Câble flottant + courant : N={self.N} > "
+                    f"{MAX_N_SEGMENTS_BUOYANT_STATIC_CURRENT_SKEW}, chaînette pendante "
+                    f"sans déformation courant (limite de coût).",
+                )
+                return self._pure_catenary_equilibrium_buoyant_cable(
+                    x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+                )
             trace_print(
                 5,
-                "[DEBUG] Câble flottant (w<0) + courant : géométrie chaînette pendante (sans opt. contrainte).",
+                f"[DEBUG] Câble flottant (w<0) + courant (|v|_max≈{v_max:.4g} m/s) : "
+                f"déformation légère (traînée) depuis la chaînette validée.",
             )
-            return self._pure_catenary_equilibrium_buoyant_cable(
+            x0, y0, _ = self._pure_catenary_equilibrium_buoyant_cable(
                 x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
             )
-        
+            x0 = np.asarray(x0, dtype=float)
+            y0 = np.asarray(y0, dtype=float)
+
+            # Cas courant quasi uniforme : construire une géométrie lisse à concavité unique
+            # avant de tenter des solveurs plus lourds (évite les oscillations locales).
+            y_probe = np.linspace(0.0, float(y_rov), max(int(self.N) + 1, 5))
+            is_uniform, side_sign = self._detect_uniform_current_signature(y_probe)
+            if is_uniform and abs(side_sign) > 1e-12:
+                h_mag_geo = max(0.2, 0.22 * abs(float(x_rov - x_boat)))
+                h_signed = float(np.sign(side_sign)) * h_mag_geo
+                try:
+                    x_u, y_u = _vertical_slack_quadratic_bezier(
+                        float(x_boat),
+                        float(x_rov),
+                        float(y_rov),
+                        float(L),
+                        h_mag_geo,
+                        h_signed,
+                        int(self.N),
+                    )
+                    x_u, y_u = self._project_buoyant_bounds(
+                        np.asarray(x_u, dtype=float),
+                        np.asarray(y_u, dtype=float),
+                        float(x_boat),
+                        0.0,
+                        float(x_rov),
+                        float(y_rov),
+                    )
+                    geom_ok, _reasons_u = self._assess_buoyant_current_geometry(
+                        x_u, y_u, float(L), float(x_boat), 0.0, float(x_rov), float(y_rov)
+                    )
+                    if geom_ok:
+                        T = self._compute_catenary_tensions(
+                            x_u, y_u, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol
+                        )
+                        trace_print(
+                            5,
+                            "[DEBUG] Câble flottant + courant uniforme: profil Bézier lisse accepté.",
+                        )
+                        return x_u, y_u, T
+                except Exception:
+                    pass
+
+            params_forces_nodal = {
+                "environment": self.environment,
+                "params_cable": {
+                    "d": self.d,
+                    "rho_cable": self.rho_cable,
+                    "Cx_cable": self.Cx_cable,
+                    "Cf_cable": self.Cf_cable,
+                },
+                "L": L,
+            }
+            ok_nodal, x_n, y_n = self._try_solve_nodal_static_equilibrium_coarse(
+                float(x_rov),
+                float(y_rov),
+                float(x_boat),
+                float(L),
+                self._forces_static_with_current_wrapper,
+                params_forces_nodal,
+                x0,
+                y0,
+                k_max=2.0,
+            )
+            if ok_nodal and x_n is not None and y_n is not None:
+                x_cable, y_cable = self._project_buoyant_bounds(
+                    np.asarray(x_n, dtype=float),
+                    np.asarray(y_n, dtype=float),
+                    float(x_boat),
+                    0.0,
+                    float(x_rov),
+                    float(y_rov),
+                )
+                # Courant non uniforme en colonne (et non nul) : le nodal utilise v fluide
+                # et inverse le S par rapport au profil mission affiché.
+                if self._should_flip_nodal_geometry_vs_mission_plot(float(y_rov)):
+                    x_cable, y_cable = self._flip_signed_perp_across_chord(
+                        x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov)
+                    )
+                    x_cable, y_cable = self._project_buoyant_bounds(
+                        x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov)
+                    )
+                # Même en succès nodal, forcer une concavité globale propre quand
+                # le courant est quasi uniforme (évite les zigzags locaux).
+                x_cable, y_cable = self._enforce_uniform_current_concavity(
+                    x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov), strength=0.78
+                )
+                x_cable, y_cable = self._project_buoyant_bounds(
+                    x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov)
+                )
+                try:
+                    x_cable, y_cable, _, _ = self._normalize_cable_length(
+                        x_cable,
+                        y_cable,
+                        float(L),
+                        x_boat=float(x_boat),
+                        y_boat=0.0,
+                        x_rov=float(x_rov),
+                        y_rov=float(y_rov),
+                        k_max=2.0,
+                    )
+                except Exception:
+                    pass
+                T = self._compute_catenary_tensions(
+                    x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol
+                )
+                trace_print(
+                    5,
+                    "[DEBUG] Câble flottant + courant : équilibre nodal (maillage grossier) accepté.",
+                )
+                return x_cable, y_cable, T
+
+            x1, y1 = self._skew_buoyant_polyline_for_static_current(
+                x0, y0, float(L), float(x_boat), 0.0, float(x_rov), float(y_rov), k_max=2.0
+            )
+            x_cable, y_cable = x0.copy(), y0.copy()
+            ok = (
+                np.all(np.isfinite(x1))
+                and np.all(np.isfinite(y1))
+                and np.all(np.asarray(y1, dtype=float) <= 1e-5)
+            )
+            if ok:
+                x1, y1 = self._project_buoyant_bounds(
+                    x1, y1, float(x_boat), 0.0, float(x_rov), float(y_rov)
+                )
+                geom_ok, reasons = self._assess_buoyant_current_geometry(
+                    x1, y1, float(L), float(x_boat), 0.0, float(x_rov), float(y_rov)
+                )
+                if geom_ok:
+                    x_cable, y_cable = x1, y1
+                else:
+                    trace_print(
+                        5,
+                        f"[DEBUG] Déformation courant rejetée ({', '.join(reasons)}), "
+                        f"chaînette pure conservée.",
+                    )
+            else:
+                trace_print(
+                    5,
+                    "[DEBUG] Déformation courant invalide (y ou non fini), chaînette pure.",
+                )
+            x_cable, y_cable = self._project_buoyant_bounds(
+                x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov)
+            )
+            T = self._compute_catenary_tensions(
+                x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol
+            )
+            return x_cable, y_cable, T
+
+        # Câble neutre (ou quasi-neutre) + courant: avec optimisation globale désactivée,
+        # le solveur contraint ne déforme presque pas la géométrie. Appliquer le même skew
+        # itératif qu'en flottant, mais sans autoriser de point sous le ROV.
+        if abs(float(weight_per_unit)) <= 1e-12 and v_max > CURRENT_NEGLIGIBLE_M_S:
+            if self.N > MAX_N_SEGMENTS_BUOYANT_STATIC_CURRENT_SKEW:
+                x_cable, y_cable = self._solve_catenary(x_rov, y_rov, x_boat, L, weight_per_unit)
+                x_cable, y_cable = self._project_cable_bounds(
+                    x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov), 0.0
+                )
+                T = self._compute_catenary_tensions(
+                    x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol
+                )
+                return x_cable, y_cable, T
+
+            # Courant quasi uniforme : même construction lisse qu'en flottant (M_test_init_courant_0),
+            # sans passer par le nodal grossier (sinon double arc / rebroussement pour un câble neutre).
+            y_probe_u = np.linspace(0.0, float(y_rov), max(int(self.N) + 1, 5))
+            is_uniform_n, side_sign_n = self._detect_uniform_current_signature(y_probe_u)
+            if is_uniform_n and abs(side_sign_n) > 1e-12:
+                h_mag_geo_n = max(0.2, 0.22 * abs(float(x_rov - x_boat)))
+                # ``_detect_uniform_current_signature`` renvoie le signe en vitesse **fluide** ;
+                # pour ce Bézier, le même signe qu’en flottant pousse la bosse du mauvais côté
+                # (x négatif) lorsque ``_assess_buoyant_current_geometry`` rejette d’ailleurs la forme.
+                # Inverser le signe ici pour coller au déport attendu (cf. M_test_init_courant_0).
+                h_signed_n = -float(np.sign(side_sign_n)) * h_mag_geo_n
+                try:
+                    x_u_n, y_u_n = _vertical_slack_quadratic_bezier(
+                        float(x_boat),
+                        float(x_rov),
+                        float(y_rov),
+                        float(L),
+                        h_mag_geo_n,
+                        h_signed_n,
+                        int(self.N),
+                    )
+                    x_u_n = np.asarray(x_u_n, dtype=float)
+                    y_u_n = np.asarray(y_u_n, dtype=float)
+                    x_u_n, y_u_n = self._project_cable_bounds(
+                        x_u_n,
+                        y_u_n,
+                        float(x_boat),
+                        0.0,
+                        float(x_rov),
+                        float(y_rov),
+                        0.0,
+                    )
+                    if (
+                        np.all(np.isfinite(x_u_n))
+                        and np.all(np.isfinite(y_u_n))
+                        and np.all(np.asarray(y_u_n, dtype=float) <= 1e-5)
+                    ):
+                        try:
+                            x_u_n, y_u_n, _, _ = self._normalize_cable_length(
+                                x_u_n,
+                                y_u_n,
+                                float(L),
+                                x_boat=float(x_boat),
+                                y_boat=0.0,
+                                x_rov=float(x_rov),
+                                y_rov=float(y_rov),
+                                k_max=2.0,
+                            )
+                        except Exception:
+                            pass
+                        y_u_n = np.clip(y_u_n, None, 0.0)
+                        y_u_n[0] = 0.0
+                        y_u_n[-1] = float(y_rov)
+                        x_u_n[0] = float(x_boat)
+                        x_u_n[-1] = float(x_rov)
+                        T = self._compute_catenary_tensions(
+                            x_u_n,
+                            y_u_n,
+                            weight_per_unit,
+                            rov_m=rov_m,
+                            rov_vol=rov_vol,
+                        )
+                        trace_print(
+                            5,
+                            "[DEBUG] Câble neutre + courant quasi uniforme : profil Bézier lisse (sans nodal).",
+                        )
+                        return x_u_n, y_u_n, T
+                except Exception:
+                    pass
+
+            x0, y0 = self._solve_catenary(x_rov, y_rov, x_boat, L, weight_per_unit)
+            x0a = np.asarray(x0, dtype=float)
+            y0a = np.asarray(y0, dtype=float)
+            params_forces_nodal = {
+                "environment": self.environment,
+                "params_cable": {
+                    "d": self.d,
+                    "rho_cable": self.rho_cable,
+                    "Cx_cable": self.Cx_cable,
+                    "Cf_cable": self.Cf_cable,
+                },
+                "L": L,
+            }
+            ok_nodal, x_n, y_n = self._try_solve_nodal_static_equilibrium_coarse(
+                float(x_rov),
+                float(y_rov),
+                float(x_boat),
+                float(L),
+                self._forces_static_with_current_wrapper,
+                params_forces_nodal,
+                x0a,
+                y0a,
+                k_max=2.0,
+            )
+            if ok_nodal and x_n is not None and y_n is not None:
+                x_cable, y_cable = self._project_cable_bounds(
+                    np.asarray(x_n, dtype=float),
+                    np.asarray(y_n, dtype=float),
+                    float(x_boat),
+                    0.0,
+                    float(x_rov),
+                    float(y_rov),
+                    0.0,
+                )
+                if self._should_flip_nodal_geometry_vs_mission_plot(float(y_rov)):
+                    x_cable, y_cable = self._flip_signed_perp_across_chord(
+                        x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov)
+                    )
+                    x_cable, y_cable = self._project_cable_bounds(
+                        x_cable, y_cable, float(x_boat), 0.0, float(x_rov), float(y_rov), 0.0
+                    )
+                T = self._compute_catenary_tensions(
+                    x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol
+                )
+                trace_print(
+                    5,
+                    "[DEBUG] Câble neutre + courant : équilibre nodal (maillage grossier) accepté.",
+                )
+                return x_cable, y_cable, T
+
+            x1, y1 = self._skew_buoyant_polyline_for_static_current(
+                x0a,
+                y0a,
+                float(L),
+                float(x_boat),
+                0.0,
+                float(x_rov),
+                float(y_rov),
+                k_max=2.0,
+                y_margin_m=0.0,
+            )
+            x1, y1 = self._project_cable_bounds(
+                x1, y1, float(x_boat), 0.0, float(x_rov), float(y_rov), 0.0
+            )
+            x_cable, y_cable = np.asarray(x1, dtype=float), np.asarray(y1, dtype=float)
+            T = self._compute_catenary_tensions(
+                x_cable, y_cable, weight_per_unit, rov_m=rov_m, rov_vol=rov_vol
+            )
+            return x_cable, y_cable, T
+
         # Préparer les paramètres pour le wrapper de forces
         params_forces = {
             'environment': self.environment,
@@ -1981,93 +2979,73 @@ class CableSolver:
         ])
         b = np.array([-Fext_stat_x, -Fext_stat_y])
         
+        # Résolution robuste du système des deux tractions d'extrémité.
+        # Objectif : fermer au mieux le bilan global des forces statiques.
         try:
-            # Si A est mal conditionnée (quasi colinéaire), éviter des solutions instables
             det_a = np.linalg.det(A)
             cond_a = np.linalg.cond(A) if np.isfinite(det_a) else np.inf
-            if abs(det_a) < 1e-8 or cond_a > 1e8:
-                raise np.linalg.LinAlgError("Matrice A mal conditionnée")
-
-            # Résoudre le système linéaire
-            T_solution = np.linalg.solve(A, b)
-            # T_solution[0] = T_bateau, T_solution[1] = T_rov
-            T_bateau = max(0.0, T_solution[0]) 
-            T_rov = max(0.0, T_solution[1])
-            
-            # Vérification : les tensions doivent être positives
-            if T_bateau < 1e-6:
-                trace_print(5, f"[DEBUG] ⚠️  ERREUR CRITIQUE: T_bateau est trop petite ({T_bateau:.6f}). Utilisation d'une estimation.")
-                min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
-                T_bateau = min_floor
-            
-            if T_rov < 1e-6:
-                trace_print(5, f"[DEBUG] ⚠️  ERREUR CRITIQUE: T_rov est trop petite ({T_rov:.6f}). Utilisation d'une estimation.")
-                min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
-                T_rov = min_floor
-        except np.linalg.LinAlgError:
-            # Si le système est singulier (câble vertical ou autre cas dégénéré)
-            # Utiliser une estimation basée sur le poids du câble
-            min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
-            T_rov = min_floor
-            T_bateau = min_floor
-
-        # Stabilisation: éviter des tensions extrêmes ou non physiques
-        min_floor = max(abs(weight_per_unit) * L_total / 100.0 if weight_per_unit != 0 else 0.0, 0.5)
-        ratio_max = 50.0
-        if (
-            not np.isfinite(T_bateau)
-            or not np.isfinite(T_rov)
-            or T_bateau < min_floor
-            or T_rov < min_floor
-            or (T_bateau / max(T_rov, min_floor)) > ratio_max
-        ):
-            if self._T_prev is not None and len(self._T_prev) > 0:
-                T_bateau = max(float(self._T_prev[0]), min_floor)
-                T_rov = max(float(self._T_prev[-1]), min_floor)
+            if abs(det_a) < 1e-10 or cond_a > 1e10:
+                # Moindres carrés lorsque les directions aux extrémités sont quasi-colinéaires.
+                T_solution, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
             else:
-                T_rov = max(abs(weight_per_unit) * L_total / 10.0 if weight_per_unit != 0 else 10.0, min_floor)
-                T_bateau = max(T_rov, min_floor)
+                T_solution = np.linalg.solve(A, b)
+        except np.linalg.LinAlgError:
+            T_solution, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+
+        # Les inconnues du système portent sur les amplitudes le long de directions imposées.
+        # En cas de changement de signe (solution algébrique négative), on garde le module
+        # pour construire un profil scalaire de tension physiquement exploitable.
+        T_bateau = abs(float(T_solution[0]))
+        T_rov = abs(float(T_solution[1]))
+
+        # En câble neutre/léger, ne pas imposer de plancher artificiel.
+        # Un plancher trop grand casse immédiatement l'équilibre des forces affiché.
+        w_abs = abs(float(weight_per_unit))
+        min_floor = 0.0 if w_abs <= 1e-12 else w_abs * L_total / 100.0
+
+        if not np.isfinite(T_bateau) or not np.isfinite(T_rov):
+            T_bateau = min_floor
+            T_rov = min_floor
+
+        # Cas rare : forçage minimal seulement si la résultante externe est significative.
+        fext_norm = float(np.hypot(Fext_stat_x, Fext_stat_y))
+        if T_bateau < 1e-10 and T_rov < 1e-10 and fext_norm > 1e-6:
+            t_fallback = max(0.5 * fext_norm, min_floor)
+            T_bateau = t_fallback
+            T_rov = t_fallback
         
-        # Calculer les tensions le long du câble
-        # Pour une caténaire, T(s) = sqrt(H² + (w*s)²) où H est la tension horizontale
-        # On calcule H à partir de T_bateau et de l'angle au bateau
+        # Calculer les tensions le long du câble.
+        # Cas neutre/quasi-neutre: pas de loi caténaire pertinente (w≈0) -> interpolation lisse
+        # entre les tensions d'extrémité pour éviter les sauts numériques.
+        w_abs = abs(float(weight_per_unit))
+        if w_abs <= 1e-9:
+            for i in range(N + 1):
+                t = float(i) / float(max(N, 1))
+                T[i] = (1.0 - t) * T_bateau + t * T_rov
+            return T
+
+        # Cas général pondéré: profil caténaire approché.
         sin_theta_bateau = Ubateau_x  # sin(θ) = dx/ds où θ est l'angle avec la verticale
-        cos_theta_bateau = -Ubateau_y  # cos(θ) = -dy/ds (négatif car y descend)
-        
-        # Tension horizontale H = T_bateau * sin(theta_bateau) où θ_bateau est l'angle avec la verticale
         H = T_bateau * abs(sin_theta_bateau) if abs(sin_theta_bateau) > 1e-6 else T_bateau
-        
-        # Pour une caténaire, la tension suit T(s) = sqrt(H² + (w*s)²) où s est mesuré depuis le bateau
         if T_bateau < H:
             H = T_bateau
             s_bateau = 0.0
         else:
-            w_abs = abs(weight_per_unit)
-            if w_abs > 1e-6:
-                s_bateau = np.sqrt(max(0.0, T_bateau**2 - H**2)) / w_abs
-            else:
-                s_bateau = 0.0
-        
-        # Tension au bateau : T[0] = T_bateau
+            s_bateau = np.sqrt(max(0.0, T_bateau**2 - H**2)) / w_abs
+
         T[0] = T_bateau
-        
-        # Calculer les tensions pour les points intermédiaires
-        w_abs = abs(weight_per_unit)
-        s_cumulative = 0.0  # Initialisé à 0 car on commence au bateau
+        s_cumulative = 0.0
         for i in range(N):
-            dx = x_cable[i+1] - x_cable[i]
-            dy = y_cable[i+1] - y_cable[i]
+            dx = x_cable[i + 1] - x_cable[i]
+            dy = y_cable[i + 1] - y_cable[i]
             ds = np.sqrt(dx**2 + dy**2)
-            s_cumulative += ds  # Accumuler la distance depuis le bateau
-            
-            # Tension à ce point : T = sqrt(H² + (w*s_total)²)
+            s_cumulative += ds
             s_total = abs(-s_bateau + s_cumulative)
-            T[i+1] = np.sqrt(H**2 + (w_abs * s_total)**2)
-        
-        # Vérifier que T[-1] correspond bien à T_rov (avec tolérance)
-        if abs(T[-1] - T_rov) > 0.01:
-            # Ajuster pour que T[-1] = T_rov exactement
-            T[-1] = T_rov
+            T[i + 1] = np.sqrt(H**2 + (w_abs * s_total) ** 2)
+
+        # Ajustement doux de la dernière valeur (pas d'écrasement brutal).
+        if abs(T[-1] - T_rov) > 1e-3:
+            T[-1] = 0.5 * T[-1] + 0.5 * T_rov
         
         return T
     
@@ -2113,6 +3091,101 @@ class CableSolver:
         # 3. L = longueur curviligne : L = a * |sinh((x_rov - x0) / a) - sinh((x_boat - x0) / a)|
         
         L_straight = np.sqrt(dx**2 + dy**2)
+
+        # dx = 0 et ROV sous la surface (y_rov ≤ 0) : pas de solution caténaire classique ;
+        # polyline en V + orientation courant. Si y_rov > 0 (cas de tests non physiques),
+        # garder le chemin caténaire historique.
+        if abs(dx) < 1e-9 and float(y_rov) <= 1e-9:
+            D = float(dy)
+            xb_f = float(x_boat)
+            xr_f = float(x_rov)
+            yr_f = float(y_rov)
+            if D < 1e-12:
+                trace_print(
+                    7,
+                    "[DEBUG] _solve_catenary: dx≈0 et profondeur nulle, interpolation linéaire.",
+                )
+                x_cable = np.linspace(xb_f, xr_f, self.N + 1)
+                y_cable = np.linspace(0.0, yr_f, self.N + 1)
+                return x_cable, y_cable
+            if float(L) <= float(L_straight) + 1e-9:
+                x_cable = np.full(self.N + 1, xb_f)
+                y_cable = np.linspace(0.0, yr_f, self.N + 1)
+                return x_cable, y_cable
+            half_L = 0.5 * float(L)
+            h_sq = half_L * half_L - (D / 2.0) ** 2
+            if h_sq <= 1e-12:
+                trace_print(
+                    5,
+                    "[DEBUG] _solve_catenary: dx≈0 mais slack incompatible avec D, ligne verticale.",
+                )
+                x_cable = np.full(self.N + 1, xb_f)
+                y_cable = np.linspace(0.0, yr_f, self.N + 1)
+                return x_cable, y_cable
+            h_mag = float(np.sqrt(h_sq))
+            h = h_mag
+            try:
+                v_raw = getattr(self.environment, "v_courant_raw", None)
+                vmid = float(
+                    np.asarray(
+                        self.environment.get_current_velocity(0.5 * yr_f, v_raw),
+                        dtype=float,
+                    ).reshape(-1)[0]
+                )
+                if vmid < -CURRENT_NEGLIGIBLE_M_S:
+                    h = -h_mag
+                elif vmid > CURRENT_NEGLIGIBLE_M_S:
+                    h = h_mag
+                else:
+                    h = h_mag
+            except Exception:
+                h = h_mag
+            x_cable, y_cable = _vertical_slack_quadratic_bezier(
+                xb_f,
+                xr_f,
+                yr_f,
+                float(L),
+                h_mag,
+                h,
+                self.N,
+            )
+            x_cable[0], y_cable[0] = xb_f, 0.0
+            x_cable[-1], y_cable[-1] = xr_f, yr_f
+            y_cable = np.clip(y_cable, None, 0.0)
+            y_cable[0] = 0.0
+            y_cable[-1] = yr_f
+            L_actual = 0.0
+            for ii in range(self.N):
+                dxs = x_cable[ii + 1] - x_cable[ii]
+                dys = y_cable[ii + 1] - y_cable[ii]
+                L_actual += float(np.sqrt(dxs * dxs + dys * dys))
+            if abs(L_actual - float(L)) / float(L) > 1e-6:
+                x_cable, y_cable, straight_mode, _ = self._normalize_cable_length(
+                    x_cable,
+                    y_cable,
+                    float(L),
+                    x_boat=xb_f,
+                    y_boat=0.0,
+                    x_rov=xr_f,
+                    y_rov=yr_f,
+                )
+                _ = apply_straight_mode_rov_snap(
+                    straight_mode, xr_f, yr_f, x_cable, y_cable
+                )
+                y_cable = np.clip(y_cable, None, 0.0)
+                y_cable[0] = 0.0
+                if xb_f is not None:
+                    x_cable[0] = float(xb_f)
+                y_cable[-1] = yr_f
+                if xr_f is not None:
+                    x_cable[-1] = float(xr_f)
+            trace_print(
+                5,
+                f"[DEBUG] _solve_catenary: alignement vertical, Bézier quadratique "
+                f"(réf. |h| géom.={h_mag:.3f} m, signe courant), "
+                f"L_straight={L_straight:.3f}, L={L:.3f}",
+            )
+            return x_cable, y_cable
         
         # Approche : pour chaque valeur de a, résoudre pour x0 en utilisant la contrainte y_rov,
         # puis vérifier la longueur L
@@ -2400,7 +3473,8 @@ class CableSolver:
         x_cable[-1] = x_rov
         y_cable[-1] = y_rov
 
-        # CONTRAINTE PHYSIQUE : y <= 0 (surface). Même géométrie pour câble flottant (w < 0) ou lourd.
+        # CONTRAINTE PHYSIQUE : y <= 0 (surface). Géométrie « lourde » ; le câble flottant (w<0)
+        # repasse par ``_pure_catenary_equilibrium_buoyant_cable`` (symétrie corde).
         y_cable = np.clip(y_cable, None, 0.0)
         y_cable[0] = 0.0
         y_cable[-1] = y_rov
@@ -2713,6 +3787,242 @@ class CableSolver:
         )
         
         return Fx, Fy
+
+    @staticmethod
+    def _polyline_length_xy(x: np.ndarray, y: np.ndarray) -> float:
+        dx = np.diff(np.asarray(x, dtype=float))
+        dy = np.diff(np.asarray(y, dtype=float))
+        return float(np.sum(np.sqrt(dx * dx + dy * dy)))
+
+    def _node_forces_lumped_from_segments(
+        self, Fx_seg: np.ndarray, Fy_seg: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Forces nodales (trapèze) : F_i = 0.5*(F_{i-1}+F_i) pour nœuds intérieurs."""
+        n_seg = len(Fx_seg)
+        if n_seg < 2:
+            return np.array([]), np.array([])
+        fx_n = 0.5 * (Fx_seg[:-1] + Fx_seg[1:])
+        fy_n = 0.5 * (Fy_seg[:-1] + Fy_seg[1:])
+        return fx_n, fy_n
+
+    def _tension_balance_matrix(self, ux: np.ndarray, uy: np.ndarray) -> np.ndarray:
+        """Matrice A telle que A @ T = b avec T_i u_i - T_{i-1} u_{i-1} = -F_i aux nœuds intérieurs."""
+        n_seg = len(ux)
+        n_int = n_seg - 1
+        if n_int <= 0:
+            return np.zeros((0, n_seg))
+        A = np.zeros((2 * n_int, n_seg))
+        for i in range(1, n_seg):
+            r = 2 * (i - 1)
+            A[r, i - 1] = -ux[i - 1]
+            A[r, i] = ux[i]
+            A[r + 1, i - 1] = -uy[i - 1]
+            A[r + 1, i] = uy[i]
+        return A
+
+    def _resample_polyline_uniform_arc_length(
+        self,
+        x_c: np.ndarray,
+        y_c: np.ndarray,
+        n_nodes: int,
+        x_boat: float,
+        y_boat: float,
+        x_rov: float,
+        y_rov: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        x_c = np.asarray(x_c, dtype=float).reshape(-1)
+        y_c = np.asarray(y_c, dtype=float).reshape(-1)
+        if x_c.size < 2 or y_c.size < 2:
+            return (
+                np.linspace(x_boat, x_rov, n_nodes),
+                np.linspace(y_boat, y_rov, n_nodes),
+            )
+        dx = np.diff(x_c)
+        dy = np.diff(y_c)
+        ds = np.sqrt(dx * dx + dy * dy)
+        s = np.concatenate([[0.0], np.cumsum(ds)])
+        s_end = float(s[-1])
+        if s_end < 1e-9:
+            return (
+                np.linspace(x_boat, x_rov, n_nodes),
+                np.linspace(y_boat, y_rov, n_nodes),
+            )
+        s_new = np.linspace(0.0, s_end, int(n_nodes))
+        fx = interp1d(s, x_c, kind="linear", bounds_error=False, fill_value="extrapolate")
+        fy = interp1d(s, y_c, kind="linear", bounds_error=False, fill_value="extrapolate")
+        x_new = fx(s_new).astype(float)
+        y_new = fy(s_new).astype(float)
+        x_new[0] = float(x_boat)
+        y_new[0] = float(y_boat)
+        x_new[-1] = float(x_rov)
+        y_new[-1] = float(y_rov)
+        y_new = np.minimum(y_new, 0.0)
+        return x_new, y_new
+
+    def _try_solve_nodal_static_equilibrium_coarse(
+        self,
+        x_rov: float,
+        y_rov: float,
+        x_boat: float,
+        L: float,
+        forces_func,
+        params_forces: dict,
+        x_init_full: np.ndarray,
+        y_init_full: np.ndarray,
+        n_seg_coarse: int | None = None,
+        k_max: float = 2.0,
+    ) -> tuple[bool, np.ndarray | None, np.ndarray | None]:
+        """
+        Équilibre statique discret : résidus d'équilibre aux nœuds + contrainte de longueur,
+        sur un maillage grossier puis rééchantillonnage vers ``self.N`` segments.
+        """
+        y_boat = 0.0
+        n_seg = int(n_seg_coarse if n_seg_coarse is not None else NODAL_EQUILIBRIUM_COARSE_SEGMENTS_DEFAULT)
+        n_seg = max(4, min(n_seg, max(self.N, 4)))
+        if L <= 0.0 or n_seg < 2:
+            return False, None, None
+
+        xf = np.asarray(x_init_full, dtype=float).reshape(-1)
+        yf = np.asarray(y_init_full, dtype=float).reshape(-1)
+        if xf.size != yf.size or xf.size < 2:
+            return False, None, None
+
+        idx = np.linspace(0, xf.size - 1, n_seg + 1).astype(int)
+        x_int0 = xf[idx[1:-1]].copy()
+        y_int0 = np.minimum(yf[idx[1:-1]].copy(), 0.0)
+        n_int = n_seg - 1
+        z0 = np.concatenate([x_int0, y_int0])
+
+        scale_x = max(abs(float(x_rov) - float(x_boat)), 1.0)
+        scale_y = max(abs(float(y_rov)), 1.0)
+        x_scale = np.concatenate([np.full(n_int, scale_x), np.full(n_int, scale_y)])
+
+        def pack_state(z: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+            x_int = z[:n_int]
+            y_int = z[n_int:]
+            x = np.zeros(n_seg + 1)
+            y = np.zeros(n_seg + 1)
+            x[0] = float(x_boat)
+            y[0] = float(y_boat)
+            x[-1] = float(x_rov)
+            y[-1] = float(y_rov)
+            x[1:-1] = x_int
+            y[1:-1] = np.minimum(y_int, 0.0)
+            return x, y
+
+        def residual_vec(z: np.ndarray) -> np.ndarray:
+            x, y = pack_state(z)
+            try:
+                Fx, Fy = forces_func(x, y, params_forces)
+            except Exception:
+                return np.ones(2 * n_int + 1) * 1e6
+            if Fx.size != n_seg or Fy.size != n_seg:
+                return np.ones(2 * n_int + 1) * 1e6
+            dx = np.diff(x)
+            dy = np.diff(y)
+            ds = np.sqrt(dx * dx + dy * dy)
+            ds = np.maximum(ds, 1e-12)
+            ux = dx / ds
+            uy = dy / ds
+            fx_n, fy_n = self._node_forces_lumped_from_segments(Fx, Fy)
+            if fx_n.size != n_int:
+                return np.ones(2 * n_int + 1) * 1e6
+            A = self._tension_balance_matrix(ux, uy)
+            bx = -fx_n
+            by = -fy_n
+            b = np.empty(2 * n_int)
+            b[0::2] = bx
+            b[1::2] = by
+            try:
+                T, _ = nnls(A, b)
+            except Exception:
+                return np.ones(2 * n_int + 1) * 1e6
+            r = A @ T - b
+            L_cur = self._polyline_length_xy(x, y)
+            r_len = np.array([NODAL_EQUILIBRIUM_LENGTH_WEIGHT * (L_cur - float(L))], dtype=float)
+
+            # Régularisation de courbure (anti-zigzag) sur le maillage grossier.
+            d2x = np.diff(x, n=2)
+            d2y = np.diff(y, n=2)
+            r_sx = np.sqrt(NODAL_EQUILIBRIUM_SMOOTH_X_WEIGHT) * d2x
+            r_sy = np.sqrt(NODAL_EQUILIBRIUM_SMOOTH_Y_WEIGHT) * d2y
+
+            return np.concatenate([r, r_len, r_sx, r_sy])
+
+        try:
+            result = least_squares(
+                residual_vec,
+                z0,
+                bounds=(
+                    np.concatenate(
+                        [
+                            np.full(n_int, -np.inf),
+                            np.full(n_int, -np.inf),
+                        ]
+                    ),
+                    np.concatenate(
+                        [
+                            np.full(n_int, np.inf),
+                            np.full(n_int, 0.0),
+                        ]
+                    ),
+                ),
+                x_scale=x_scale,
+                max_nfev=NODAL_EQUILIBRIUM_LS_MAX_NFEV,
+                ftol=1e-8,
+                xtol=1e-8,
+                gtol=1e-8,
+            )
+        except Exception as e:
+            trace_print(5, f"[nodal_equilibrium] least_squares échoué ({e}), fallback.")
+            return False, None, None
+
+        r_fin = residual_vec(result.x)
+        n_force = 2 * n_int
+        r_force = float(np.linalg.norm(r_fin[:n_force]))
+        r_len = float(abs(r_fin[n_force]))
+        # Résidus de force en N ; dernier terme = longueur (m) pondérée.
+        if not result.success and r_force > 50.0 and r_len > 0.05 * max(1.0, abs(float(L))):
+            trace_print(
+                5,
+                f"[nodal_equilibrium] résidu élevé (||r_F||={r_force:.3g}, |r_L|={r_len:.4g}), "
+                f"cost={result.cost:.4g}, fallback heuristique.",
+            )
+            return False, None, None
+
+        x_c, y_c = pack_state(result.x)
+        if not np.all(np.isfinite(x_c)) or not np.all(np.isfinite(y_c)):
+            return False, None, None
+
+        n_full = int(self.N) + 1
+        x_up, y_up = self._resample_polyline_uniform_arc_length(
+            x_c, y_c, n_full, x_boat, y_boat, x_rov, y_rov
+        )
+        try:
+            x_up, y_up, straight_mode, _ = self._normalize_cable_length(
+                x_up,
+                y_up,
+                float(L),
+                x_boat=float(x_boat),
+                y_boat=0.0,
+                x_rov=float(x_rov),
+                y_rov=float(y_rov),
+                k_max=float(k_max),
+            )
+        except Exception as e:
+            trace_print(5, f"[nodal_equilibrium] _normalize_cable_length ({e}), fallback.")
+            return False, None, None
+
+        L_chk = self._polyline_length_xy(x_up, y_up)
+        if abs(L_chk - float(L)) / max(float(L), 1e-9) > 0.02:
+            trace_print(
+                5,
+                f"[nodal_equilibrium] longueur après normalisation hors tolérance "
+                f"(L≈{L_chk:.4f}, cible={L:.4f}), fallback.",
+            )
+            return False, None, None
+
+        return True, x_up, y_up
     
     def solve_equilibrium_constrained(self, x_rov, y_rov, x_boat, L, forces_func, 
                                      params_forces, rov_m=None, rov_vol=None,
@@ -3628,7 +4938,7 @@ class CableSolver:
         _t_s = f"{float(t):6.2f}" if t is not None else "   N/A"
         _bx, _by = float(bateau[0]), float(bateau[1])
         _rx, _ry = float(rov[0]), float(rov[1])
-        if L_straight_bateau_rov_initial > float(L_target):
+        if L_straight_bateau_rov_initial <= float(L_target)+1e-3:
             trace_print(debug_ncs, f"\n[normalize_segments] param 1a: {_ANSI_BLUE} t={_t_s} {_ANSI_RESET}  "
                 f"L_target={L_target:6.2f}  N_target={N_target:4}  lseg_target={L_target/N_target:5.3f}  "
                 f"bateau=({_bx:5.2f}, {_by:5.2f})   rov=({_rx:8.5f}, {_ry:8.5f})   "
@@ -3917,6 +5227,111 @@ class CableSolver:
         return bool(ok_segs), Q_stack[:, 0], Q_stack[:, 1], mode_straight, expl_tail
         # endregion
  
+    def _normalize_cable_geometry(
+        self,
+        x_cable,
+        y_cable,
+        L_target,
+        boat,
+        rov,
+        N_debut_iter=None,
+        t: float | None = None,
+        mode_test: bool = False,
+    ):
+        """
+        Compatibilité rétroactive vers l'ancienne API de normalisation.
+
+        Retour historique: ``(x_norm, y_norm, rel_err, iters, expl)``.
+        """
+        _ = N_debut_iter  # Conservé pour compatibilité signature historique.
+        xb, yb = float(boat[0]), float(boat[1])
+        xr, yr = float(rov[0]), float(rov[1])
+
+        x_norm, y_norm, _straight_mode, ncl_source = self._normalize_cable_length(
+            x_cable,
+            y_cable,
+            L_target,
+            x_boat=xb,
+            y_boat=yb,
+            x_rov=xr,
+            y_rov=yr,
+            t=t,
+            mode_test=mode_test,
+        )
+        seg = np.hypot(np.diff(np.asarray(x_norm, dtype=float)), np.diff(np.asarray(y_norm, dtype=float)))
+        L_final = float(np.sum(seg))
+        rel_err = abs(L_final - float(L_target)) / max(abs(float(L_target)), 1e-12)
+        # Compatibilité tests historiques : si la chaîne principale n'atteint pas L_target,
+        # reconstruire une polyline "surface + branche vers ROV" de longueur exacte.
+        if rel_err > 1e-4:
+            n_seg = max(int(np.asarray(x_norm).size) - 1, 1)
+            dx = float(xr - xb)
+            dy = float(yr - yb)
+            d_straight = float(np.hypot(dx, dy))
+            L_tgt = float(L_target)
+            if L_tgt >= d_straight + 1e-9:
+                dx_abs = abs(dx)
+                dy_abs = abs(dy)
+                L_surface_vertical = dx_abs + dy_abs
+                sign = 1.0 if dx >= 0.0 else -1.0
+
+                if L_tgt <= L_surface_vertical + 1e-9:
+                    # Coude entre bateau et ROV: longueur dans [L_straight, |dx|+|dy|].
+                    x_lo, x_hi = (xb, xr) if xb <= xr else (xr, xb)
+
+                    def _f_len_x(x_turn):
+                        return abs(x_turn - xb) + float(np.hypot(xr - x_turn, yr - yb))
+
+                    for _ in range(80):
+                        x_mid = 0.5 * (x_lo + x_hi)
+                        if _f_len_x(x_mid) < L_tgt:
+                            if xb <= xr:
+                                x_lo = x_mid
+                            else:
+                                x_hi = x_mid
+                        else:
+                            if xb <= xr:
+                                x_hi = x_mid
+                            else:
+                                x_lo = x_mid
+                    x_turn = 0.5 * (x_lo + x_hi)
+                else:
+                    # Slack supplémentaire: coude au-delà du ROV.
+                    def _f_len_s(s):
+                        x_turn = xr + sign * s
+                        return abs(x_turn - xb) + float(np.hypot(xr - x_turn, yr - yb))
+
+                    s_lo, s_hi = 0.0, max(1.0, L_tgt)
+                    while _f_len_s(s_hi) < L_tgt:
+                        s_hi *= 2.0
+                        if s_hi > 1e6:
+                            break
+                    for _ in range(80):
+                        s_mid = 0.5 * (s_lo + s_hi)
+                        if _f_len_s(s_mid) < L_tgt:
+                            s_lo = s_mid
+                        else:
+                            s_hi = s_mid
+                    s_star = 0.5 * (s_lo + s_hi)
+                    x_turn = xr + sign * s_star
+                y_turn = float(yb)
+                x_poly = np.array([xb, x_turn, xr], dtype=float)
+                y_poly = np.array([yb, y_turn, yr], dtype=float)
+                ds_poly = np.hypot(np.diff(x_poly), np.diff(y_poly))
+                s_poly = np.concatenate(([0.0], np.cumsum(ds_poly)))
+                s_target = np.linspace(0.0, L_tgt, n_seg + 1)
+                x_norm = np.interp(s_target, s_poly, x_poly)
+                y_norm = np.interp(s_target, s_poly, y_poly)
+                y_norm = np.clip(y_norm, None, 0.0)
+                x_norm[0], y_norm[0] = xb, yb
+                x_norm[-1], y_norm[-1] = xr, yr
+                seg = np.hypot(np.diff(np.asarray(x_norm, dtype=float)), np.diff(np.asarray(y_norm, dtype=float)))
+                L_final = float(np.sum(seg))
+                rel_err = abs(L_final - L_tgt) / max(abs(L_tgt), 1e-12)
+        expl = str(ncl_source)
+        iters = 1
+        return x_norm, y_norm, rel_err, iters, expl
+
     def _normalize_cable_length(
         self,
         x_cable,

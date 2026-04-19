@@ -17,6 +17,7 @@ from .plotly_widget import PlotlyWidget
 from .simulation_thread import SimulationThread
 from src.utils.logger import trace_print, set_trace_level
 from src.ui.mission_utils import get_missions_directory
+from src.solvers.cable_solver import CURRENT_NEGLIGIBLE_M_S
 from datetime import datetime
 import html
 import csv
@@ -441,6 +442,8 @@ class SimulationTab(QWidget):
             x_boat_init = self.main_window.init_params.get('x_boat_init', 0.0)
             L_init = self.main_window.init_params.get('L_init', 50.0)
             vx_boat_init = 0.0  # Vitesse initiale du bateau
+            cable_init_mode = str(self.main_window.init_params.get('cable_init_mode', 'strict_static'))
+            legacy_init_geometry = bool(self.main_window.init_params.get('legacy_init_geometry', False))
             
             # Calculer l'état initial
             y0 = get_initial_state(
@@ -449,7 +452,9 @@ class SimulationTab(QWidget):
                 y_rov=y_rov_init,
                 x_boat=x_boat_init,
                 L=L_init,
-                use_current_geometry=bool(self.main_window.init_params.get('use_current_geometry', True))
+                use_current_geometry=bool(self.main_window.init_params.get('use_current_geometry', True)),
+                cable_init_mode=cable_init_mode,
+                legacy_init_geometry=legacy_init_geometry,
             )
             
             # Dépaqueter l'état initial
@@ -774,6 +779,58 @@ class SimulationTab(QWidget):
                 except Exception as e_norm:
                     trace_print(8, f"[INIT] Échec normalisation géométrie câble: {e_norm}")
 
+                # Après ``_normalize_cable_length``, la forme peut perdre la concavité imposée
+                # par le solveur (courant quasi uniforme). Réappliquer la projection solveur
+                # puis une seconde normalisation pour retrouver L et les extrémités.
+                use_current_geom = bool(
+                    self.main_window.init_params.get("use_current_geometry", True)
+                )
+                if (
+                    not legacy_init_geometry
+                    and use_current_geom
+                    and x_cable is not None
+                    and y_cable is not None
+                    and len(x_cable) > 2
+                ):
+                    try:
+                        # Pas de garde ``_detect_uniform_current_signature`` : la projection
+                        # vérifie elle-même le courant mission (brut) sur la colonne eau.
+                        xc, yc = system.cable.solver._enforce_uniform_current_concavity(
+                            np.asarray(x_cable, dtype=float),
+                            np.asarray(y_cable, dtype=float),
+                            float(x_boat),
+                            0.0,
+                            float(x_rov),
+                            float(y_rov),
+                            strength=0.78,
+                        )
+                        xc, yc, straight_mode_u, _ = (
+                            system.cable.solver._normalize_cable_length(
+                                xc,
+                                yc,
+                                float(L),
+                                x_boat=float(x_boat),
+                                y_boat=0.0,
+                                x_rov=float(x_rov),
+                                y_rov=float(y_rov),
+                                k_tail=10,
+                                t=0.0,
+                            )
+                        )
+                        xc, yc, x_rov, y_rov = reconcile_straight_mode_after_normalize(
+                            xc,
+                            yc,
+                            straight_mode_u,
+                            float(x_rov),
+                            float(y_rov),
+                            float(x_boat),
+                            0.0,
+                        )
+                        x_cable = np.asarray(xc, dtype=float)
+                        y_cable = np.asarray(yc, dtype=float)
+                    except Exception as e_uni:
+                        trace_print(8, f"[INIT] Post-normalisation courant uniforme: {e_uni}")
+
                 # Vérifier la cohérence longueur géométrique <-> longueur commandée.
                 # Si la normalisation n'atteint pas la cible, appliquer un fallback robuste
                 # qui garantit L_seg == L à tolérance numérique.
@@ -785,13 +842,20 @@ class SimulationTab(QWidget):
                 no_current = False
                 try:
                     env = system.environment
-                    v0 = float(np.asarray(env.get_current_velocity(0.0), dtype=float).reshape(-1)[0])
-                    vr = float(np.asarray(env.get_current_velocity(float(y_rov)), dtype=float).reshape(-1)[0])
-                    no_current = max(abs(v0), abs(vr)) <= 1e-9
+                    # Courant réellement « vu » par le câble (surface → ROV)
+                    v_span = env.max_abs_current_on_vertical_segment(0.0, float(y_rov))
+                    # Profil déclaré (ex. 100:1 alors que ROV à 30 m → v_span=0 mais mission a du courant)
+                    v_decl = env.max_abs_speed_declared_in_raw_profile()
+                    # Ne remplacer par la géométrie analytique « sans courant » que si la mission
+                    # n'impose aucun courant nulle part ; sinon on conserve la géométrie du solveur.
+                    no_current = (
+                        v_span <= CURRENT_NEGLIGIBLE_M_S
+                        and v_decl <= CURRENT_NEGLIGIBLE_M_S
+                    )
                 except Exception:
                     no_current = False
 
-                if no_current:
+                if legacy_init_geometry and no_current:
                     L_cmd = float(L)
                     dx_abs = abs(float(x_rov - x_boat))
                     dy_abs = abs(float(y_rov - 0.0))
@@ -906,6 +970,23 @@ class SimulationTab(QWidget):
                 idx_t_cable = idx_y_cable + system.N + 1
                 y0[idx_x_cable:idx_y_cable] = x_cable
                 y0[idx_y_cable:idx_t_cable] = y_cable
+                # Tensions cohérentes avec la géométrie finale (post-normalisation UI).
+                wpu_t = (
+                    (system.cable.rho_cable - system.environment.rho_eau)
+                    * system.cable.A_cable
+                    * system.environment.g
+                )
+                T = np.asarray(
+                    system.cable.solver._compute_catenary_tensions(
+                        np.asarray(x_cable, dtype=float),
+                        np.asarray(y_cable, dtype=float),
+                        wpu_t,
+                        rov_m=system.rov.m,
+                        rov_vol=system.rov.V,
+                    ),
+                    dtype=float,
+                )
+                y0[idx_t_cable : idx_t_cable + system.N + 1] = T
                 y0[0] = float(x_rov)
                 y0[1] = float(y_rov)
             
@@ -1269,6 +1350,28 @@ class SimulationTab(QWidget):
         fig_slack_dist = create_slack_distribution_plot([], [], "Répartition slack")
         self.plotly_widget_slack_dist.update_figure(fig_slack_dist)
         self.top_tabs.addTab(self.tab_slack_dist, "Répartition slack")
+
+        # Onglet 4 (haut) : Positiobn ROV
+        self.tab_position_rov = QWidget()
+        tab_position_rov_layout = QVBoxLayout(self.tab_position_rov)
+        tab_position_rov_layout.setContentsMargins(0, 0, 0, 0)
+        self.plotly_widget_position_rov = PlotlyWidget()
+        tab_position_rov_layout.addWidget(self.plotly_widget_position_rov)
+        from src.visualization.plotter import create_position_rov_plot
+        fig_position_rov = create_position_rov_plot([], [], [], "Position ROV", None)
+        self.plotly_widget_position_rov.update_figure(fig_position_rov)
+        self.top_tabs.addTab(self.tab_position_rov, "Position ROV")
+
+        # Onglet 5 (haut) : Vitesse ROV
+        self.tab_rov_speed = QWidget()
+        tab_rov_speed_layout = QVBoxLayout(self.tab_rov_speed)
+        tab_rov_speed_layout.setContentsMargins(0, 0, 0, 0)
+        self.plotly_widget_rov_speed = PlotlyWidget()
+        tab_rov_speed_layout.addWidget(self.plotly_widget_rov_speed)
+        from src.visualization.plotter import create_velocity_plot
+        fig_rov_speed = create_velocity_plot([], [], [], [], "Vitesse ROV", None)
+        self.plotly_widget_rov_speed.update_figure(fig_rov_speed)
+        self.top_tabs.addTab(self.tab_rov_speed, "Vitesse ROV")
 
         layout.addWidget(self.top_tabs)
         
@@ -2202,30 +2305,30 @@ class SimulationTab(QWidget):
                 state['dl_dt_source'] = "user"
 
     def apply_scenario_fx_command(self, value: float) -> None:
-        """Applique une commande Fx issue d'un scénario et l'affiche en bleu."""
+        """Applique une commande Fx issue d'un scénario et l'affiche en rouge."""
         self._fx_rov_scenario_update = True
-        self.fx_rov_input.setStyleSheet("color: #1e6bb8;")
+        self.fx_rov_input.setStyleSheet("color: #d9534f;")
         if self.fx_rov_input.value() != value:
             self.fx_rov_input.setValue(value)
 
     def apply_scenario_fy_command(self, value: float) -> None:
-        """Applique une commande Fy issue d'un scénario et l'affiche en bleu."""
+        """Applique une commande Fy issue d'un scénario et l'affiche en rouge."""
         self._fy_rov_scenario_update = True
-        self.fy_rov_input.setStyleSheet("color: #1e6bb8;")
+        self.fy_rov_input.setStyleSheet("color: #d9534f;")
         if self.fy_rov_input.value() != value:
             self.fy_rov_input.setValue(value)
 
     def apply_scenario_vx_boat_command(self, value: float) -> None:
-        """Applique une commande Vx bateau issue d'un scénario et l'affiche en bleu."""
+        """Applique une commande Vx bateau issue d'un scénario et l'affiche en rouge."""
         self._vx_boat_scenario_update = True
-        self.vx_boat_cmd_input.setStyleSheet("color: #1e6bb8;")
+        self.vx_boat_cmd_input.setStyleSheet("color: #d9534f;")
         if self.vx_boat_cmd_input.value() != value:
             self.vx_boat_cmd_input.setValue(value)
 
     def apply_scenario_dl_dt_command(self, value: float) -> None:
-        """Applique une commande dL/dt issue d'un scénario et l'affiche en bleu."""
+        """Applique une commande dL/dt issue d'un scénario et l'affiche en rouge."""
         self._dl_dt_scenario_update = True
-        self.dl_dt_input.setStyleSheet("color: #1e6bb8;")
+        self.dl_dt_input.setStyleSheet("color: #d9534f;")
         if self.dl_dt_input.value() != value:
             self.dl_dt_input.setValue(value)
 
@@ -2285,7 +2388,7 @@ class SimulationTab(QWidget):
         if last_couple and last_couple in raw_text:
             before, after = raw_text.rsplit(last_couple, 1)
             highlighted = (
-                '<b><span style="color:#1e6bb8;">'
+                '<b><span style="color:#d9534f;">'
                 + html.escape(last_couple)
                 + "</span></b>"
             )
@@ -2316,7 +2419,7 @@ class SimulationTab(QWidget):
                 middle = raw_text[start:end]
                 after = raw_text[end:]
                 highlighted = (
-                    '<b><span style="color:#1e6bb8;">'
+                    '<b><span style="color:#d9534f;">'
                     + html.escape(middle)
                     + "</span></b>"
                 )
@@ -2324,6 +2427,40 @@ class SimulationTab(QWidget):
         if text_html is None:
             text_html = html.escape(raw_text)
         return text_html.replace("\n", "<br>")
+
+    def _normalize_scenario_label(self, label: str) -> str | None:
+        key = (label or "").strip().lower()
+        aliases = {
+            "fx": "Fx",
+            "rov fx": "Fx",
+            "fy": "Fy",
+            "rov fy": "Fy",
+            "bat": "Bat",
+            "bateau": "Bat",
+            "moul": "Moul",
+            "moulinet": "Moul",
+        }
+        return aliases.get(key)
+
+    def _refresh_scenario_highlight_from_triggers(self, triggers) -> None:
+        if not isinstance(triggers, list):
+            return
+        latest = dict(self._scenario_last_triggers)
+        for step in triggers:
+            if not step:
+                continue
+            for trigger_text in step:
+                if not isinstance(trigger_text, str) or ":" not in trigger_text:
+                    continue
+                raw_label, couple = trigger_text.split(":", 1)
+                label = self._normalize_scenario_label(raw_label)
+                if label is None:
+                    continue
+                latest[label] = (couple or "").strip()
+        if latest != self._scenario_last_triggers:
+            self._scenario_last_triggers = latest
+            for label in ("Fx", "Fy", "Bat", "Moul"):
+                self._update_scenario_field(label)
 
     def _update_scenario_field(self, label: str) -> None:
         raw_text = self._scenario_raw_text.get(label, "")
@@ -2397,6 +2534,8 @@ class SimulationTab(QWidget):
                 self._refresh_dl_dt_plot(data)
             if data.get('time'):
                 self._refresh_tension_vs_target_plot(data)
+                self._refresh_rov_position_plot(data)
+                self._refresh_rov_velocity_plot(data)
         except Exception as e:
             trace_print(8, f"Erreur lors du rafraîchissement des graphiques: {e}")
 
@@ -2472,6 +2611,68 @@ class SimulationTab(QWidget):
             self.plotly_widget_tension_vs_target.update_figure(fig_tension_vs_target)
         except Exception as e:
             trace_print(8, f"Erreur lors de la mise à jour du graphique Tension vs cible: {e}")
+
+    def _refresh_rov_velocity_plot(self, data):
+        if not data.get('time'):
+            return
+        try:
+            from src.visualization.plotter import create_velocity_plot
+
+            times = data.get('time', []) or []
+            vx_rov = data.get('vx_rov', []) or []
+            vy_rov = data.get('vy_rov', []) or []
+            min_len = min(len(times), len(vx_rov), len(vy_rov))
+            if min_len == 0:
+                return
+            times = times[:min_len]
+            vx_rov = vx_rov[:min_len]
+            vy_rov = vy_rov[:min_len]
+            vrov = [float((float(vx_rov[i]) ** 2 + float(vy_rov[i]) ** 2) ** 0.5) for i in range(min_len)]
+            scenario_triggers = (data.get('scenario_triggers') or [])[:min_len]
+
+            max_points = 1500
+            step = max(1, len(times) // max_points)
+            fig_rov_speed = create_velocity_plot(
+                times[::step],
+                vx_rov[::step],
+                vy_rov[::step],
+                vrov[::step],
+                "Vitesse ROV",
+                scenario_triggers[::step] if scenario_triggers else [],
+            )
+            self.plotly_widget_rov_speed.update_figure(fig_rov_speed)
+        except Exception as e:
+            trace_print(8, f"Erreur lors de la mise à jour du graphique Vitesse ROV: {e}")
+
+    def _refresh_rov_position_plot(self, data):
+        if not data.get('time'):
+            return
+        try:
+            from src.visualization.plotter import create_position_rov_plot
+
+            times = data.get('time', []) or []
+            x_rov = data.get('x_rov', []) or []
+            y_rov = data.get('y_rov', []) or []
+            min_len = min(len(times), len(x_rov), len(y_rov))
+            if min_len == 0:
+                return
+            times = times[:min_len]
+            x_rov = x_rov[:min_len]
+            y_rov = y_rov[:min_len]
+            scenario_triggers = (data.get('scenario_triggers') or [])[:min_len]
+
+            max_points = 1500
+            step = max(1, len(times) // max_points)
+            fig_position_rov = create_position_rov_plot(
+                times[::step],
+                x_rov[::step],
+                y_rov[::step],
+                "Position ROV",
+                scenario_triggers[::step] if scenario_triggers else [],
+            )
+            self.plotly_widget_position_rov.update_figure(fig_position_rov)
+        except Exception as e:
+            trace_print(8, f"Erreur lors de la mise à jour du graphique Position ROV: {e}")
     
     def update_current_profile_plot(self, y_ref=None):
         """Met à jour le graphique du profil de courant"""
@@ -2535,21 +2736,7 @@ class SimulationTab(QWidget):
 
         # Mettre à jour l'affichage des scénarios déclenchés
         triggers = data.get("scenario_triggers") or []
-        if triggers and len(triggers) > self._scenario_trigger_index:
-            new_steps = triggers[self._scenario_trigger_index :]
-            for step in new_steps:
-                for trigger_text in step or []:
-                    if not isinstance(trigger_text, str):
-                        continue
-                    if ":" not in trigger_text:
-                        continue
-                    label, couple = trigger_text.split(":", 1)
-                    label = label.strip()
-                    couple = couple.strip()
-                    if label in {"Fx", "Fy", "Bat", "Moul"}:
-                        self._scenario_last_triggers[label] = couple
-                        self._update_scenario_field(label)
-            self._scenario_trigger_index = len(triggers)
+        self._refresh_scenario_highlight_from_triggers(triggers)
 
         # Répartition du slack le long du câble
         if getattr(self, "plotly_widget_slack_dist", None) is not None:
@@ -2793,6 +2980,18 @@ class SimulationTab(QWidget):
                 except Exception as e:
                     trace_print(8, f"Erreur lors de la mise à jour du graphique Tension vs cible: {e}")
 
+            if data.get('time'):
+                try:
+                    self._refresh_rov_position_plot(data)
+                except Exception as e:
+                    trace_print(8, f"Erreur lors de la mise à jour du graphique Position ROV: {e}")
+
+            if data.get('time'):
+                try:
+                    self._refresh_rov_velocity_plot(data)
+                except Exception as e:
+                    trace_print(8, f"Erreur lors de la mise à jour du graphique Vitesse ROV: {e}")
+
             
             # Tensions du câble (forces exercées sur le câble)
             traction_boat = (0.0, 0.0)
@@ -2891,6 +3090,46 @@ class SimulationTab(QWidget):
                             self.cable_drag_label.setText(
                                 f"({cable_drag_vec[0]:.2f}, {cable_drag_vec[1]:.2f}) N"
                             )
+                            # Même avec traînée issue du thread, recaler les tractions pour
+                            # fermer le bilan des forces câble.
+                            x_cable_now = data.get('x_cable_curr')
+                            y_cable_now = data.get('y_cable_curr')
+                            if x_cable_now is not None and y_cable_now is not None and len(x_cable_now) > 1:
+                                x_arr = np.asarray(x_cable_now, dtype=float)
+                                y_arr = np.asarray(y_cable_now, dtype=float)
+                                x_boat_now = data['x_boat'][-1] if data.get('x_boat') else 0.0
+                                x_rov_now = data['x_rov'][-1] if data.get('x_rov') else x_arr[-1]
+                                y_rov_now = data['y_rov'][-1] if data.get('y_rov') else y_arr[-1]
+                                dist_first_to_boat = np.sqrt((x_arr[0] - x_boat_now) ** 2 + (y_arr[0] - 0.0) ** 2)
+                                dist_first_to_rov = np.sqrt((x_arr[0] - x_rov_now) ** 2 + (y_arr[0] - y_rov_now) ** 2)
+                                if dist_first_to_rov < dist_first_to_boat:
+                                    x_arr = np.flip(x_arr)
+                                    y_arr = np.flip(y_arr)
+                                dx_boat = float(x_arr[1] - x_arr[0])
+                                dy_boat = float(y_arr[1] - y_arr[0])
+                                ds_boat = float(np.hypot(dx_boat, dy_boat))
+                                dx_rov = float(x_arr[-1] - x_arr[-2])
+                                dy_rov = float(y_arr[-1] - y_arr[-2])
+                                ds_rov = float(np.hypot(dx_rov, dy_rov))
+                                if ds_boat > 1e-9 and ds_rov > 1e-9:
+                                    uboat_x = dx_boat / ds_boat
+                                    uboat_y = dy_boat / ds_boat
+                                    urov_x = dx_rov / ds_rov
+                                    urov_y = dy_rov / ds_rov
+                                    A = np.array([[-uboat_x, urov_x], [-uboat_y, urov_y]], dtype=float)
+                                    b = -np.array(
+                                        [
+                                            cable_drag_vec[0] + cable_weight_vec[0],
+                                            cable_drag_vec[1] + cable_weight_vec[1],
+                                        ],
+                                        dtype=float,
+                                    )
+                                    tr_sol, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+                                    traction_boat = (float(-tr_sol[0] * uboat_x), float(-tr_sol[0] * uboat_y))
+                                    traction_rov = (float(tr_sol[1] * urov_x), float(tr_sol[1] * urov_y))
+                                    self.traction_boat_label.setText(f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N")
+                                    self.traction_rov_label.setText(f"({traction_rov[0]:.2f}, {traction_rov[1]:.2f}) N")
+
                             total_fx = traction_rov[0] + traction_boat[0] + cable_weight_vec[0] + cable_drag_vec[0]
                             total_fy = traction_rov[1] + traction_boat[1] + cable_weight_vec[1] + cable_drag_vec[1]
                             self.cable_total_forces_label.setText(f"({total_fx:.2f}, {total_fy:.2f}) N")
@@ -2906,6 +3145,16 @@ class SimulationTab(QWidget):
                         x_cable = list(x_cable_raw) if not isinstance(x_cable_raw, list) else x_cable_raw
                         y_cable = list(y_cable_raw) if not isinstance(y_cable_raw, list) else y_cable_raw
                         if len(x_cable) > 1 and len(y_cable) > 1:
+                            # Réordonner bateau -> ROV pour des tractions cohérentes.
+                            x_boat_now = data['x_boat'][-1] if data.get('x_boat') else 0.0
+                            x_rov_now = data['x_rov'][-1] if data.get('x_rov') else x_cable[-1]
+                            y_rov_now = data['y_rov'][-1] if data.get('y_rov') else y_cable[-1]
+                            dist_first_to_boat = np.sqrt((x_cable[0] - x_boat_now) ** 2 + (y_cable[0] - 0.0) ** 2)
+                            dist_first_to_rov = np.sqrt((x_cable[0] - x_rov_now) ** 2 + (y_cable[0] - y_rov_now) ** 2)
+                            if dist_first_to_rov < dist_first_to_boat:
+                                x_cable = list(np.flip(np.asarray(x_cable, dtype=float)))
+                                y_cable = list(np.flip(np.asarray(y_cable, dtype=float)))
+
                             # Estimer les vitesses du câble à partir de deux positions successives
                             vx_cable = np.zeros(len(x_cable))
                             vy_cable = np.zeros(len(x_cable))
@@ -2968,7 +3217,48 @@ class SimulationTab(QWidget):
                                 self.cable_drag_label.setText(
                                     f"({cable_drag_vec[0]:.2f}, {cable_drag_vec[1]:.2f}) N"
                                 )
-                            
+
+                            # Recalculer les tractions d'extrémité à partir de l'équilibre global
+                            # pour la métrique câble (évite l'incohérence quand T_boat/T_rov
+                            # ne ferment pas exactement le bilan vectoriel).
+                            dx_boat = float(x_cable[1] - x_cable[0])
+                            dy_boat = float(y_cable[1] - y_cable[0])
+                            ds_boat = float(np.hypot(dx_boat, dy_boat))
+                            dx_rov = float(x_cable[-1] - x_cable[-2])
+                            dy_rov = float(y_cable[-1] - y_cable[-2])
+                            ds_rov = float(np.hypot(dx_rov, dy_rov))
+                            if ds_boat > 1e-9 and ds_rov > 1e-9:
+                                uboat_x = dx_boat / ds_boat
+                                uboat_y = dy_boat / ds_boat
+                                urov_x = dx_rov / ds_rov
+                                urov_y = dy_rov / ds_rov
+                                A = np.array(
+                                    [[-uboat_x, urov_x], [-uboat_y, urov_y]],
+                                    dtype=float,
+                                )
+                                b = -np.array(
+                                    [
+                                        cable_drag_vec[0] + cable_weight_vec[0],
+                                        cable_drag_vec[1] + cable_weight_vec[1],
+                                    ],
+                                    dtype=float,
+                                )
+                                tr_sol, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+                                traction_boat = (
+                                    float(-tr_sol[0] * uboat_x),
+                                    float(-tr_sol[0] * uboat_y),
+                                )
+                                traction_rov = (
+                                    float(tr_sol[1] * urov_x),
+                                    float(tr_sol[1] * urov_y),
+                                )
+                                self.traction_boat_label.setText(
+                                    f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N"
+                                )
+                                self.traction_rov_label.setText(
+                                    f"({traction_rov[0]:.2f}, {traction_rov[1]:.2f}) N"
+                                )
+
                             total_fx = traction_rov[0] + traction_boat[0] + cable_weight_vec[0] + cable_drag_vec[0]
                             total_fy = traction_rov[1] + traction_boat[1] + cable_weight_vec[1] + cable_drag_vec[1]
                             self.cable_total_forces_label.setText(f"({total_fx:.2f}, {total_fy:.2f}) N")
@@ -3133,8 +3423,76 @@ class SimulationTab(QWidget):
                     
                     # Ne mettre à jour les graphiques que si on a des données de câble
                     if len(x_cable) > 0 and len(y_cable) > 0:
+                        import numpy as np
+                        from src.models.state_projection import (
+                            reconcile_straight_mode_after_normalize,
+                        )
+
                         t_final = self.main_window.calc_params.get('t_final', 60.0)
                         title = f"Système ROV - t = {current_time:.2f} s / {t_final:.2f} s"
+
+                        # Même projection que l’init (courant mission quasi uniforme) : l’état
+                        # sérialisé peut avoir été normalisé sans repasser par le solveur UI.
+                        plot_system = state.get("system")
+                        use_current_geom = bool(
+                            self.main_window.init_params.get(
+                                "use_current_geometry", True
+                            )
+                        )
+                        legacy_init_geometry = bool(
+                            self.main_window.init_params.get(
+                                "legacy_init_geometry", False
+                            )
+                        )
+                        if (
+                            plot_system is not None
+                            and not legacy_init_geometry
+                            and use_current_geom
+                            and len(x_cable) > 2
+                            and float(L) > 1e-9
+                        ):
+                            try:
+                                xc = np.asarray(x_cable, dtype=float)
+                                yc = np.asarray(y_cable, dtype=float)
+                                xc, yc = (
+                                    plot_system.cable.solver._enforce_uniform_current_concavity(
+                                        xc,
+                                        yc,
+                                        float(x_boat),
+                                        0.0,
+                                        float(x_rov),
+                                        float(y_rov),
+                                        strength=0.78,
+                                    )
+                                )
+                                xc, yc, sm_u, _ = (
+                                    plot_system.cable.solver._normalize_cable_length(
+                                        xc,
+                                        yc,
+                                        float(L),
+                                        x_boat=float(x_boat),
+                                        y_boat=0.0,
+                                        x_rov=float(x_rov),
+                                        y_rov=float(y_rov),
+                                        k_tail=10,
+                                        t=float(current_time),
+                                    )
+                                )
+                                xc, yc, _, _ = (
+                                    reconcile_straight_mode_after_normalize(
+                                        xc,
+                                        yc,
+                                        sm_u,
+                                        float(x_rov),
+                                        float(y_rov),
+                                        float(x_boat),
+                                        0.0,
+                                    )
+                                )
+                                x_cable = xc.tolist()
+                                y_cable = yc.tolist()
+                            except Exception:
+                                pass
                         
                         # Debug: vérifier les longueurs de segments réellement utilisées par le plot
                         if len(x_cable) > 1:

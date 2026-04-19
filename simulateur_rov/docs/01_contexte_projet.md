@@ -67,7 +67,7 @@ analyses de sensibilité, calibration, et aide à la préparation de missions.
 
 - Simulateur exécutable via interface PyQt.
 - Scripts et exemples d’utilisation (lancement, tests, missions).
-- Documentation technique et scientifique (présents documents).
+- Documentation technique et scientifique sous `docs/` (point d’entrée : `00_table_des_matieres.md`), incluant modélisation, implémentation, tests et spécifications (ex. `dae_cable_rov_spec.md`).
 
 ## 7. Limites connues (implémentation actuelle)
 

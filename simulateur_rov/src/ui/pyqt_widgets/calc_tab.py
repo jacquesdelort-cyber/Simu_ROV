@@ -109,6 +109,7 @@ class CalcTab(QWidget):
     def save_params_from_display(self):
         """Sauvegarde les paramètres depuis l'affichage"""
         try:
+            prev = dict(self.main_window.calc_params) if isinstance(self.main_window.calc_params, dict) else {}
             self.main_window.calc_params = {
                 'method': self.method_combo.currentText(),
                 'rtol': float(self.rtol.text() or 1e-5),
@@ -117,7 +118,17 @@ class CalcTab(QWidget):
                 'dt_max': float(self.dt_max.text() or 0.1),
                 't_final': float(self.t_final.text() or 60.0),
                 'steps_per_update': int(self.steps_per_update.text() or 5),
-                'N_segments': int(self.n_segments.text() or 50)
+                'N_segments': int(self.n_segments.text() or 50),
+                # Préserver les paramètres avancés non édités dans cet onglet.
+                'guard_profile': prev.get('guard_profile', 'soft'),
+                'guard_enable': bool(prev.get('guard_enable', True)),
+                'guard_tension_spike_factor': float(prev.get('guard_tension_spike_factor', 12.0)),
+                'guard_tension_abs': float(prev.get('guard_tension_abs', 1200.0)),
+                'guard_geom_ds_ratio': float(prev.get('guard_geom_ds_ratio', 3.2)),
+                'guard_geom_rel_L': float(prev.get('guard_geom_rel_L', 0.07)),
+                'guard_hard_block_duration_s': float(prev.get('guard_hard_block_duration_s', 1.5)),
+                'trace_boost_level': prev.get('trace_boost_level', 7),
+                'trace_boost_duration_s': float(prev.get('trace_boost_duration_s', 2.0)),
             }
             return True
         except ValueError as e:

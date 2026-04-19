@@ -9,6 +9,7 @@ format: "Markdown"
 ## Table des matières
 
 1. Intégration temporelle
+1bis. Intégration contrainte (half-explicit, chantier DAE)
 2. Résolution couplée ROV–câble–bateau
 3. Workflow détaillé (pseudo-code)
 4. Solveur de câble
@@ -37,6 +38,27 @@ Paramètres principaux :
 - `max_step` : pas de temps maximum (dt_max)
 
 Le pas de temps effectif est adaptatif, mais contraint par `max_step`.
+
+### 1bis. Intégration contrainte (half-explicit, chantier DAE)
+
+En complément du schéma ODE ci-dessus, une option **`use_constrained_integrator`**
+(paramètre de calcul / interface « Intégration contrainte ») active une intégration
+**half-explicit** sur chaque intervalle `[t, t+\Delta t]` de la boucle simulation :
+
+- plusieurs **sous-pas RK4** (`dae_projection_substeps`, défaut 4) ;
+- après **chaque** sous-pas, **projection** du câble via `_normalize_cable_length` et
+  recalcul des tensions (`project_cable_state_inplace` dans
+  `src/models/state_projection.py`).
+
+Objectif : réduire les incohérences entre la longueur scalaire `L` et la longueur
+curviligne discrète \(\sum \| \Delta P_i \|\), et limiter les géométries aberrantes
+pendant l’intégration. Ce n’est pas encore un DAE formel avec matrice de masse
+singulière ; la spécification et les évolutions possibles sont décrites dans
+[`dae_cable_rov_spec.md`](dae_cable_rov_spec.md).
+
+Fichiers principaux : `src/solvers/projected_integrator.py`,
+`src/models/state_projection.py`, `ROVSystem.integrate_span_with_projection`,
+branche correspondante dans `simulation_thread.py`.
 
 ## 2. Résolution couplée ROV–câble–bateau
 

@@ -28,3 +28,20 @@ def test_get_current_velocity_odd_numbers_fallback_to_constant():
 def test_get_current_velocity_none_uses_profile():
     env = Environment({"current_profile": lambda y: 2.0})
     assert env.get_current_velocity(0.0) == 2.0
+
+
+def test_max_abs_speed_declared_in_raw_profile():
+    env = Environment({})
+    assert env.max_abs_speed_declared_in_raw_profile("0:0 50:0 100:1") == 1.0
+    assert env.max_abs_speed_declared_in_raw_profile("0.3") == 0.3
+    assert env.max_abs_speed_declared_in_raw_profile("0:0 50:0") == 0.0
+
+
+def test_max_abs_current_on_vertical_segment_shallow_vs_profile():
+    env = Environment({})
+    raw = "0:0 50:0 100:1"
+    env.v_courant_raw = raw
+    # ROV peu profond : courant nul sur la colonne du câble
+    assert env.max_abs_current_on_vertical_segment(0.0, -20.0) == 0.0
+    # ROV profond : courant non nul
+    assert env.max_abs_current_on_vertical_segment(0.0, -100.0) == 1.0

@@ -214,11 +214,46 @@ def _tests_visual() -> Iterable[TestEntry]:
     ]
 
 
+def _tests_mission_initialization() -> Iterable[TestEntry]:
+    """Tests d'initialisation des missions M_test_init_* et modes associés."""
+    return [
+        TestEntry(
+            id="mission_init_buoyant_current",
+            group="Initialisation missions",
+            name="Init flottabilité + courant (buoyant)",
+            description="Tests d'initialisation avec courant et flottabilité (test_buoyant_current_init).",
+            command="python -m pytest -q tests/test_buoyant_current_init.py",
+        ),
+        TestEntry(
+            id="mission_init_conditions_modes",
+            group="Initialisation missions",
+            name="Modes d'initialisation (strict / legacy)",
+            description="Tests des modes d'initialisation et projection d'état (test_initial_conditions_modes).",
+            command="python -m pytest -q tests/test_initial_conditions_modes.py",
+        ),
+        TestEntry(
+            id="mission_init_courant_1",
+            group="Initialisation missions",
+            name="Mission init courant (détail M_test_init_courant_1)",
+            description="Scénario détaillé post-finalisation UI pour la mission courant 1.",
+            command="python -m pytest -q tests/test_mission_init_courant_1.py",
+        ),
+        TestEntry(
+            id="mission_init_regression",
+            group="Initialisation missions",
+            name="Non-régression init missions (M_test_init_*)",
+            description="Charge les missions M_test_init_* et M_test_init_courant_*, vérifie géométrie, longueur, tensions.",
+            command="python -m pytest -q tests/test_mission_init_regression.py",
+        ),
+    ]
+
+
 def get_all_tests() -> List[TestEntry]:
     """Retourne la liste complète des tests connus, ordonnés par nom (alphabetique, insensible à la casse)."""
     entries: List[TestEntry] = []
     entries.extend(_tests_utils())
     entries.extend(_tests_visual())
+    entries.extend(_tests_mission_initialization())
     entries.sort(key=lambda e: e.name.lower())
     return entries
 

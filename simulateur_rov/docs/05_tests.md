@@ -14,7 +14,8 @@ format: "Markdown"
 4. Assertions de contrôle en fin d'itération
 5. Scripts de diagnostic et de validation
 6. Comment lancer les tests
-7. Remarques pratiques
+7. Catalogue de l'onglet « Tests » (PyQt)
+8. Remarques pratiques
 
 ## 1. Objectif
 
@@ -28,24 +29,60 @@ Le projet contient deux grandes familles de tests :
 
 ## 2. Organisation des tests
 
-### 2.1 Répertoire `tests/`
+### 2.1 Répertoire `tests/` (pytest et visuels)
 
-Le répertoire `tests/` contient les tests unitaires automatisables :
+Fichiers de tests `pytest` et scripts visuels (liste à jour du dépôt) :
 
-- `tests/test_cable_solver.py`
-- `tests/test_cable_normalization_edge_cases.py`
-- `tests/test_cable_normalize_segments.py`
 - `tests/test_aplatir_polyline.py`
+- `tests/test_buoyant_current_init.py`
+- `tests/test_cable_init_buoyant.py`
+- `tests/test_cable_normalization_edge_cases.py`
+- `tests/test_cable_normalize_length.py`
+- `tests/test_cable_normalize_segments.py`
+- `tests/test_cable_shared_cases_add.py`
+- `tests/test_cable_solver.py`
+- `tests/test_dae_projection.py`
 - `tests/test_deformer_polyline.py`
-- `tests/test_utils_scale_slack.py`
-- `tests/test_utils_supprimer_point.py`
-- `tests/test_utils_enforce_cable_segments_nb.py`
-- `tests/test_utils_deplacer_point.py`
 - `tests/test_environment_current_velocity.py`
+- `tests/test_initial_conditions_modes.py`
+- `tests/test_mission_init_courant_1.py`
+- `tests/test_mission_init_regression.py`
 - `tests/test_rov_model.py`
 - `tests/test_scenario_utils.py`
+- `tests/test_straight_snap_normalize.py`
+- `tests/test_utils_create_point_with_target_length.py`
+- `tests/test_utils_deplacer_point.py`
+- `tests/test_utils_enforce_cable_segments_nb.py`
+- `tests/test_utils_next_point.py`
+- `tests/test_utils_scale_slack.py`
+- `tests/test_utils_supprimer_point.py`
 
-### 2.2 Scripts de test à la racine
+Modules partagés (données / helpers, souvent importés par d'autres tests) :
+
+- `tests/cable_shared_cases.py`
+
+Scripts **visuels** Plotly (génération de rapports HTML, lancement `python tests/...`) :
+
+- `tests/test_cable_normalization_visual.py`
+- `tests/test_cable_normalize_length_visual.py`
+- `tests/test_cable_normalize_segments_visual.py`
+- `tests/test_create_point_with_target_length_visual.py`
+- `tests/test_deformer_polyline_visual.py`
+- `tests/test_deplacer_point_visual.py`
+- `tests/test_enforce_cable_segments_nb_visual.py`
+- `tests/test_next_point_visual.py`
+- `tests/test_scale_slack_visual.py`
+- `tests/test_supprimer_point_visual.py`
+
+Utilitaires internes aux rapports : `tests/_plotly_cable_axes.py`, `tests/_report_output.py`.
+
+Ces scripts visuels ne sont pas tous des tests `pytest` ; ils servent au diagnostic graphique.
+
+### 2.2 Catalogue UI : `src/tests/test_catalog.py`
+
+L'onglet **🧪 Tests** ne parcourt pas automatiquement le dossier `tests/` : il exécute les commandes déclarées dans `src/tests/test_catalog.py`. Pour qu'un nouveau test apparaisse dans l'UI, ajouter une entrée `TestEntry` dans ce fichier.
+
+### 2.3 Scripts de test à la racine
 
 Des scripts complémentaires existent à la racine du projet :
 
@@ -55,17 +92,7 @@ Des scripts complémentaires existent à la racine du projet :
 - `test_pyqt.py`
 - `test_pyqt_simple.py`
 
-Le répertoire `tests/` contient aussi plusieurs scripts visuels Plotly, utiles
-pour inspecter visuellement les écarts numériques :
-
-- `tests/test_cable_normalization_visual.py`
-- `tests/test_scale_slack_visual.py`
-- `tests/test_deplacer_point_visual.py`
-- `tests/test_supprimer_point_visual.py`
-- `tests/test_enforce_cable_segments_nb_visual.py`
-
-Ces scripts ne sont pas tous conçus comme des tests unitaires `pytest`. Certains
-ouvrent l'application, lancent une simulation courte ou affichent un diagnostic
+Certains ouvrent l'application, lancent une simulation courte ou affichent un diagnostic
 détaillé destiné à une analyse manuelle.
 
 ## 3. Tests unitaires disponibles
@@ -203,6 +230,42 @@ compatibles.
 Tests unitaires de `deplacer_point`, avec vérification de la construction
 géométrique (milieu/perpendiculaire) et des longueurs (condition sur la somme
 des distances).
+
+### 3.12 `tests/test_utils_create_point_with_target_length.py` et `tests/test_utils_next_point.py`
+
+Tests numériques des utilitaires géométriques du câble `create_point_with_target_length` et `next_point`.
+
+### 3.13 `tests/test_cable_normalize_length.py` et `tests/test_cable_normalize_segments.py`
+
+Tests ciblant `_normalize_cable_length` et `_normalize_cable_segments` du solveur de câble (comportement numérique et structure).
+
+### 3.14 `tests/test_straight_snap_normalize.py`
+
+Vérifications sur le mode « corde » / raccourcissement droit et la normalisation associée.
+
+### 3.15 `tests/test_cable_init_buoyant.py`
+
+Tests de la construction de polylignes initiales **flottantes** (`cable_init_buoyant`).
+
+### 3.16 `tests/test_buoyant_current_init.py`
+
+Scénarios d'initialisation combinant **flottabilité** et **courant** pour des missions de référence.
+
+### 3.17 `tests/test_initial_conditions_modes.py`
+
+Modes d'initialisation câble (`strict_static` / `legacy_geometry`) et chemins associés (projection d'état si applicable).
+
+### 3.18 `tests/test_mission_init_regression.py` et `tests/test_mission_init_courant_1.py`
+
+Non-régression sur les missions `Missions/M_test_init_*` et `M_test_init_courant_*` : géométrie, longueur, tensions, invariants physiques ; le second fichier détaille notamment le scénario courant 1 après finalisation type UI.
+
+### 3.19 `tests/test_dae_projection.py`
+
+Tests liés à la **projection** d'état câble et au chantier intégration contrainte (voir `docs/dae_cable_rov_spec.md`).
+
+### 3.20 `tests/test_cable_shared_cases_add.py`
+
+Extensions de cas partagés pour le solveur câble (import depuis `cable_shared_cases.py`).
 
 ## 4. Assertions de contrôle en fin d'itération
 
@@ -435,7 +498,34 @@ L'application PyQt inclut un onglet **🧪 Tests** qui :
 Les rapports HTML produits par les scripts visuels sont listés dans la colonne
 "Commentaires / Rapport" lorsque disponibles.
 
-## 7. Remarques pratiques
+### 6.6 Regénérer les figures de documentation
+
+Depuis la racine `simulateur_rov` :
+
+```powershell
+python docs/scripts/gen_graphique_trainee_rov.py
+```
+
+Ou le script d'agrégation (figures et extensions futures) :
+
+```powershell
+python docs/scripts/regenerate_documentation.py
+```
+
+## 7. Catalogue de l'onglet « Tests » (groupes)
+
+Les entrées sont triées par **nom** dans l'UI. Groupes typiques :
+
+| Groupe | Contenu |
+|--------|---------|
+| Géométrie câble – unitaires | `scale_slack`, `aplatir_polyline`, `deformer_polyline`, `supprimer_point`, `create_point_with_target_length`, `next_point` |
+| Normalisation du câble – unitaires | `_normalize_cable_segments`, `_normalize_cable_length` |
+| Géométrie / Normalisation – rapports graphiques | scripts `tests/test_*_visual.py` associés |
+| Initialisation missions | `test_buoyant_current_init`, `test_initial_conditions_modes`, `test_mission_init_courant_1`, `test_mission_init_regression` |
+
+Pour modifier les commandes ou ajouter un test : éditer `src/tests/test_catalog.py`, puis cliquer sur **Mettre à jour** dans l'onglet Tests.
+
+## 8. Remarques pratiques
 
 - Les tests `pytest` du répertoire `tests/` sont les plus adaptés à une
   validation rapide et répétable.
