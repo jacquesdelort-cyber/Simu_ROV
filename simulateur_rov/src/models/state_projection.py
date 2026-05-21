@@ -15,6 +15,77 @@ from src.utils.logger import trace_print
 # Même ordre de grandeur que ``cable_solver.STRAIGHT_ROV_SNAP_MAX_M`` (éviter import circulaire).
 _STRAIGHT_ROV_SNAP_MAX_M = 0.1
 
+# Câble mou : la caténaire géométrique peut renvoyer des tensions non physiques ; alignement pilotage.
+_SLACK_RATIO_TENSION_RELAX = 0.03
+_SLACK_SOFT_TENSION_CAP_N = 120.0
+
+
+def slack_ratio_and_soft_cap_tensions(
+    x_boat: float,
+    y_boat: float,
+    x_rov: float,
+    y_rov: float,
+    L: float,
+    T: np.ndarray,
+) -> tuple[float, np.ndarray]:
+    """
+    slack_ratio = (L - distance droite) / distance droite.
+    Si > _SLACK_RATIO_TENSION_RELAX, retourne min(T, _SLACK_SOFT_TENSION_CAP_N) élément par élément.
+    """
+    T_arr = np.asarray(T, dtype=float).copy()
+    d_straight = float(np.hypot(float(x_rov) - float(x_boat), float(y_rov) - float(y_boat)))
+    slack = float(L) - d_straight
+    slack_ratio = max(slack / max(d_straight, 1.0), 0.0)
+    if slack_ratio > _SLACK_RATIO_TENSION_RELAX:
+        T_arr = np.minimum(T_arr, _SLACK_SOFT_TENSION_CAP_N)
+    return slack_ratio, T_arr
+
+
+def apply_slack_tension_soft_cap_inplace(
+    system: Any,
+    y: np.ndarray,
+    *,
+    t_sim: float | None = None,
+) -> None:
+    """
+    Sécurité runtime : impose le plafond mou sur la tranche tension de ``y`` (bateau en y=0).
+    À appeler en fin de pas si la projection a échoué ou si l'intégration contrainte saute la projection UI.
+    """
+    y_arr = np.asarray(y, dtype=float)
+    try:
+        (x_rov, y_rov, _vx, _vy, x_boat, _vx_boat, _xc, _yc, T, L) = system.unpack_state(y_arr)
+        if L is None or float(L) <= 1e-9:
+            return
+        slack_ratio, T_capped = slack_ratio_and_soft_cap_tensions(
+            float(x_boat),
+            0.0,
+            float(x_rov),
+            float(y_rov),
+            float(L),
+            T,
+        )
+        T_old = np.asarray(T, dtype=float)
+        if not np.allclose(T_old, T_capped, rtol=0.0, atol=1e-9):
+            idx_t = 6 + 2 * (system.N + 1)
+            y_arr[idx_t : idx_t + system.N + 1] = T_capped
+            t_before = float(np.max(T_old)) if T_old.size > 0 else 0.0
+            t_after = float(np.max(T_capped)) if T_capped.size > 0 else 0.0
+            if (
+                t_sim is not None
+                and 39.0 <= float(t_sim) <= 40.6
+                and t_before > t_after + 1e-6
+            ):
+                trace_print(
+                    7,
+                    (
+                        "[PROJ CAP] apply_slack_tension_soft_cap_inplace "
+                        f"t={float(t_sim):.2f} slack_ratio={slack_ratio:.4f} "
+                        f"Tmax_before={t_before:.2f} Tmax_after={t_after:.2f}"
+                    ),
+                )
+    except Exception:
+        pass
+
 
 def reconcile_straight_mode_after_normalize(
     x_proj: np.ndarray,
@@ -200,6 +271,29 @@ def project_cable_state_inplace(
             rov_vol=system.rov.V,
         )
         T_proj = np.asarray(T_proj, dtype=float)
+        t_uncapped_max = float(np.max(T_proj)) if T_proj.size > 0 else 0.0
+        slack_ratio, T_proj = slack_ratio_and_soft_cap_tensions(
+            float(x_boat),
+            0.0,
+            float(x_rov_n),
+            float(y_rov_n),
+            float(L),
+            T_proj,
+        )
+        t_after_max = float(np.max(T_proj)) if T_proj.size > 0 else 0.0
+        if (
+            slack_ratio > _SLACK_RATIO_TENSION_RELAX
+            and 39.0 <= float(t_sim) <= 40.6
+            and t_uncapped_max > t_after_max + 1e-6
+        ):
+            trace_print(
+                7,
+                (
+                    "[PROJ CAP] project_cable_state_inplace "
+                    f"t={float(t_sim):.2f} slack_ratio={slack_ratio:.4f} "
+                    f"Tmax_before={t_uncapped_max:.2f} Tmax_after={t_after_max:.2f}"
+                ),
+            )
 
         idx_x = 6
         idx_y = idx_x + system.N + 1
@@ -281,6 +375,28 @@ def repack_cable_static_equilibrium_inplace(system: Any, y: np.ndarray) -> bool:
         except Exception:
             T_cap = 1.8e5
         T_proj = np.clip(T_proj, 0.0, T_cap)
+        try:
+            t_uncapped_max = float(np.max(T_proj)) if T_proj.size > 0 else 0.0
+            slack_ratio, T_proj = slack_ratio_and_soft_cap_tensions(
+                float(x_boat),
+                0.0,
+                float(x_rov),
+                float(y_rov),
+                float(L),
+                T_proj,
+            )
+            t_after_max = float(np.max(T_proj)) if T_proj.size > 0 else 0.0
+            if slack_ratio > _SLACK_RATIO_TENSION_RELAX and t_uncapped_max > t_after_max + 1e-6:
+                trace_print(
+                    7,
+                    (
+                        "[PROJ CAP] repack_cable_static_equilibrium_inplace "
+                        f"slack_ratio={slack_ratio:.4f} "
+                        f"Tmax_before={t_uncapped_max:.2f} Tmax_after={t_after_max:.2f}"
+                    ),
+                )
+        except Exception:
+            pass
 
         idx_x = 6
         idx_y = idx_x + system.N + 1

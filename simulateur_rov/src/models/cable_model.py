@@ -46,7 +46,8 @@ class Cable:
         self.solver = CableSolver(self.N, params, environment)
     
     def solve_equilibrium(self, x_rov, y_rov, vx_rov, vy_rov,
-                         x_boat, vx_boat, L, x_cable_prev=None, y_cable_prev=None, rov_m=None, rov_vol=None):
+                         x_boat, vx_boat, L, x_cable_prev=None, y_cable_prev=None, rov_m=None, rov_vol=None,
+                         force_static=False, use_current_geometry=True):
         """
         Résout l'équilibre du câble
         
@@ -71,11 +72,15 @@ class Cable:
         if self.solver is None:
             raise ValueError("Environment must be set before solving")
         
-        if x_cable_prev is None or y_cable_prev is None:
-            # Solution statique
-            x_cable, y_cable, T = self.solver.solve_equilibrium_static(
-                x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
-            )
+        if force_static or x_cable_prev is None or y_cable_prev is None:
+            if use_current_geometry:
+                x_cable, y_cable, T = self.solver.solve_equilibrium_static_with_current(
+                    x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+                )
+            else:
+                x_cable, y_cable, T = self.solver.solve_equilibrium_static(
+                    x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
+                )
             self.x_cable_prev = x_cable.copy()
             self.y_cable_prev = y_cable.copy()
             return x_cable, y_cable, T

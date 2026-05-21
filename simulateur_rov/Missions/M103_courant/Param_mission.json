@@ -1,7 +1,7 @@
 {
-    "date_sauvegarde": "2026-04-13T17:27:06.271876",
+    "date_sauvegarde": "2026-05-21T08:21:15.738619",
     "mission": "M103_courant",
-    "description": "Position (30, -450) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV puis remontée.  Pas de courant",
+    "description": "Position (30, -450) m, ROV avec une flottabilité légèrement positive. Courant horizontal 1 m/s. Trainée horizontale induite environ 75 N.\nDes petits AR horizontaux du ROV puis remontée.  ",
     "parameters": {
         "rov": {
             "m": 30.0,
@@ -34,6 +34,7 @@
         }
     },
     "calc_params": {
+        "dynamic_simulation": false,
         "method": "RK45",
         "rtol": 1e-05,
         "atol": 1e-07,
@@ -46,12 +47,12 @@
         "max_data_size": 10000,
         "excel_write_interval": 50,
         "plot_points_limit": 10000,
-        "sc_fx_rov": "(t >40:5) (e1>5:0) (e1>10:-5) (e1>15:5) (e1> 20:-5) (e1 >20:5) (e1>25:10) (e1>30:0) (:e2)  (e3:5)  (e3>15:0)",
-        "sc_fy_rov": "(t>5:-2) (t>15:-25)  (y<-425:-50)  (y<-450:-75) (y<-495:-8.83) (:e1) (e2:-15) (y<-500:e3) (:0) (e3>15:50 ) (y>-10:15)  (:e4) (y>-1:10)(y > -0.01:ex) (ex> 10: x)",
+        "sc_fx_rov": "(t>0:-140) (t >40:-145) (e1>5:-140) (e1>10:-130) (e1>15:-110) (e1> 20:-140) (e1 >20:-160) (e1>25:-120) (e1>30:-50) (:e2)  (e3:-20)  (e3>15:-10)",
+        "sc_fy_rov": "(t>0:-146) (t>15:-170)  (y<-425:-200)  (y<-450:-225) (y<-495:-160) (:e1) (e2:-35) (y<-500:e3)  (e3>10 :-10) (y>-10:-10)  (:e4) (y>-1:10)(y > -0.01:ex) (ex> 10: x)",
         "sc_v_bateau": "(e4:1 )  (l<5:0)",
         "sc_v_moulinet": "",
-        "auto_L": "auto_L_7",
-        "Tcible": 5.0,
+        "auto_L": "auto_L_min",
+        "Tcible": 20.0,
         "guard_profile": "soft",
         "guard_enable": true,
         "guard_tension_spike_factor": 12.0,
@@ -69,6 +70,8 @@
         "y_rov_init": -400.0,
         "x_boat_init": 0.0,
         "L_init": 420.0,
-        "v_courant": "0.0:0 50:0.0  100:1.0"
+        "v_courant": "0.0:0  100:0.5",
+        "cable_init_mode": "strict_static",
+        "legacy_init_geometry": false
     }
 }

@@ -1,10 +1,14 @@
 @echo off
+setlocal
+set "PYDIR=C:\Users\jacqu\AppData\Local\Python\pythoncore-3.14-64"
+set "PATH=%PYDIR%;%PYDIR%\Scripts;%PATH%"
+
 echo ========================================
 echo Lancement du Simulateur ROV (PyQt)
 echo ========================================
 echo.
 
-python run_pyqt.py
+"%PYDIR%\python.exe" run_pyqt.py %*
 
 if errorlevel 1 (
     echo.

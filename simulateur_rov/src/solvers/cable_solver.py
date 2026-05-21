@@ -7,7 +7,7 @@ import numpy as np
 from numpy._typing import _64Bit
 from scipy.optimize import fsolve, minimize_scalar, root_scalar, minimize, NonlinearConstraint, least_squares, nnls
 from scipy.interpolate import interp1d
-from src.utils.logger import trace_print
+from src.utils.logger import get_trace_level, trace_print
 from src.utils.scenario_utils import contrôle_câble
 from src.utils.utils import (
     enforce_cable_segments_nb,
@@ -39,7 +39,7 @@ STRAIGHT_ROV_SNAP_MAX_M = 0.1
 # Courant quasi nul : conserve le chemin validé chaînette flottante sans optimisation.
 CURRENT_NEGLIGIBLE_M_S = 1e-9
 # Identifiant affiché dans l’UI (titre fenêtre) pour vérifier qu’on n’exécute pas une vieille copie du code.
-CABLE_SOLVER_BUILD_ID = "neutral-uniform-bezier-before-nodal-20260419"
+CABLE_SOLVER_BUILD_ID = "buoyant-monotonic-current-bezier-20260419"
 # Au-delà, pas de déformation « courant statique » (coût compute_cable_forces × passes).
 # Missions type M_test_init_courant_0 utilisent N≈1000 : il faut autoriser le skew.
 MAX_N_SEGMENTS_BUOYANT_STATIC_CURRENT_SKEW = 2500
@@ -50,7 +50,10 @@ NODAL_EQUILIBRIUM_LENGTH_WEIGHT = 1.0
 NODAL_EQUILIBRIUM_SMOOTH_X_WEIGHT = 0.65
 NODAL_EQUILIBRIUM_SMOOTH_Y_WEIGHT = 0.35
 BUOYANT_SKEW_DEPTH_BAND_M = 40.0
-BUOYANT_MIN_Y_MARGIN_M = 0.25
+# Marge verticale autorisée sous le ROV pour câble flottant.
+# En dynamique, une marge trop faible force localement la géométrie et peut
+# amplifier des pics de tension non physiques près de l'extrémité ROV.
+BUOYANT_MIN_Y_MARGIN_M = 1.5
 BUOYANT_CURVATURE_MISMATCH_MAX = 0.45
 
 
@@ -875,6 +878,52 @@ class CableSolver:
         side_sign = float(np.sign(np.mean(v_act)))
         return True, side_sign
 
+    def _detect_monotonic_current_for_smooth_shape(self, y_vals):
+        """
+        Courant « mission » monotone en profondeur (rampe, plateau, etc.) avec un seul
+        signe dominant sur les points actifs.
+
+        Lorsque la variance globale repousse le flag « quasi uniforme » (``rel_std`` dans
+        :meth:`_detect_uniform_current_signature`) mais que le profil reste monotone, le
+        solveur nodal grossier peut produire un double arc / rebroussement (ex. mission
+        ``0.0:0.0  100:1.0`` sur une grande colonne d'eau). On réutilise alors la même
+        construction Bézier lisse que pour le courant quasi uniforme.
+        """
+        y = np.asarray(y_vals, dtype=float)
+        if y.size < 4:
+            return False, 0.0
+        v_raw = getattr(self.environment, "v_courant_raw", None)
+        depth = np.where(y < 0.0, -y, y)
+        order = np.argsort(depth)
+        v_mission = np.asarray(
+            [self.environment.get_current_velocity(float(yi), v_raw) for yi in y[order]],
+            dtype=float,
+        )
+        if not np.any(np.abs(v_mission) > CURRENT_NEGLIGIBLE_M_S):
+            return False, 0.0
+        dv = np.diff(v_mission)
+        mono_up = bool(np.all(dv >= -1e-9))
+        mono_dn = bool(np.all(dv <= 1e-9))
+        if not (mono_up or mono_dn):
+            return False, 0.0
+        m = np.abs(v_mission) > 0.02
+        if not np.any(m):
+            return False, 0.0
+        sgn = np.sign(v_mission[m])
+        sgn = sgn[sgn != 0.0]
+        if sgn.size == 0:
+            return False, 0.0
+        dominant = max(float(np.mean(sgn > 0.0)), float(np.mean(sgn < 0.0)))
+        if dominant < 0.92:
+            return False, 0.0
+        from .forces import CURRENT_TO_FLUID_VX_SIGN
+
+        v_fluid = CURRENT_TO_FLUID_VX_SIGN * v_mission[m]
+        side_sign = float(np.sign(np.mean(v_fluid)))
+        if abs(side_sign) < 1e-12:
+            return False, 0.0
+        return True, side_sign
+
     def _enforce_uniform_current_concavity(
         self, x, y, x_boat, y_boat, x_rov, y_rov, strength=0.72
     ):
@@ -1298,9 +1347,21 @@ class CableSolver:
             # avant de tenter des solveurs plus lourds (évite les oscillations locales).
             y_probe = np.linspace(0.0, float(y_rov), max(int(self.N) + 1, 5))
             is_uniform, side_sign = self._detect_uniform_current_signature(y_probe)
-            if is_uniform and abs(side_sign) > 1e-12:
+            is_mono_smooth, side_mono = self._detect_monotonic_current_for_smooth_shape(y_probe)
+            use_smooth_column = (is_uniform and abs(side_sign) > 1e-12) or (
+                is_mono_smooth and abs(side_mono) > 1e-12
+            )
+            if use_smooth_column:
+                side_use = side_sign if (is_uniform and abs(side_sign) > 1e-12) else side_mono
                 h_mag_geo = max(0.2, 0.22 * abs(float(x_rov - x_boat)))
-                h_signed = float(np.sign(side_sign)) * h_mag_geo
+                if is_uniform and abs(side_sign) > 1e-12:
+                    h_signed = float(np.sign(side_use)) * h_mag_geo
+                else:
+                    # Courant monotone (rampe + plateau, etc.) : même inversion de déport que
+                    # pour le câble neutre (``h_signed_n``). Sans cela, ``_assess_buoyant_current_geometry``
+                    # rejette le Bézier (signe_courbure ≈ 1) et on retombe sur le nodal grossier
+                    # (double arc / rebroussement, ex. ``M_test_init_courant_4``).
+                    h_signed = -float(np.sign(side_use)) * h_mag_geo
                 try:
                     x_u, y_u = _vertical_slack_quadratic_bezier(
                         float(x_boat),
@@ -1328,7 +1389,8 @@ class CableSolver:
                         )
                         trace_print(
                             5,
-                            "[DEBUG] Câble flottant + courant uniforme: profil Bézier lisse accepté.",
+                            "[DEBUG] Câble flottant + courant (uniforme ou monotone): "
+                            "profil Bézier lisse accepté.",
                         )
                         return x_u, y_u, T
                 except Exception:
@@ -1458,13 +1520,18 @@ class CableSolver:
             # sans passer par le nodal grossier (sinon double arc / rebroussement pour un câble neutre).
             y_probe_u = np.linspace(0.0, float(y_rov), max(int(self.N) + 1, 5))
             is_uniform_n, side_sign_n = self._detect_uniform_current_signature(y_probe_u)
-            if is_uniform_n and abs(side_sign_n) > 1e-12:
+            is_mono_n, side_mono_n = self._detect_monotonic_current_for_smooth_shape(y_probe_u)
+            use_smooth_neutral = (is_uniform_n and abs(side_sign_n) > 1e-12) or (
+                is_mono_n and abs(side_mono_n) > 1e-12
+            )
+            if use_smooth_neutral:
+                side_n = side_sign_n if (is_uniform_n and abs(side_sign_n) > 1e-12) else side_mono_n
                 h_mag_geo_n = max(0.2, 0.22 * abs(float(x_rov - x_boat)))
                 # ``_detect_uniform_current_signature`` renvoie le signe en vitesse **fluide** ;
                 # pour ce Bézier, le même signe qu’en flottant pousse la bosse du mauvais côté
                 # (x négatif) lorsque ``_assess_buoyant_current_geometry`` rejette d’ailleurs la forme.
                 # Inverser le signe ici pour coller au déport attendu (cf. M_test_init_courant_0).
-                h_signed_n = -float(np.sign(side_sign_n)) * h_mag_geo_n
+                h_signed_n = -float(np.sign(side_n)) * h_mag_geo_n
                 try:
                     x_u_n, y_u_n = _vertical_slack_quadratic_bezier(
                         float(x_boat),
@@ -2984,6 +3051,16 @@ class CableSolver:
         try:
             det_a = np.linalg.det(A)
             cond_a = np.linalg.cond(A) if np.isfinite(det_a) else np.inf
+            if abs(det_a) < 1e-8 or cond_a > 1e8:
+                trace_print(
+                    5,
+                    (
+                        "[DEBUG] _compute_catenary_tensions: système extrémités mal conditionné "
+                        f"(det={det_a:.3e}, cond={cond_a:.3e}, "
+                        f"Ub=({Ubateau_x:.3f},{Ubateau_y:.3f}), "
+                        f"Ur=({Urov_x:.3f},{Urov_y:.3f}))."
+                    ),
+                )
             if abs(det_a) < 1e-10 or cond_a > 1e10:
                 # Moindres carrés lorsque les directions aux extrémités sont quasi-colinéaires.
                 T_solution, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
@@ -3046,6 +3123,49 @@ class CableSolver:
         # Ajustement doux de la dernière valeur (pas d'écrasement brutal).
         if abs(T[-1] - T_rov) > 1e-3:
             T[-1] = 0.5 * T[-1] + 0.5 * T_rov
+
+        # Garde-fou de continuité locale: éviter un saut excessif entre les deux derniers points,
+        # typiquement responsable d'un "pic terminal" non plausible.
+        if N >= 1:
+            t_prev = float(T[-2]) if N >= 2 else float(T[0])
+            t_last_raw = float(T[-1])
+            if t_prev > 1e-6 and np.isfinite(t_prev) and np.isfinite(t_last_raw):
+                ratio = t_last_raw / t_prev
+                max_ratio = 1.35
+                min_ratio = 1.0 / max_ratio
+                if ratio > max_ratio or ratio < min_ratio:
+                    t_clamped = float(np.clip(t_last_raw, min_ratio * t_prev, max_ratio * t_prev))
+                    trace_print(
+                        5,
+                        (
+                            "[DEBUG] _compute_catenary_tensions: clamp saut terminal "
+                            f"T[-2]={t_prev:.3f} N, T[-1]_raw={t_last_raw:.3f} N, "
+                            f"T[-1]_clamped={t_clamped:.3f} N, ratio={ratio:.3f}"
+                        ),
+                    )
+                    T[-1] = t_clamped
+
+        # Diagnostic géométrique local au ROV (angles aigus avec tension élevée).
+        if N >= 2:
+            v1x = float(x_cable[-1] - x_cable[-2])
+            v1y = float(y_cable[-1] - y_cable[-2])
+            v2x = float(x_cable[-2] - x_cable[-3])
+            v2y = float(y_cable[-2] - y_cable[-3])
+            n1 = float(np.hypot(v1x, v1y))
+            n2 = float(np.hypot(v2x, v2y))
+            if n1 > 1e-9 and n2 > 1e-9:
+                cosang = float(np.clip((v1x * v2x + v1y * v2y) / (n1 * n2), -1.0, 1.0))
+                angle_deg = float(np.degrees(np.arccos(cosang)))
+                t_last = float(T[-1])
+                if t_last > 50.0 and angle_deg > 35.0:
+                    trace_print(
+                        5,
+                        (
+                            "[DEBUG] _compute_catenary_tensions: coude terminal prononcé "
+                            f"(angle={angle_deg:.1f} deg, T[-1]={t_last:.1f} N, "
+                            f"ds[-2]={n2:.3f} m, ds[-1]={n1:.3f} m)."
+                        ),
+                    )
         
         return T
     
@@ -4892,17 +5012,17 @@ class CableSolver:
         ``mode_test`` : si True (tests / scripts), abaisse légèrement les seuils de trace (``debug_ncs`` et cas ``len(P)==2``).
         """
         
-        # Traces sélectives : si les deux bornes sont renseignées et ``t`` est fourni, abaisser le seuil des trace_print.
-        _ncs_trace_t_min: float = 32.49 
-        _ncs_trace_t_max: float = 32.51 
+        # Traces sélectives : si les deux bornes sont renseignées et ``t`` est fourni, remonter le niveau des trace_print.
+        _ncs_trace_t_min: float = 39.8
+        _ncs_trace_t_max: float = 40.3
         if t is None : 
-            debug_ncs = 9
+            debug_ncs = 5
         elif (_ncs_trace_t_min is not None and _ncs_trace_t_max is not None and float(_ncs_trace_t_min) <= float(t) <= float(_ncs_trace_t_max)):
             debug_ncs = 7
         else:
-            debug_ncs = 8
+            debug_ncs = 5
         if mode_test:
-            debug_ncs = min(debug_ncs + 1, 15)
+            debug_ncs = min(debug_ncs + 5, 15)
 
         mode_straight = False
         # region : récupération des arguments et initialisation
@@ -5403,7 +5523,7 @@ class CableSolver:
         if mode_test:
             debug_ncl = 9
         else:
-            debug_ncl = 9
+            debug_ncl = 8
 
         t_eff: float | None = None
         if t is not None:
@@ -5832,7 +5952,25 @@ class CableSolver:
                         if dist_to_rov > 1e-9:
                             direction = (rov_pt - current) / dist_to_rov
                             target_pt = rov_pt - target_dist * direction
-                            alpha_smooth = 0.8
+                            # Correction moins agressive près du ROV pour éviter les zigzags.
+                            alpha_smooth = 0.35
+                            if N >= 3:
+                                prev = np.array([x_new[N - 2], y_new[N - 2]])
+                                tangent_prev = current - prev
+                                n_prev = np.linalg.norm(tangent_prev)
+                                n_to_rov = np.linalg.norm(rov_pt - current)
+                                if n_prev > 1e-9 and n_to_rov > 1e-9:
+                                    cosang = float(np.clip(np.dot(tangent_prev, rov_pt - current) / (n_prev * n_to_rov), -1.0, 1.0))
+                                    angle_deg = float(np.degrees(np.arccos(cosang)))
+                                    if angle_deg > 70.0:
+                                        alpha_smooth = 0.2
+                                        trace_print(
+                                            _tl(5),
+                                            (
+                                                "[DEBUG] _normalize_cable_length: amortissement correction PN-1 "
+                                                f"(angle_local={angle_deg:.1f} deg, ratio_max={ratio_max:.2f})"
+                                            ),
+                                        )
                             new_pt = (1.0 - alpha_smooth) * current + alpha_smooth * target_pt
                             x_new[N - 1] = float(new_pt[0])
                             y_new[N - 1] = min(float(new_pt[1]), 0.0)
@@ -5881,6 +6019,57 @@ class CableSolver:
             
             # Clipping final
             y_new = np.clip(y_new, None, 0.0)
+
+            # Lissage anti-zigzag interne (hors 20 premiers/derniers segments déjà détaillés).
+            if N >= 6:
+                first_seg_count = min(20, N)
+                last_seg_start = max(0, N - 20)
+                edge_exclusion = set(range(first_seg_count)) | set(range(last_seg_start, N))
+                smoothed_vertices = 0
+                for _ in range(3):
+                    local_changes = 0
+                    for i in range(1, N - 1):
+                        seg_left = i - 1
+                        seg_right = i
+                        if seg_left in edge_exclusion or seg_right in edge_exclusion:
+                            continue
+                        v1x = float(x_new[i] - x_new[i - 1])
+                        v1y = float(y_new[i] - y_new[i - 1])
+                        v2x = float(x_new[i + 1] - x_new[i])
+                        v2y = float(y_new[i + 1] - y_new[i])
+                        n1 = float(np.hypot(v1x, v1y))
+                        n2 = float(np.hypot(v2x, v2y))
+                        if n1 <= 1e-9 or n2 <= 1e-9:
+                            continue
+                        cosang = float(np.clip((v1x * v2x + v1y * v2y) / (n1 * n2), -1.0, 1.0))
+                        u1x = v1x / n1
+                        u1y = v1y / n1
+                        u2x = v2x / n2
+                        u2y = v2y / n2
+                        turn_jump = float(np.hypot(u2x - u1x, u2y - u1y))
+                        # Détection plus robuste: angle très aigu ou cassure locale marquée.
+                        is_sharp_turn = (cosang < -0.75) or (turn_jump > 1.65 and cosang < -0.35)
+                        if is_sharp_turn:
+                            sev_angle = float(np.clip((-cosang - 0.75) / 0.25, 0.0, 1.0))
+                            sev_jump = float(np.clip((turn_jump - 1.65) / 0.35, 0.0, 1.0))
+                            sev = max(sev_angle, sev_jump)
+                            alpha = 0.28 + 0.24 * sev
+                            x_mid = 0.5 * (x_new[i - 1] + x_new[i + 1])
+                            y_mid = 0.5 * (y_new[i - 1] + y_new[i + 1])
+                            x_new[i] = float((1.0 - alpha) * x_new[i] + alpha * x_mid)
+                            y_new[i] = min(float((1.0 - alpha) * y_new[i] + alpha * y_mid), 0.0)
+                            local_changes += 1
+                    smoothed_vertices += local_changes
+                    if local_changes == 0:
+                        break
+                if smoothed_vertices > 0:
+                    trace_print(
+                        _tl(6),
+                        (
+                            "[DEBUG] _normalize_cable_length: lissage anti-zigzag interne "
+                            f"appliqué sur {smoothed_vertices} sommets"
+                        ),
+                    )
             
             # Vérification finale et forçage des extrémités (sécurité supplémentaire)
             if x_boat is not None:

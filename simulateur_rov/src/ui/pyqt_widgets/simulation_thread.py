@@ -35,11 +35,26 @@ _ANSI_LIGHT_RED = "\033[91m"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 from src.models.state_projection import (
+    apply_slack_tension_soft_cap_inplace,
     reconcile_straight_mode_after_normalize,
     repack_cable_static_equilibrium_inplace,
 )
 from src.models.system_model import V_MAX_ROV_STATE_IN_Y_MS
-from src.utils.etat_systeme import str_etat_système
+from src.utils.etat_systeme import str_etat_système, str_etat_cable
+
+# Bump manuel à chaque lot de correctifs critiques (projection / garde-fous).
+# Le mtime du fichier peut rester figé (sync OneDrive) : ce champ confirme la version chargée.
+SIMULATION_THREAD_BUILD_ID = "sim-thread-20260420-projcap-trace-3"
+
+
+def _build_marker_mtime(path: str) -> str:
+    try:
+        return time.strftime(
+            "%Y-%m-%d %H:%M:%S",
+            time.localtime(os.path.getmtime(path)),
+        )
+    except Exception:
+        return "unknown"
 
 
 class SimulationThread(QThread):
@@ -100,6 +115,22 @@ class SimulationThread(QThread):
     
     def run(self):
         """Exécute la simulation"""
+        build_mtime_ts = _build_marker_mtime(__file__)
+        try:
+            import src.models.state_projection as _state_projection_mod
+
+            sp_mtime_ts = _build_marker_mtime(_state_projection_mod.__file__)
+        except Exception:
+            sp_mtime_ts = "unknown"
+        trace_print(
+            10,
+            (
+                "[BUILD MARKER] simulation_thread.py chargé | "
+                f"build_id={SIMULATION_THREAD_BUILD_ID} "
+                f"derniere_modification_simulation_thread={build_mtime_ts} "
+                f"derniere_modification_state_projection={sp_mtime_ts}"
+            ),
+        )
         trace_print(9, f"\n{_ANSI_YELLOW}[DEBUG] simulation_thread: RUN :  TRACE_LEVEL ={get_trace_level()}{_ANSI_RESET}")
         try:
             from src.models.system_model import ROVSystem
@@ -160,6 +191,19 @@ class SimulationThread(QThread):
             
             if self.mission_name and not getattr(system.environment, "mission_name", None):
                 system.environment.mission_name = str(self.mission_name)
+
+            system.dynamic_simulation = bool(
+                self.calc_params.get("dynamic_simulation", True)
+            )
+            system.use_current_geometry_for_static = bool(
+                self.init_params.get("use_current_geometry", True)
+            )
+            if not system.dynamic_simulation:
+                trace_print(
+                    1,
+                    "[SIM] Mode quasi-statique : équilibre câble statique à chaque pas "
+                    f"(use_current_geometry={system.use_current_geometry_for_static}).",
+                )
 
             # Paramètres de calcul
             t_final = self.calc_params.get('t_final', 60.0)
@@ -1190,6 +1234,11 @@ class SimulationThread(QThread):
                         f"\n{_ANSI_BLUE}[SimulationThread :]{_ANSI_RESET} : "
                         + str_etat_système(system, y_current, t=t_current),
                     )
+                    if 9.8 <= float(t_current) <= 10.2:
+                        trace_print(
+                            10,
+                            str_etat_cable(system, y_current, t=t_current),
+                        )
                 except Exception:
                     trace_print(
                         10,
@@ -1353,13 +1402,30 @@ class SimulationThread(QThread):
                                             f"slack={slack_ctrl:.2f} reasons={'+'.join(reasons)}",
                                         )
                                     prev_t_boat_for_control = float(t_boat)
+                                fx_rov_cmd = (
+                                    float(self.simulation_state.get('fx_rov', self.fx_rov))
+                                    if isinstance(self.simulation_state, dict)
+                                    else float(self.fx_rov)
+                                )
+                                fy_rov_cmd = (
+                                    float(self.simulation_state.get('fy_rov', self.fy_rov))
+                                    if isinstance(self.simulation_state, dict)
+                                    else float(self.fy_rov)
+                                )
+                                L_straight_cmd = float(
+                                    np.hypot(
+                                        float(x_rov_current) - float(x_boat_current),
+                                        float(y_rov_current),
+                                    )
+                                )
                                 auto_result = auto_func(
                                     t_current,
                                     y_rov_current,
                                     L_current,
-                                    float(self.simulation_state.get('fx_rov', self.fx_rov)) if isinstance(self.simulation_state, dict) else self.fx_rov,
-                                    float(self.simulation_state.get('fy_rov', self.fy_rov)) if isinstance(self.simulation_state, dict) else self.fy_rov,
+                                    L_straight_cmd,
                                     t_boat,
+                                    fx_rov_cmd,
+                                    fy_rov_cmd,
                                     float(x_rov_current),
                                     float(x_boat_current),
                                     Trupt=trupt,
@@ -1418,7 +1484,7 @@ class SimulationThread(QThread):
                         vx_boat_cmd = None
                         dl_dt_cmd = None
 
-                # Éviter une longueur de câble négative
+                # Éviter une longueur de câble négative ou L < distance droite bateau-ROV
                 if dl_dt_cmd is not None:
                     try:
                         L_min = 1e-6
@@ -1431,6 +1497,24 @@ class SimulationThread(QThread):
                                     f"pour éviter L<0 (L={L_current:.6f}, dt={dt:.6f})"
                                 )
                                 dl_dt_cmd = min_dl_dt
+                            L_straight_guard = float(
+                                np.hypot(
+                                    float(x_rov_current) - float(x_boat_current),
+                                    float(y_rov_current),
+                                )
+                            )
+                            slack_margin = max(0.05, 0.001 * L_straight_guard)
+                            min_dl_dt_slack = (
+                                L_straight_guard + slack_margin - float(L_current)
+                            ) / float(dt)
+                            if dl_dt_cmd < min_dl_dt_slack:
+                                trace_print(
+                                    8,
+                                    f"[AUTO dL/dt] Clamp dL/dt {dl_dt_cmd:.6f} -> {min_dl_dt_slack:.6f} "
+                                    f"pour éviter L<L_straight "
+                                    f"(L={L_current:.6f}, L_str={L_straight_guard:.6f}, dt={dt:.6f})",
+                                )
+                                dl_dt_cmd = min_dl_dt_slack
                     except Exception:
                         pass
 
@@ -1787,6 +1871,21 @@ class SimulationThread(QThread):
                                 f"[FINAL PROJECTION] Récupération statique impossible à t={t_next:.3f} s",
                             )
 
+                    # Fort slack : même plafond que la projection DAE (intégration contrainte saute le bloc ci-dessus).
+                    apply_slack_tension_soft_cap_inplace(system, y_current, t_sim=float(t_next))
+                    # IMPORTANT: resynchroniser la variable locale T avec l'état y_current après cap.
+                    # Sinon, data['T_rov']/IC_L_7 peuvent afficher une ancienne tension non cappée
+                    # alors que [SimulationThread :] (qui lit y_current) affiche bien 120 N.
+                    try:
+                        idx_t_sync = 6 + 2 * (system.N + 1)
+                        if len(y_current) > idx_t_sync:
+                            T = np.asarray(
+                                y_current[idx_t_sync:idx_t_sync + system.N + 1],
+                                dtype=float,
+                            ).copy()
+                    except Exception:
+                        pass
+
                     # DEBUG: Traçage de L après intégration et comparaison avec L_current
                     # Récupérer la commande dL_dt qui a été utilisée pour cette intégration
                     # Note: u_func est défini dans la portée de run(), donc on peut l'utiliser
@@ -1976,7 +2075,10 @@ class SimulationThread(QThread):
                     D_straight = float(np.hypot(dx_straight, dy_straight))
                     
                     # Stocker les données (ces valeurs serviront aussi bien à l'UI qu'aux invariants)
-                    data['time'].append(t_current)
+                    # IMPORTANT : x_rov, T, etc. viennent de y_current *après* intégration [t_current, t_next].
+                    # L'abscisse temps doit être t_next, sinon on compare/trace au début du pas (str_etat_système)
+                    # des tensions « avant pas » avec des courbes / métriques « après pas » au même label t.
+                    data['time'].append(float(t_next))
                     data['x_rov'].append(float(x_rov))
                     data['y_rov'].append(float(y_rov))
                     data['vx_rov'].append(float(vx_rov))

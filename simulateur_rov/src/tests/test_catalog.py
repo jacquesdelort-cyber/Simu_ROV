@@ -214,6 +214,19 @@ def _tests_visual() -> Iterable[TestEntry]:
     ]
 
 
+def _tests_simulation_dynamics() -> Iterable[TestEntry]:
+    """Intégration temporelle (solve_ivp) — coût modéré."""
+    return [
+        TestEntry(
+            id="simulation_dynamics_integrate",
+            group="Simulation dynamique",
+            name="Intégration temporelle (ROVSystem.integrate)",
+            description="Pas courts : dérivées finies, Fx/Fy, variation de L (test_simulation_dynamics).",
+            command="python -m pytest -q tests/test_simulation_dynamics.py",
+        ),
+    ]
+
+
 def _tests_mission_initialization() -> Iterable[TestEntry]:
     """Tests d'initialisation des missions M_test_init_* et modes associés."""
     return [
@@ -254,6 +267,7 @@ def get_all_tests() -> List[TestEntry]:
     entries.extend(_tests_utils())
     entries.extend(_tests_visual())
     entries.extend(_tests_mission_initialization())
+    entries.extend(_tests_simulation_dynamics())
     entries.sort(key=lambda e: e.name.lower())
     return entries
 

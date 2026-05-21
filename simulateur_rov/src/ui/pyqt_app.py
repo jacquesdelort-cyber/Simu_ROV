@@ -68,6 +68,7 @@ class ROVSimulatorApp(QMainWindow):
             'guard_hard_block_duration_s': 1.5,
             'trace_boost_level': 7,
             'trace_boost_duration_s': 2.0,
+            'dynamic_simulation': True,
         }
         
         self.init_params = {

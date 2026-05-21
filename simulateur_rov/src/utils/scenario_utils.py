@@ -150,7 +150,6 @@ def contrôle_câble(
 # Permet auto_L_1, auto_L_7, auto_L_basic, etc. (nom complet doit être un identifiant Python valide)
 _AUTO_L_PATTERN = re.compile(r"^auto_L_([a-zA-Z0-9_]+)$")
 
-
 def list_auto_L_functions() -> list[str]:
     """
     Retourne la liste des noms de fonctions auto_L_xxx présentes dans ce module.
@@ -707,20 +706,23 @@ def auto_L_1(
     t: float,
     y_rov: float,
     L: float,
-    Fx_rov: float,
-    Fy_rov: float,
-    T_boat: float | None,
-    x_rov: float,
-    x_boat: float,
-    Trupt: float | None = None,
-    Tcible: float | None = None,
-    Gamma_moulinet_min: float | None = None,
-    Gamma_moulinet_max: float | None = None,
-    dl_dt_min: float | None = None,
-    dl_dt_max: float | None = None,
-    data: dict | None = None,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
     K: int = 10,
-    N: int = 20,
+    # Nombre de pas de temps utilisés pour lisser la commande.
+    N: int = 10,
+    data: dict | None = None,
 ) -> tuple[float, str]:
     """
     Calcule une consigne automatique pour dL/dt à partir de l'historique.
@@ -790,10 +792,10 @@ def auto_L_1(
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T_boat is None else float(T_boat),
+            "T_boat": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
-            "dT": None,
+            "dT_boat": None,
             "dL_dt": None,
             "dl_dt_cmd_prev": None,
         },
@@ -808,7 +810,7 @@ def auto_L_1(
     curr = history[0]
     prev = history[1]
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT"] = curr["T"] - prev["T"]
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"]
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else None
 
@@ -819,15 +821,15 @@ def auto_L_1(
     t_hard = 0.98 * Trupt
     t_soft_off = 0.88 * Trupt
     t_hard_off = 0.95 * Trupt
-    if curr["T"] is not None:
-        if curr["T"] >= t_hard:
+    if curr["T_boat"] is not None:
+        if curr["T_boat"] >= t_hard:
             ret, exp = 1.0, "T_HARD"
-        elif curr["T"] >= t_soft:
-            ramp = (curr["T"] - t_soft) / max(t_hard - t_soft, 1e-6)
+        elif curr["T_boat"] >= t_soft:
+            ramp = (curr["T_boat"] - t_soft) / max(t_hard - t_soft, 1e-6)
             ret, exp = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0), "T_SOFT"
         elif Fy_rov < 0:
             # Éviter le blocage en câble tendu quand le pilote veut descendre
-            if curr["T"] >= Tcible:
+            if curr["T_boat"] >= Tcible:
                 ret, exp = 0.3, "PILOT_DESC_TAUT"
             else:
                 ret, exp = 0.1, "PILOT_DESC"
@@ -848,7 +850,7 @@ def auto_L_1(
             exp = f"{exp}_ACC"
         curr["dl_dt_cmd_prev"] = ret
         return _finalize(ret, exp)
-    if abs(Tcible - prev["T"]) < 1:
+    if abs(Tcible - prev["T_boat"]) < 1:
         ret, exp = 0.0, "TCIBLE_PREV_CLOSE"
         ret, limited = _apply_moulinet_accel_limit(ret, curr, prev, Gamma_moulinet_min, Gamma_moulinet_max)
         if limited:
@@ -856,7 +858,7 @@ def auto_L_1(
         curr["dl_dt_cmd_prev"] = ret
         return _finalize(ret, exp)
 
-    z = (T_boat-Tcible)/abs(prev["T"]-Tcible)
+    z = (T_boat-Tcible)/abs(prev["T_boat"]-Tcible)
     if z < -2:
         ret = -2 * curr["dL_dt"] - 0.1
         exp = "Z_LT_-2"
@@ -898,20 +900,23 @@ def auto_L_2(
     t: float,
     y_rov: float,
     L: float,
-    Fx_rov: float,
-    Fy_rov: float,
-    T_boat: float | None,
-    x_rov: float,
-    x_boat: float,
-    Trupt: float | None = None,
-    Tcible: float | None = None,
-    Gamma_moulinet_min: float | None = None,
-    Gamma_moulinet_max: float | None = None,
-    dl_dt_min: float | None = None,
-    dl_dt_max: float | None = None,
-    data: dict | None = None,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
     K: int = 10,
-    N: int = 20,
+    # Nombre de pas de temps utilisés pour lisser la commande.
+    N: int = 10,
+    data: dict | None = None,
 ) -> tuple[float, str]:
     """
     Copie de auto_L_1 pour essais de lois de commande alternatives.
@@ -981,10 +986,10 @@ def auto_L_2(
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T_boat is None else float(T_boat),
+            "T_boat": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
-            "dT": None,
+            "dT_boat": None,
             "dL_dt": None,
             "dl_dt_cmd_prev": None,
         },
@@ -993,21 +998,21 @@ def auto_L_2(
     curr = history[0]
     prev = history[1]
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT"] = curr["T"] - prev["T"]
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"]
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0
 
     # Priorité 1-2: sécurité rupture + intention pilote (descente)
     t_soft = 0.90 * Trupt
     t_hard = 0.98 * Trupt
-    if curr["T"] is not None:
-        if curr["T"] >= t_hard:
+    if curr["T_boat"] is not None:
+        if curr["T_boat"] >= t_hard:
             ret, exp = 1.0, "T_HARD"
-        elif curr["T"] >= t_soft:
-            ramp = (curr["T"] - t_soft) / max(t_hard - t_soft, 1e-6)
+        elif curr["T_boat"] >= t_soft:
+            ramp = (curr["T_boat"] - t_soft) / max(t_hard - t_soft, 1e-6)
             ret, exp = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0), "T_SOFT"
         elif Fy_rov < 0:
-            if curr["T"] >= Tcible:
+            if curr["T_boat"] >= Tcible:
                 ret, exp = 0.3, "PILOT_DESC_TAUT"
             else:
                 ret, exp = 0.1, "PILOT_DESC"
@@ -1029,9 +1034,9 @@ def auto_L_2(
 
     J = min(K, len(history))
     avg_L = sum(item["L"] for item in history[:J]) / J
-    avg_T = sum(item["T"] for item in history[:J]) / J
+    avg_T = sum(item["T_boat"] for item in history[:J]) / J
     delta_L = history[-1]["L"] - history[0]["L"]
-    delta_T = history[-1]["T"] - history[0]["T"]
+    delta_T = history[-1]["T_boat"] - history[0]["T_boat"]
 
     if abs(delta_L) < 1e-2:
         if curr["dL_dt"] > 0:
@@ -1065,20 +1070,23 @@ def auto_L_3(
     t: float,
     y_rov: float,
     L: float,
-    Fx_rov: float,
-    Fy_rov: float,
-    T_boat: float | None,
-    x_rov: float,
-    x_boat: float,
-    Trupt: float | None = None,
-    Tcible: float | None = None,
-    Gamma_moulinet_min: float | None = None,
-    Gamma_moulinet_max: float | None = None,
-    dl_dt_min: float | None = None,
-    dl_dt_max: float | None = None,
-    data: dict | None = None,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
     K: int = 10,
-    N: int = 20,
+    # Nombre de pas de temps utilisés pour lisser la commande.
+    N: int = 10,
+    data: dict | None = None,
 ) -> tuple[float, str]:
     """
     Copie de auto_L_2 pour essais de lois de commande alternatives.
@@ -1148,10 +1156,10 @@ def auto_L_3(
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T_boat is None else float(T_boat),
+            "T_boat": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
-            "dT": None,
+            "dT_boat": None,
             "dL_dt": None,
             "dl_dt_cmd_prev": None,
         },
@@ -1160,21 +1168,21 @@ def auto_L_3(
     curr = history[0]
     prev = history[1]
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT"] = curr["T"] - prev["T"]
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"]
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0
 
     # Priorité 1-2: sécurité rupture + intention pilote (descente)
     t_soft = 0.90 * Trupt
     t_hard = 0.98 * Trupt
-    if curr["T"] is not None:
-        if curr["T"] >= t_hard:
+    if curr["T_boat"] is not None:
+        if curr["T_boat"] >= t_hard:
             ret, exp = 1.0, "T_HARD"
-        elif curr["T"] >= t_soft:
-            ramp = (curr["T"] - t_soft) / max(t_hard - t_soft, 1e-6)
+        elif curr["T_boat"] >= t_soft:
+            ramp = (curr["T_boat"] - t_soft) / max(t_hard - t_soft, 1e-6)
             ret, exp = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0), "T_SOFT"
         elif Fy_rov < 0:
-            if curr["T"] >= Tcible:
+            if curr["T_boat"] >= Tcible:
                 ret, exp = 0.3, "PILOT_DESC_TAUT"
             else:
                 ret, exp = 0.1, "PILOT_DESC"
@@ -1196,9 +1204,9 @@ def auto_L_3(
 
     J = min(K, len(history))
     avg_L = sum(item["L"] for item in history[:J]) / J
-    avg_T = sum(item["T"] for item in history[:J]) / J
+    avg_T = sum(item["T_boat"] for item in history[:J]) / J
     delta_L = history[-1]["L"] - history[0]["L"]
-    delta_T = history[-1]["T"] - history[0]["T"]
+    delta_T = history[-1]["T_boat"] - history[0]["T_boat"]
 
     if abs(delta_L) < 1e-4:
         if curr["dL_dt"] > 0:
@@ -1232,20 +1240,23 @@ def auto_L_4(
     t: float,
     y_rov: float,
     L: float,
-    Fx_rov: float,
-    Fy_rov: float,
-    T_boat: float | None,
-    x_rov: float,
-    x_boat: float,
-    Trupt: float | None = None,
-    Tcible: float | None = None,
-    Gamma_moulinet_min: float | None = None,
-    Gamma_moulinet_max: float | None = None,
-    dl_dt_min: float | None = None,
-    dl_dt_max: float | None = None,
-    data: dict | None = None,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
     K: int = 10,
-    N: int = 20,
+    # Nombre de pas de temps utilisés pour lisser la commande.
+    N: int = 10,
+    data: dict | None = None,
 ) -> tuple[float, str]:
     """
     Copie de auto_L_3 pour essais de lois de commande alternatives.
@@ -1315,10 +1326,10 @@ def auto_L_4(
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T_boat is None else float(T_boat),
+            "T_boat": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
-            "dT": None,
+            "dT_boat": None,
             "dL_dt": None,
             "dl_dt_cmd_prev": None,
         },
@@ -1331,7 +1342,7 @@ def auto_L_4(
     curr = history[0]
     prev = history[1]
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT"] = curr["T"] - prev["T"] if curr["T"] is not None and prev["T"] is not None else 0.0
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"] if curr["T_boat"] is not None and prev["T_boat"] is not None else 0.0
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0
     curr["y_rov"] = float(y_rov)
@@ -1342,14 +1353,14 @@ def auto_L_4(
     # Priorité 1-2: sécurité rupture + intention pilote (descente)
     t_soft = 0.90 * Trupt
     t_hard = 0.98 * Trupt
-    if curr["T"] is not None:
-        if curr["T"] >= t_hard:
+    if curr["T_boat"] is not None:
+        if curr["T_boat"] >= t_hard:
             ret, exp = 1.0, "T_HARD"
-        elif curr["T"] >= t_soft:
-            ramp = (curr["T"] - t_soft) / max(t_hard - t_soft, 1e-6)
+        elif curr["T_boat"] >= t_soft:
+            ramp = (curr["T_boat"] - t_soft) / max(t_hard - t_soft, 1e-6)
             ret, exp = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0), "T_SOFT"
         elif Fy_rov < 0:
-            if curr["T"] >= Tcible:
+            if curr["T_boat"] >= Tcible:
                 ret, exp = 0.3, "PILOT_DESC_TAUT"
             else:
                 ret, exp = 0.1, "PILOT_DESC"
@@ -1368,11 +1379,11 @@ def auto_L_4(
 
     J = min(K, len(history))
     avg_L = np.mean([item["L"] for item in history[:J]])
-    t_vals = [item["T"] for item in history[:J] if item["T"] is not None]
+    t_vals = [item["T_boat"] for item in history[:J] if item["T_boat"] is not None]
     avg_T = np.mean(t_vals) if t_vals else 0.0
     delta_L = history[-1]["L"] - history[0]["L"]
-    t_last = history[-1]["T"]
-    t_first = history[0]["T"]
+    t_last = history[-1]["T_boat"]
+    t_first = history[0]["T_boat"]
     delta_T = (t_last - t_first) if t_last is not None and t_first is not None else 0.0
 
     # Cas marginal, on ne va pas pouvoir calculer dT/dL car dL est trop petit
@@ -1429,20 +1440,23 @@ def auto_L_6(
     t: float,
     y_rov: float,
     L: float,
-    Fx_rov: float,
-    Fy_rov: float,
-    T_boat: float | None,
-    x_rov: float,
-    x_boat: float,
-    Trupt: float | None = None,
-    Tcible: float | None = None,
-    Gamma_moulinet_min: float | None = None,
-    Gamma_moulinet_max: float | None = None,
-    dl_dt_min: float | None = None,
-    dl_dt_max: float | None = None,
-    data: dict | None = None,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
     K: int = 10,
+    # Nombre de pas de temps utilisés pour lisser la commande.
     N: int = 10,
+    data: dict | None = None,
 ) -> tuple[float, str]:
     """
     Loi de commande dL/dt avec priorités:
@@ -1495,10 +1509,10 @@ def auto_L_6(
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T_boat is None else float(T_boat),
+            "T_boat": None if T_boat is None else float(T_boat),
             "dt": None,
             "dL": None,
-            "dT": None,
+            "dT_boat": None,
             "dL_dt": None,
             "dl_dt_cmd_prev": None,
         },
@@ -1510,7 +1524,7 @@ def auto_L_6(
     curr = history[0]
     prev = history[1]
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT"] = curr["T"] - prev["T"] if curr["T"] is not None and prev["T"] is not None else 0.0
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"] if curr["T_boat"] is not None and prev["T_boat"] is not None else 0.0
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0.0
     if data and isinstance(data.get("T_rov"), list) and data["T_rov"]:
@@ -1531,14 +1545,14 @@ def auto_L_6(
     if len(history) > K + 1:
         del history[K + 1 :]
 
-    if curr["T"] is None or Tcible in (None, 0):
+    if curr["T_boat"] is None or Tcible in (None, 0):
         return _finalize(0.0, "NO_T")
 
     # Estimation locale dT/dL (si possible)
     est_dT_dL = None
     delta_L = history[-1]["L"] - history[0]["L"]
-    t_last = history[-1]["T"]
-    t_first = history[0]["T"]
+    t_last = history[-1]["T_boat"]
+    t_first = history[0]["T_boat"]
     if delta_L != 0 and t_last is not None and t_first is not None:
         est_dT_dL = (t_last - t_first) / delta_L
 
@@ -1547,17 +1561,17 @@ def auto_L_6(
     t_hard = 0.98 * Trupt
     t_soft_off = 0.88 * Trupt
     t_hard_off = 0.95 * Trupt
-    if curr["T"] >= t_hard:
+    if curr["T_boat"] >= t_hard:
         desired = 1.0
         exp = "T_HARD"
-    elif curr["T"] >= t_soft:
-        ramp = (curr["T"] - t_soft) / max(t_hard - t_soft, 1e-6)
+    elif curr["T_boat"] >= t_soft:
+        ramp = (curr["T_boat"] - t_soft) / max(t_hard - t_soft, 1e-6)
         desired = 0.5 + 0.5 * max(min(ramp, 1.0), 0.0)
         exp = "T_SOFT"
     else:
         # Priorité 2: respecter l'intention du pilote (descendre)
         if Fy_rov < 0:
-            if curr["T"] >= Tcible:
+            if curr["T_boat"] >= Tcible:
                 desired = 0.4
                 exp = "PILOT_DESC_TAUT"
             else:
@@ -1567,17 +1581,17 @@ def auto_L_6(
             # Priorité 3: rester en mode caténaire (tension modérée)
             T_catenary = 0.8 * Tcible
             if est_dT_dL is None or abs(est_dT_dL) < 1e-4:
-                if curr["T"] > T_catenary:
+                if curr["T_boat"] > T_catenary:
                     desired = 0.2
                     exp = "CATENARY_SIGN_OUT"
-                elif curr["T"] < 0.6 * T_catenary:
+                elif curr["T_boat"] < 0.6 * T_catenary:
                     desired = -0.1
                     exp = "CATENARY_SIGN_IN"
                 else:
                     desired = 0.0
                     exp = "CATENARY_HOLD"
             else:
-                desired = -(curr["T"] - T_catenary) / (2.0 * est_dT_dL)
+                desired = -(curr["T_boat"] - T_catenary) / (2.0 * est_dT_dL)
                 exp = "CATENARY_REG"
 
     # Lissage de la commande
@@ -1657,7 +1671,7 @@ def auto_L_6(
     )
     trace_print(1, f"AUTO_L_6: t={t:.2f}, L={L: 6.2f}, est_dT_dL={0.0 if est_dT_dL is None else est_dT_dL: 7.2f}, "
         f"y_rov={y_rov: 6.2f}, vy_rov={curr['vy_rov']: 6.2f}, "
-        f"T={curr['T']:.2f}, "
+        f"T={curr['T_boat']:.2f}, "
         f"prev_cmd={prev_cmd: 6.2f}, ret1={ret1: 6.2f}, ret={ret: 6.2f}, "
         f"dL_dt={curr['dL_dt']: 6.2f}, dt={curr['dt']: 6.2f},  "
         f"desired={desired: 6.2f}, exp={exp}"
@@ -1669,22 +1683,23 @@ def auto_L_7(
     t: float,
     y_rov: float,
     L: float,
-    Fx_rov: float,
-    Fy_rov: float,
-    T_boat: float | None,
-    x_rov: float,
-    x_boat: float,
-    Trupt: float | None = None,
-    Tcible: float | None = None,
-    Gamma_moulinet_min: float | None = None,
-    Gamma_moulinet_max: float | None = None,
-    dl_dt_min: float | None = None,
-    dl_dt_max: float | None = None,
-    data: dict | None = None,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
     # Nombre d'itérations utilisées dans l'historique.
     K: int = 10,
     # Nombre de pas de temps utilisés pour lisser la commande.
     N: int = 10,
+    data: dict | None = None,
 ) -> tuple[float, str]:
     """
     Loi de commande dL/dt avec accès à la distance droite bateau-ROV.
@@ -1772,12 +1787,12 @@ def auto_L_7(
             "L": float(L),
             "Fx_rov": float(Fx_rov),
             "Fy_rov": float(Fy_rov),
-            "T": None if T_boat is None else float(T_boat),
+            "T_boat": None if T_boat is None else float(T_boat),
             "x_rov": float(x_rov),
             "x_boat": float(x_boat),
             "dt": None,
             "dL": None,
-            "dT": None,
+            "dT_boat": None,
             "dL_dt": None,
             "dl_dt_cmd_prev": None,
         },
@@ -1789,7 +1804,7 @@ def auto_L_7(
     curr = history[0]
     prev = history[1]
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT"] = curr["T"] - prev["T"] if curr["T"] is not None and prev["T"] is not None else 0.0
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"] if curr["T_boat"] is not None and prev["T_boat"] is not None else 0.0
     curr["dt"] = curr["t"] - prev["t"]
     curr["dL_dt"] = curr["dL"] / curr["dt"] if curr["dt"] != 0 else 0.0
     if data and isinstance(data.get("T_rov"), list) and data["T_rov"]:
@@ -1803,7 +1818,7 @@ def auto_L_7(
     # Estimation locale dT/dL (si possible)
     est_dT_dL = None
     delta_L = history[-1]["L"] - history[0]["L"]
-    delta_T = history[-1]["T"] - history[0]["T"]
+    delta_T = history[-1]["T_boat"] - history[0]["T_boat"]
     if delta_L != 0 and delta_T is not None:
         est_dT_dL = delta_T / delta_L
 
@@ -1854,7 +1869,7 @@ def auto_L_7(
     # Priorité 1: éviter Trupt
     t_soft = 0.80 * Trupt
     t_hard = 0.90 * Trupt
-    if curr["T"] is None or Tcible in (None, 0):
+    if curr["T_boat"] is None or Tcible in (None, 0):
         trace_print(debug_auto_L_7, "IC_L_7: "
             f"t={_fmt(t_display)}, "
             f"L={_fmt(curr.get('L'))}, "  # Utiliser curr['L'] qui correspond à L passé en paramètre
@@ -1884,7 +1899,7 @@ def auto_L_7(
         auto_L_7._tension_mode_age = 0
 
     # Filtrage léger de T pour éviter les bascules rapides
-    t_raw = 0.0 if curr["T"] is None else float(curr["T"])
+    t_raw = 0.0 if curr["T_boat"] is None else float(curr["T_boat"])
     t_prev_f = float(prev.get("T_f", t_raw))
     t_f = t_prev_f + 0.3 * (t_raw - t_prev_f)
     curr["T_f"] = t_f
@@ -1949,8 +1964,8 @@ def auto_L_7(
                 down_speed = max(0.0, -curr.get("vy_rov", 0.0))
                 fy_boost = min(0.3, 0.005 * abs(Fy_rov))
                 t_boost = 0.0
-                if curr.get("T") is not None and Tcible not in (None, 0):
-                    t_boost = min(0.3, 0.01 * max(curr["T"] - Tcible, 0.0))
+                if curr.get("T_boat") is not None and Tcible not in (None, 0):
+                    t_boost = min(0.3, 0.01 * max(curr["T_boat"] - Tcible, 0.0))
                 min_payout_raw = max(dL_straight_dt, 0.5 * down_speed) + 0.1 + fy_boost + t_boost
                 prev_minpay = prev.get("min_payout_prev")
                 if prev_minpay is None:
@@ -2004,7 +2019,7 @@ def auto_L_7(
                         desired = 0.0
                         exp = "CATENARY_HOLD"
                     else:
-                        desired = -(curr["T"] - Tcible) / (2.0 * est_dT_dL)
+                        desired = -(curr["T_boat"] - Tcible) / (2.0 * est_dT_dL)
                         exp = "CATENARY_REG"
 
     # Anti-bagottement doux quand le slack est proche du plafond
@@ -2062,7 +2077,7 @@ def auto_L_7(
     
     # Utiliser les valeurs passées en paramètre plutôt que _last_val() pour garantir la cohérence
     # T_boat est passé directement en paramètre
-    T_boat_display = T_boat if T_boat is not None else curr.get("T")
+    T_boat_display = T_boat if T_boat is not None else curr.get("T_boat")
     # T_rov et cable_drag viennent de data (itération précédente) car non disponibles en paramètre
     T_rov_display = curr.get('T_rov')
     cable_drag_display = _last_val('cable_drag')
@@ -2084,4 +2099,569 @@ def auto_L_7(
         f"L_last_data={_fmt(_last_val('L'))} m"
     )
 
+    return ret, exp
+
+
+def auto_L_8(
+    t: float,
+    y_rov: float,
+    L: float,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    T_rov: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    y_boat: float = 0.0, 
+    z_rov: float | None = None,
+    z_boat: float | None = None,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
+    K: int = 10,
+    # Nombre de pas de temps utilisés pour lisser la commande.
+    N: int = 10,
+    data: dict | None = None,
+) -> tuple[float, str]:
+    """
+    Loi de commande dL/dt avec accès à la distance droite bateau-ROV.
+    Priorités:
+    1) ne pas dépasser la tension de rupture,
+    2) respecter l'intention du pilote (Fy_rov < 0 => descendre, éviter câble tendu),
+    3) rester en mode caténaire si possible,
+    4) éviter les à-coups (lissage + limite d'accélération).
+    Retourne (ret, explication).
+    Paramètres utilisés: t, y_rov, L, L_straight, Fx_rov, Fy_rov, T_boat, x_rov, x_boat,
+    Trupt, Tcible, Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, data, K, N.
+    """
+
+    debug_auto_L_8 = 9
+
+    if not hasattr(auto_L_8, "_history"):
+        auto_L_8._history = []
+
+    # Contrôle de la géométrie du câble
+    if data is not None:
+        x_cable_curr = data.get('x_cable_curr')
+        y_cable_curr = data.get('y_cable_curr')
+        x_boat_curr = data.get('x_boat')
+        y_boat_curr = 0.0  # Le bateau est toujours à y=0
+        if (x_cable_curr is not None and y_cable_curr is not None and
+            x_boat_curr is not None and len(x_boat_curr) > 0):
+            x_boat_val = float(x_boat_curr[-1]) if isinstance(x_boat_curr, list) else float(x_boat_curr)
+            x_cable_val = x_cable_curr if isinstance(x_cable_curr, list) else list(x_cable_curr)
+            y_cable_val = y_cable_curr if isinstance(y_cable_curr, list) else list(y_cable_curr)
+            r1, r2, r3, r4, r5, ls, msg_err = contrôle_câble(
+                x_cable_val, y_cable_val,
+                x_boat_val, y_boat_curr,
+                x_rov, y_rov,
+                L,
+                tol_segment=1e-2
+            )
+            
+            if msg_err:
+                error_msg = f"IC_L_8 :  t={t:.3f} s    {_ANSI_RED}Erreur contrôle_câble:{_ANSI_RESET}\n" + msg_err
+                trace_print(debug_auto_L_8, error_msg)
+                # Ne pas lever d'exception pour ne pas interrompre la simulation,
+                # mais afficher l'erreur dans les logs
+
+    def _finalize(ret, exp):
+        ret = max(min(ret, dl_dt_max), dl_dt_min)
+        return ret, exp
+
+    history = auto_L_8._history
+    # 0n insère une nouvelle entrée en début d'historique
+    history.insert(
+        0,
+        {
+            "t": float(t),
+            "y_rov": float(y_rov),
+            "L": float(L),
+            "L_straight": None if L_straight is None else float(L_straight),
+            "dy_rov": None,
+            "vy_rov": None,
+            "slack": None,
+            "Fx_rov": None if Fx_rov is None else float(Fx_rov),
+            "Fy_rov": None if Fy_rov is None else float(Fy_rov),
+            "T_boat": None if T_boat is None else float(T_boat),
+            "T_rov": None if T_rov is None else float(T_rov),
+            "x_rov": None if x_rov is None else float(x_rov),
+            "x_boat": None if x_boat is None else float(x_boat),
+            "dt": None,
+            "dL": None,
+            "dT_boat": None,
+            "dL_dt": None,
+            "dL_straight": None,
+            "dL_straight_dt": None,
+            "dl_dt_cmd_prev": None,
+        },
+    )
+
+    if len(history) < 2:
+        return 0.0, "HISTORY_LT2"
+
+    if len(history) > K + 1:
+        del history[K + 1 :]
+
+    curr = history[0]
+    prev = history[1]
+
+    curr["dt"] = curr["t"] - prev["t"]
+    dt = curr["dt"]
+    if curr["dt"] <= 0:
+        return 0.0, "DT_NON_POSITIF"
+    
+    curr["dL"] = curr["L"] - prev["L"]
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"]      
+    curr["dL_dt"] = curr["dL"] / curr["dt"]
+
+    # Estimation de dT/dL sur l'ensemble de la fenêtre historisée
+    est_dT_dL = None
+    delta_L = history[0]["L"] - history[-1]["L"]
+    delta_T = history[0]["T_boat"] - history[-1]["T_boat"]
+    est_dT_dL = delta_T / delta_L if delta_L != 0 else None
+
+    # Estimation de dy_rov/dt sur l'ensemble de la fenêtre historisée
+    if not prev["y_rov"] is None:
+        dy_rov = y_rov - prev["y_rov"]
+        curr["dy_rov"] = dy_rov
+        curr["vy_rov"] = dy_rov / curr["dt"]
+
+    # Calcul de L_straight si c'est possible
+    if L_straight is None:
+        if (not x_boat is None and not y_boat is None and not z_boat is None 
+            and not x_rov is None and not y_rov is None and not z_rov is None):
+            L_straight = math.hypot(x_rov - x_boat, y_rov - y_boat, z_rov - z_boat)
+            curr["L_straight"] = L_straight
+    else :
+        curr["L_straight"] = L_straight
+
+    # Cas dégradé: on ne connait pas L_straight.
+    if L_straight is None:
+        if T_boat > Tcible:
+            new_dL_dt = dl_dt_max
+        else:
+            new_dL_dt = dl_dt_min
+        # Lissage de la commande
+        new_dL_dt = ((N-1)*curr["dL_dt"] + new_dL_dt) / N
+        return _finalize(new_dL_dt, "NO_L_STRAIGHT")
+
+
+    # Distance droite bateau-ROV
+    if not prev["L_straight"] is None:
+        curr["dL_straight"] = L_straight - prev["L_straight"]
+        curr["dL_straight_dt"] = curr["dL_straight"] / curr["dt"]
+
+    # Slack
+    if not L_straight is None:
+        curr["slack"] = curr["L"] - L_straight
+        slack = curr["slack"]
+    else:
+        slack = None
+
+    # Marge de flèche volontairement plus élevée pour éviter les bascules fréquentes en "straight"
+    slack_min = max(0.3, 0.005 * max(L_straight, 1.0))
+    slack_max = max(slack_min * 4.0, 2.0)
+
+    # Hystérésis pour éviter les bascules rapides autour de slack_min
+    if not hasattr(auto_L_8, "_slack_mode"):
+        auto_L_8._slack_mode = None
+    if slack < slack_min:
+        auto_L_8._slack_mode = "ADD"
+    elif slack > slack_min * 1.3:
+        auto_L_8._slack_mode = None
+
+    # Atténuation douce proche du plafond de slack pour éviter le pompage
+    slack_cap_ratio = None
+    if slack_max > 1e-6:
+        slack_cap_ratio = slack / slack_max
+
+    def _last_val(key):
+        if not data:
+            return None
+        vals = data.get(key)
+        return vals[-1] if isinstance(vals, list) and vals else None
+
+    def _fmt(val):
+        return f"{val: 3.2f}" if isinstance(val, (int, float)) else "None"
+
+    def _fmt_vec(val):
+        if isinstance(val, (list, tuple)) and len(val) == 2:
+            return f"({val[0]: 3.2f}, {val[1]: 3.2f})"
+        return "None"
+
+    t_display = curr.get("t") if curr.get("t") is not None else t
+
+    if curr["T_boat"] is None or Tcible == 0:
+        trace_print(
+            debug_auto_L_8,
+            "IC_L_8: "
+            f"t={_fmt(t_display)}, "
+            f"L={_fmt(curr.get('L'))}, "
+            f"L_straight={L_straight: 6.2f}, "
+            f"slack={slack: 6.2f}, "
+            f"T_bat={_fmt(_last_val('T_boat'))}, "
+            f"Fy={_fmt(_last_val('Fy_traction'))}, "
+            "desired=None, ret= 0.00, exp=NO_T",
+        )
+        return _finalize(0.0, "NO_T")
+
+    # Priorité 1: éviter Trupt (avec hystérésis)
+    t_soft = 0.90 * Trupt
+    t_hard = 0.98 * Trupt
+    t_soft_off = 0.88 * Trupt
+    t_hard_off = 0.95 * Trupt
+
+    # Si le slack est important, on évite de déclencher T_HARD/T_SOFT
+    slack_ratio = slack / max(L_straight, 1.0)
+    tension_block_ratio = 0.02  # 2% de la distance droite
+
+    if not hasattr(auto_L_8, "_tension_mode"):
+        auto_L_8._tension_mode = None
+    if not hasattr(auto_L_8, "_tension_mode_age"):
+        auto_L_8._tension_mode_age = 0
+
+    t_raw = float(curr["T_boat"])
+    t_prev_f = float(prev.get("T_f", t_raw))
+    t_f = t_prev_f + 0.3 * (t_raw - t_prev_f)
+    curr["T_f"] = t_f
+
+    if slack_ratio <= tension_block_ratio:
+        if auto_L_8._tension_mode == "HARD":
+            auto_L_8._tension_mode_age += 1
+            if auto_L_8._tension_mode_age < 3 or t_f >= t_hard_off:
+                desired = dl_dt_max
+                exp = "T_HARD"
+            else:
+                auto_L_8._tension_mode = None
+                auto_L_8._tension_mode_age = 0
+        if auto_L_8._tension_mode == "SOFT":
+            auto_L_8._tension_mode_age += 1
+            if auto_L_8._tension_mode_age < 3 or t_f >= t_soft_off:
+                ramp = (t_f - t_soft) / max(t_hard - t_soft, 1e-6)
+                desired = 0.5 * dl_dt_max + 0.5 * dl_dt_max * max(min(ramp, 1.0), 0.0)
+                exp = "T_SOFT"
+            else:
+                auto_L_8._tension_mode = None
+                auto_L_8._tension_mode_age = 0
+
+    if slack_ratio <= tension_block_ratio and auto_L_8._tension_mode is None:
+        if t_f >= t_hard:
+            auto_L_8._tension_mode = "HARD"
+            auto_L_8._tension_mode_age = 0
+            desired = dl_dt_max
+            exp = "T_HARD"
+        elif t_f >= t_soft:
+            auto_L_8._tension_mode = "SOFT"
+            auto_L_8._tension_mode_age = 0
+            ramp = (t_f - t_soft) / max(t_hard - t_soft, 1e-6)
+            desired = 0.5 * dl_dt_max + 0.5 * dl_dt_max * max(min(ramp, 1.0), 0.0)
+            exp = "T_SOFT"
+        else:
+            auto_L_8._tension_mode = None
+            auto_L_8._tension_mode_age = 0
+    if slack_ratio > tension_block_ratio:
+        auto_L_8._tension_mode = None
+        auto_L_8._tension_mode_age = 0
+
+    fy_cmd = float(Fy_rov or 0.0)
+    if auto_L_8._tension_mode is None:
+        if fy_cmd < 0:
+            slack_err = slack_min - slack
+            if auto_L_8._slack_mode == "ADD":
+                slack_err = max(slack_err, 1e-6)
+            if slack_err > 0:
+                err_ratio = slack_err / max(slack_min, 1e-6)
+                desired = min(dl_dt_max, 0.2 + 1.2 * err_ratio)
+                exp = "PILOT_DESC_ADD_SLACK"
+            else:
+                desired = 0.1
+                exp = "PILOT_DESC"
+            if slack < slack_max and curr["dt"] and (slack_cap_ratio is None or slack_cap_ratio < 0.9):
+                dL_straight_dt = max(0.0, curr.get("dL_straight_dt", 0.0))
+                down_speed = max(0.0, -curr.get("vy_rov", 0.0))
+                fy_boost = min(0.3, 0.005 * abs(fy_cmd))
+                t_boost = min(0.3, 0.01 * max(curr["T_boat"] - Tcible, 0.0)) if Tcible != 0 else 0.0
+                min_payout_raw = max(dL_straight_dt, 0.5 * down_speed) + 0.1 + fy_boost + t_boost
+                prev_minpay = prev.get("min_payout_prev")
+                if prev_minpay is None:
+                    min_payout = min_payout_raw
+                else:
+                    min_payout = prev_minpay + 0.3 * (min_payout_raw - prev_minpay)
+                curr["min_payout_prev"] = min_payout
+
+                if not hasattr(auto_L_8, "_minpay_active"):
+                    auto_L_8._minpay_active = False
+                if auto_L_8._minpay_active:
+                    if min_payout < desired - 0.05:
+                        auto_L_8._minpay_active = False
+                else:
+                    if min_payout > desired + 0.05:
+                        auto_L_8._minpay_active = True
+
+                if auto_L_8._minpay_active and desired < min_payout:
+                    desired = min_payout
+                    exp = f"{exp}_MINPAY"
+            else:
+                if not hasattr(auto_L_8, "_minpay_active"):
+                    auto_L_8._minpay_active = False
+                auto_L_8._minpay_active = False
+        elif fy_cmd >= 0:
+            if slack < slack_min:
+                slack_err = slack_min - slack
+                err_ratio = slack_err / max(slack_min, 1e-6)
+                desired = min(dl_dt_max, 0.2 + 1.2 * err_ratio)
+                exp = "PILOT_ASC_ADD_SLACK"
+            else:
+                slack_err = slack - slack_min
+                if slack_err > 0:
+                    err_ratio = slack_err / max(slack_min, 1e-6)
+                    desired = -min(dl_dt_max, 0.1 + 1.0 * err_ratio)
+                    exp = "PILOT_ASC_REMOVE_SLACK"
+                else:
+                    desired = 0.0
+                    exp = "PILOT_ASC_HOLD"
+        else:
+            if slack < slack_min:
+                slack_err = slack_min - slack
+                err_ratio = slack_err / max(slack_min, 1e-6)
+                desired = min(dl_dt_max, 0.1 + 1.0 * err_ratio)
+                exp = "CATENARY_ADD_SLACK"
+            elif slack > slack_max:
+                desired = -min((slack - slack_max) / max(slack_max, 1e-6), dl_dt_max)
+                exp = "CATENARY_REMOVE_SLACK"
+            elif est_dT_dL is None or abs(est_dT_dL) < 1e-4:
+                desired = 0.0
+                exp = "CATENARY_HOLD"
+            else:
+                desired = -(curr["T_boat"] - Tcible) / (2.0 * est_dT_dL)
+                exp = "CATENARY_REG"
+
+    if slack_cap_ratio is not None and slack_cap_ratio >= 0.8:
+        k = min(max((slack_cap_ratio - 0.8) / 0.2, 0.0), 1.0)
+        desired = (1.0 - k) * desired + k * (-0.1)
+        exp = f"{exp}_SLACK_CAP"
+
+    prev_cmd = prev.get("dl_dt_cmd_prev")
+    if prev_cmd is None:
+        prev_cmd = curr["dL_dt"] if curr["dL_dt"] is not None else 0.0
+    prev_desired = prev.get("desired_cmd_prev")
+    if prev_desired is None:
+        prev_desired = desired
+    max_rate = 2.0
+    if slack_cap_ratio is not None and slack_cap_ratio >= 0.8:
+        max_rate = 0.6
+    if curr.get("dt"):
+        max_step = max_rate * curr["dt"]
+        delta = max(min(desired - prev_desired, max_step), -max_step)
+        desired = prev_desired + delta
+    else:
+        desired = prev_desired + 0.3 * (desired - prev_desired)
+    curr["desired_cmd_prev"] = desired
+    ret1 = prev_cmd + (desired - prev_cmd) / max(N, 1)
+
+    if curr["dt"]:
+        gmin = float(Gamma_moulinet_min)
+        gmax = float(Gamma_moulinet_max)
+        if gmin > gmax:
+            gmin, gmax = gmax, gmin
+        max_delta_pos = gmax * curr["dt"]
+        max_delta_neg = gmin * curr["dt"]
+        ret1 = prev_cmd + min(max(ret1 - prev_cmd, max_delta_neg), max_delta_pos)
+        exp = f"{exp}_ACC"
+
+    ret, exp = _finalize(ret1, exp)
+
+    # Garde-fou : L doit rester >= L_straight (le ROV peut rapprocher le bateau plus vite que le moulinet)
+    if L_straight is not None and slack is not None:
+        slack_margin = max(0.05, 0.001 * max(L_straight, 1.0))
+        if slack < slack_margin:
+            dt_eff = max(float(curr.get("dt") or 0.0), 1e-6)
+            d_ls_dt = float(curr.get("dL_straight_dt") or 0.0)
+            floor = d_ls_dt + (slack_margin - slack) / dt_eff
+            if ret < floor:
+                ret = min(max(floor, dl_dt_min), dl_dt_max)
+                exp = f"{exp}_SLACK_FLOOR"
+
+    curr["dl_dt_cmd_prev"] = ret
+
+    L_param = L
+    L_curr = curr.get("L")
+    if L_curr is not None and abs(L_param - L_curr) > 1e-2:
+        trace_print(
+            debug_auto_L_8,
+            f"[DEBUG L] auto_L_8 INCOHÉRENCE: L_param={L_param:.6f} m, "
+            f"curr['L']={L_curr:.6f} m, ÉCART={abs(L_param - L_curr):.6f} m",
+        )
+
+    T_boat_display = T_boat if T_boat is not None else curr.get("T_boat")
+    T_rov_display = curr.get("T_rov")
+    cable_drag_display = _last_val("cable_drag")
+
+    trace_print(
+        debug_auto_L_8,
+        "\nIC_L_8: "
+        f"t={_fmt(t_display)}, "
+        f"L={_fmt(curr.get('L'))}, "
+        f"L_straight={L_straight: 6.2f}, "
+        f"slack={slack: 6.2f}, "
+        f"T_bat={_fmt(T_boat_display)}, "
+        f"T_rov={_fmt(T_rov_display)}, "
+        f"F_drag_cable(prev_step)={_fmt_vec(cable_drag_display)}, "
+        f"Fy_cmd={fy_cmd: 6.2f}, "
+        f"desired={desired: 6.2f}, ret={ret: 6.2f}, exp={exp}",
+    )
+    trace_print(
+        debug_auto_L_8 - 2,
+        f"[DEBUG L] IC_L_8: t={_fmt(t_display)}, L_param={L_param:.6f} m, "
+        f"curr['L']={_fmt(L_curr)}, L_last_data={_fmt(_last_val('L'))} m",
+    )
+
+    return ret, exp
+
+def consigne_moulinet(
+    
+    t: float, # Le temps exprimmmé en secondes
+    y_rov: float, # La profondeur du rov exprimmée en mètres. ELle doit être négative
+    L: float, # La longueur de câble entre le bateau et le ROV exprimmée en mètres
+    T_boat: float, # La tension du câble au niveau du bateau exprimmée en Newtons
+    T_cible: float = 50.0, # La tension cible du câble au niveau du bateau exprimmée en Newtons
+    L_straight: float | None = None, # La distance en ligne droite bateau-ROV exprimmée en mètres.
+    dL_dt_max: float = 1.0, # La consigne maximale de vitesse du moulinet exprimée en m/s
+    dL_dt_min: float = -1.0, # La consigne minimale de vitesse du moulinet exprimée en m/s
+    K: int = 10, # Nombre d'itérations utilisées dans l'historique.
+    N: int = 10, # Nombre de pas de temps utilisés pour lisser la commande.
+) -> tuple[float, str]:
+    """
+    Loi de commande dL/dt sans utilisation de la distance droite bateau-ROV.
+    Les paramètres pour lesquels une valeur par défaut est fournie peuvent être omis lors de l'appel.
+    La fonction renvoie un tuple (consigne, expl) où :
+    - consigne st la consigne de vitesse du moulinet (dL/dt) en m/s (elle est comprise entre -1.0 et 1.0 m/s)
+    - expl est une chaîne de caractères qui explique la commande retournée.
+    """
+
+    debug_auto_consigne_moulinet = 9
+
+    if not hasattr(consigne_moulinet, "_history"):
+        consigne_moulinet._history = []
+
+    def _finalize(ret, exp):
+        ret = max(min(ret, dl_dt_max), dl_dt_min)
+        return ret, exp
+
+    # Gestion de l'historique des données reçues ou calculées. 
+    # Cet historique est utilisé pour le lissage de la commande.
+    # Il est conservé entre chaque appel de la fonction.
+    history = consigne_moulinet._history
+    # 0n insère une nouvelle entrée en début d'historique
+    history.insert(
+        0,
+        {
+            "t": float(t),
+            "y_rov": float(y_rov),
+            "L": float(L),
+            "L_straight": None if L_straight is None else float(L_straight),
+            "dy_rov": None,
+            "vy_rov": None,
+            "slack": None,
+            "dt": None,
+            "dL": None,
+            "dT_boat": None,
+            "dL_dt": None,
+            "dL_straight": None,
+            "dL_straight_dt": None,
+            "dl_dt_cmd_prev": None,
+        },
+    )
+
+    if len(history) < 2:
+        return 0.0, "HISTORY_LT2"
+
+    if len(history) > K + 1:
+        del history[K + 1 :]
+
+    curr = history[0]
+    prev = history[1]
+
+    curr["dt"] = curr["t"] - prev["t"]
+    dt = curr["dt"]
+    if curr["dt"] <= 0:
+        return 0.0, "DT_NON_POSITIF"
+    
+    curr["dL"] = curr["L"] - prev["L"]
+    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"]      
+    curr["dL_dt"] = curr["dL"] / curr["dt"]
+
+    # Estimation de dT/dL sur l'ensemble de la fenêtre historisée
+    est_dT_dL = None
+    delta_L = history[0]["L"] - history[-1]["L"]
+    delta_T = history[0]["T_boat"] - history[-1]["T_boat"]
+    est_dT_dL = delta_T / delta_L if delta_L != 0 else None
+
+    # Estimation de dy_rov/dt sur l'ensemble de la fenêtre historisée
+    if not prev["y_rov"] is None:
+        dy_rov = y_rov - prev["y_rov"]
+        curr["dy_rov"] = dy_rov
+        curr["vy_rov"] = dy_rov / curr["dt"]
+
+    # Cas dégradé: on ne connait pas L_straight.
+    if L_straight is None:
+        if T_boat > T_cible:
+            new_dL_dt = dL_dt_max
+        else:
+            new_dL_dt = dL_dt_min
+        # Lissage de la commande
+        new_dL_dt = ((N-1)*curr["dL_dt"] + new_dL_dt) / N
+        return _finalize(new_dL_dt, "NO_L_STRAIGHT")
+
+
+
+def auto_L_min(
+    t: float,
+    y_rov: float,
+    L: float,
+    L_straight: float | None = None,
+    T_boat: float | None = None,
+    T_rov: float | None = None,
+    Fx_rov: float | None = None,
+    Fy_rov: float | None = None,
+    x_rov: float | None = None,
+    x_boat: float | None = None,
+    y_boat: float = 0.0, 
+    z_rov: float = 0.0,
+    z_boat: float = 0.0,
+    Trupt: float = 100.0,
+    Tcible: float = 50.0,
+    Gamma_moulinet_min: float = -0.5,
+    Gamma_moulinet_max: float = 0.5,
+    dl_dt_min: float = -1.0,
+    dl_dt_max: float = 1.0,
+    # Nombre d'itérations utilisées dans l'historique.
+    K: int = 10,
+    # Nombre de pas de temps utilisés pour lisser la commande.
+    N: int = 10,
+    data: dict | None = None,
+) -> tuple[float, str]:
+    """
+    Loi de commande dL/dt avec accès à la distance droite bateau-ROV.
+    Priorités:
+    1) ne pas dépasser la tension de rupture,
+    2) respecter l'intention du pilote (Fy_rov < 0 => descendre, éviter câble tendu),
+    3) rester en mode caténaire si possible,
+    4) éviter les à-coups (lissage + limite d'accélération).
+    Retourne (ret, explication).
+    Paramètres utilisés: t, y_rov, L, L_straight, Fx_rov, Fy_rov, T_boat, x_rov, x_boat,
+    Trupt, Tcible, Gamma_moulinet_min, Gamma_moulinet_max, dl_dt_min, dl_dt_max, data, K, N.
+    """
+    if L_straight is None:
+        if (not x_boat is None and not y_boat is None and not z_boat is None 
+        and not x_rov is None and not y_rov is None and not z_rov is None):
+            L_straight = math.hypot(x_rov - x_boat, y_rov - y_boat, z_rov - z_boat)
+
+    ret , exp = consigne_moulinet(t, y_rov, L, T_boat)
     return ret, exp

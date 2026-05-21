@@ -47,6 +47,7 @@ MISSIONS_INIT_AVEC_COURANT = [
     "M_test_init_courant_1",
     "M_test_init_courant_2",
     "M_test_init_courant_3",
+    "M_test_init_courant_4",
 ]
 
 
@@ -184,6 +185,26 @@ def test_missions_init_avec_courant_strict_invariants(mission_name: str):
         x_off = np.asarray(xc, dtype=float) - x_ref
         assert float(np.mean(x_off)) > 1e-3
         assert float(np.min(xc)) >= float(x_boat) - 0.15
+
+    if mission_name == "M_test_init_courant_4":
+        # Rampe mission puis plateau : pas de double arc (peu d'extrema sur distance signée à la corde).
+        dx = float(xr_f) - float(x_boat)
+        dy = float(yr_f) - float(y_boat)
+        ch = float(np.hypot(dx, dy))
+        assert ch > 1e-6
+        nx, ny = -dy / ch, dx / ch
+        sp = (np.asarray(xc, dtype=float) - float(x_boat)) * nx + (
+            np.asarray(yc, dtype=float) - float(y_boat)
+        ) * ny
+        ext = 0
+        for i in range(1, len(sp) - 1):
+            if sp[i] > sp[i - 1] and sp[i] > sp[i + 1]:
+                ext += 1
+            if sp[i] < sp[i - 1] and sp[i] < sp[i + 1]:
+                ext += 1
+        assert ext <= 5, f"rebroussement / multi-arcs suspects (extrema={ext})"
+        x_ref = _linear_reference_x(yc, x_boat, y_boat, xr_f, yr_f)
+        assert float(np.mean(np.asarray(xc, dtype=float) - x_ref)) > 1e-3
 
     if mission_name == "M_test_init_courant_2":
         y_arr = np.asarray(yc, dtype=float)

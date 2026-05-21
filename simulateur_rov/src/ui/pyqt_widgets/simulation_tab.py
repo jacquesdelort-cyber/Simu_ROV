@@ -428,6 +428,12 @@ class SimulationTab(QWidget):
                 self.main_window.calc_params.get('straight_blend_alpha', 1.0)
             )
             system = ROVSystem(params, N_segments=N_segments)
+            system.dynamic_simulation = bool(
+                self.main_window.calc_params.get("dynamic_simulation", True)
+            )
+            system.use_current_geometry_for_static = bool(
+                self.main_window.init_params.get("use_current_geometry", True)
+            )
             
             # Profil de courant (chaîne) depuis les conditions initiales
             v_courant = self.main_window.init_params.get('v_courant', "0.0")
@@ -2533,9 +2539,11 @@ class SimulationTab(QWidget):
             if data.get('dl_dt_cmd') is not None:
                 self._refresh_dl_dt_plot(data)
             if data.get('time'):
+                self._refresh_slack_plot(data)
                 self._refresh_tension_vs_target_plot(data)
                 self._refresh_rov_position_plot(data)
                 self._refresh_rov_velocity_plot(data)
+                self._refresh_tension_curvilinear_plot(data)
         except Exception as e:
             trace_print(8, f"Erreur lors du rafraîchissement des graphiques: {e}")
 
@@ -2554,6 +2562,51 @@ class SimulationTab(QWidget):
             self.plotly_widget_dl_dt.update_figure(fig_dl_dt)
         except Exception as e:
             trace_print(8, f"Erreur lors de la mise à jour du graphique dL/dt: {e}")
+
+    def _refresh_slack_plot(self, data):
+        if not data.get('time'):
+            return
+        try:
+            from src.visualization.plotter import create_slack_plot
+            times = data.get('time', [])
+            x_rov = data.get('x_rov', [])
+            y_rov = data.get('y_rov', [])
+            x_boat = data.get('x_boat', [])
+            L_series = data.get('L', [])
+            t_boat = data.get('T_boat', [])
+            dl_dt_series = data.get('dl_dt_cmd', [])
+
+            n = min(len(times), len(x_rov), len(y_rov), len(x_boat), len(L_series))
+            if n == 0:
+                return
+            slack = []
+            slack_ratio = []
+            hover_data = []
+            for i in range(n):
+                l_val = float(L_series[i])
+                straight = float((x_rov[i] - x_boat[i]) ** 2 + (y_rov[i] - 0.0) ** 2) ** 0.5
+                s_val = l_val - straight
+                slack.append(s_val)
+                slack_ratio.append(s_val / l_val if l_val > 1e-6 else 0.0)
+                t_bat_val = float(t_boat[i]) if i < len(t_boat) else 0.0
+                dl_val = float(dl_dt_series[i]) if i < len(dl_dt_series) else 0.0
+                hover_data.append([
+                    float(x_rov[i]),
+                    float(y_rov[i]),
+                    t_bat_val,
+                    dl_val,
+                ])
+
+            fig_slack = create_slack_plot(
+                times[:n],
+                slack,
+                slack_ratio,
+                hover_data,
+                "Slack / L  (%)",
+            )
+            self.plotly_widget_slack.update_figure(fig_slack)
+        except Exception as e:
+            trace_print(8, f"Erreur lors de la mise à jour du graphique Slack: {e}")
 
     def _refresh_tension_vs_target_plot(self, data):
         if not data.get('time'):
@@ -2673,6 +2726,89 @@ class SimulationTab(QWidget):
             self.plotly_widget_position_rov.update_figure(fig_position_rov)
         except Exception as e:
             trace_print(8, f"Erreur lors de la mise à jour du graphique Position ROV: {e}")
+
+    def _refresh_tension_curvilinear_plot(self, data):
+        try:
+            from src.visualization.plotter import create_tension_curvilinear_plot
+            import numpy as np
+
+            x_cable_raw = data.get('x_cable_curr', [])
+            y_cable_raw = data.get('y_cable_curr', [])
+            t_cable_raw = data.get('T_cable_curr', [])
+            if not x_cable_raw or not y_cable_raw or not t_cable_raw:
+                fig_tension = create_tension_curvilinear_plot([], [], "Tension")
+                self.plotly_widget_tension.update_figure(fig_tension)
+                return
+
+            x_cable_arr = np.asarray(x_cable_raw)
+            y_cable_arr = np.asarray(y_cable_raw)
+            T_cable_arr = np.asarray(t_cable_raw)
+            if len(x_cable_arr) != len(y_cable_arr) or len(x_cable_arr) == 0:
+                return
+
+            if len(T_cable_arr) == len(x_cable_arr) - 1:
+                s_curvilinear = np.zeros(len(x_cable_arr))
+                for i in range(1, len(x_cable_arr)):
+                    dx = x_cable_arr[i] - x_cable_arr[i - 1]
+                    dy = y_cable_arr[i] - y_cable_arr[i - 1]
+                    s_curvilinear[i] = s_curvilinear[i - 1] + np.sqrt(dx**2 + dy**2)
+                s_seg = 0.5 * (s_curvilinear[:-1] + s_curvilinear[1:])
+                T_cable_arr = np.interp(s_curvilinear, s_seg, T_cable_arr, left=T_cable_arr[0], right=T_cable_arr[-1])
+
+            if len(T_cable_arr) != len(x_cable_arr):
+                return
+
+            x_boat = float((data.get('x_boat') or [0.0])[-1])
+            x_rov = float((data.get('x_rov') or [x_cable_arr[-1]])[-1])
+            y_rov = float((data.get('y_rov') or [y_cable_arr[-1]])[-1])
+
+            dist_first_to_boat = np.sqrt((x_cable_arr[0] - x_boat) ** 2 + (y_cable_arr[0] - 0.0) ** 2)
+            dist_first_to_rov = np.sqrt((x_cable_arr[0] - x_rov) ** 2 + (y_cable_arr[0] - y_rov) ** 2)
+            if dist_first_to_rov < dist_first_to_boat:
+                x_cable_arr = np.flip(x_cable_arr)
+                y_cable_arr = np.flip(y_cable_arr)
+                T_cable_arr = np.flip(T_cable_arr)
+
+            x_cable_arr[0], y_cable_arr[0] = x_boat, 0.0
+            x_cable_arr[-1], y_cable_arr[-1] = x_rov, y_rov
+
+            s_curvilinear = np.zeros(len(x_cable_arr))
+            for i in range(1, len(x_cable_arr)):
+                dx = x_cable_arr[i] - x_cable_arr[i - 1]
+                dy = y_cable_arr[i] - y_cable_arr[i - 1]
+                s_curvilinear[i] = s_curvilinear[i - 1] + np.sqrt(dx**2 + dy**2)
+
+            Tx_cable = np.zeros(len(x_cable_arr))
+            Ty_cable = np.zeros(len(y_cable_arr))
+            for i in range(len(x_cable_arr)):
+                if i == 0 and len(x_cable_arr) > 1:
+                    dx = x_cable_arr[1] - x_cable_arr[0]
+                    dy = y_cable_arr[1] - y_cable_arr[0]
+                elif i == len(x_cable_arr) - 1:
+                    dx = x_cable_arr[i] - x_cable_arr[i - 1]
+                    dy = y_cable_arr[i] - y_cable_arr[i - 1]
+                else:
+                    dx = (x_cable_arr[i + 1] - x_cable_arr[i - 1]) / 2.0
+                    dy = (y_cable_arr[i + 1] - y_cable_arr[i - 1]) / 2.0
+                ds = np.sqrt(dx**2 + dy**2)
+                if ds > 1e-6:
+                    Tx_cable[i] = T_cable_arr[i] * (dx / ds)
+                    Ty_cable[i] = T_cable_arr[i] * (dy / ds)
+
+            fig_tension = create_tension_curvilinear_plot(
+                s_curvilinear.tolist(),
+                T_cable_arr.tolist(),
+                "Tension",
+                s_range=self.current_s_range,
+                T_range=self.current_T_range,
+                Tx=Tx_cable.tolist(),
+                Ty=Ty_cable.tolist(),
+                x_cable=x_cable_arr.tolist(),
+                y_cable=y_cable_arr.tolist(),
+            )
+            self.plotly_widget_tension.update_figure(fig_tension)
+        except Exception as e:
+            trace_print(8, f"Erreur lors de la mise à jour du graphique Tension: {e}")
     
     def update_current_profile_plot(self, y_ref=None):
         """Met à jour le graphique du profil de courant"""
@@ -2919,83 +3055,20 @@ class SimulationTab(QWidget):
                 self.tension_rov_label.setText("0.00 N")
 
             if data.get('dl_dt_cmd') is not None:
-                try:
-                    from src.visualization.plotter import create_dl_dt_plot
-
-                    fig_dl_dt = create_dl_dt_plot(
-                        data.get('time', []),
-                        data.get('dl_dt_cmd', []),
-                        "Commande dL/dt",
-                        data.get('cable_mode', []),
-                        data.get('scenario_triggers', []),
-                    )
-                    self.plotly_widget_dl_dt.update_figure(fig_dl_dt)
-                except Exception as e:
-                    trace_print(8, f"Erreur lors de la mise à jour du graphique dL/dt: {e}")
+                self._refresh_dl_dt_plot(data)
 
             if data.get('time'):
-                try:
-                    from src.visualization.plotter import create_slack_plot
-                    times = data.get('time', [])
-                    x_rov = data.get('x_rov', [])
-                    y_rov = data.get('y_rov', [])
-                    x_boat = data.get('x_boat', [])
-                    L_series = data.get('L', [])
-                    t_boat = data.get('T_boat', [])
-                    dl_dt_series = data.get('dl_dt_cmd', [])
-
-                    n = min(len(times), len(x_rov), len(y_rov), len(x_boat), len(L_series))
-                    slack = []
-                    slack_ratio = []
-                    hover_data = []
-                    for i in range(n):
-                        l_val = float(L_series[i])
-                        straight = float((x_rov[i] - x_boat[i]) ** 2 + (y_rov[i] - 0.0) ** 2) ** 0.5
-                        s_val = l_val - straight
-                        slack.append(s_val)
-                        slack_ratio.append(s_val / l_val if l_val > 1e-6 else 0.0)
-                        t_bat_val = float(t_boat[i]) if i < len(t_boat) else 0.0
-                        dl_val = float(dl_dt_series[i]) if i < len(dl_dt_series) else 0.0
-                        hover_data.append([
-                            float(x_rov[i]),
-                            float(y_rov[i]),
-                            t_bat_val,
-                            dl_val,
-                        ])
-
-                    fig_slack = create_slack_plot(
-                        times[:n],
-                        slack,
-                        slack_ratio,
-                        hover_data,
-                        "Slack / L  (%)",
-                    )
-                    self.plotly_widget_slack.update_figure(fig_slack)
-                except Exception as e:
-                    trace_print(8, f"Erreur lors de la mise à jour du graphique Slack: {e}")
-
-            if data.get('time'):
-                try:
-                    self._refresh_tension_vs_target_plot(data)
-                except Exception as e:
-                    trace_print(8, f"Erreur lors de la mise à jour du graphique Tension vs cible: {e}")
-
-            if data.get('time'):
-                try:
-                    self._refresh_rov_position_plot(data)
-                except Exception as e:
-                    trace_print(8, f"Erreur lors de la mise à jour du graphique Position ROV: {e}")
-
-            if data.get('time'):
-                try:
-                    self._refresh_rov_velocity_plot(data)
-                except Exception as e:
-                    trace_print(8, f"Erreur lors de la mise à jour du graphique Vitesse ROV: {e}")
+                self._refresh_slack_plot(data)
+                self._refresh_tension_vs_target_plot(data)
+                self._refresh_rov_position_plot(data)
+                self._refresh_rov_velocity_plot(data)
 
             
             # Tensions du câble (forces exercées sur le câble)
             traction_boat = (0.0, 0.0)
             traction_rov = (0.0, 0.0)
+            traction_cable_on_rov_interface = (0.0, 0.0)
+            traction_interface_valid = False
             if data.get('T_boat'):
                 T_boat = data['T_boat'][-1] if data['T_boat'] else 0.0
                 x_cable_raw = data.get('x_cable_curr')
@@ -3054,6 +3127,8 @@ class SimulationTab(QWidget):
                             urov_y = dy_rov / ds_rov
                             # Force exercée par le ROV sur le câble = même sens que U_rov (cohérent avec _trace_cable_equilibrium_forces)
                             traction_rov = (T_rov * urov_x, T_rov * urov_y)
+                            traction_cable_on_rov_interface = (-traction_rov[0], -traction_rov[1])
+                            traction_interface_valid = True
                             self.traction_rov_label.setText(f"({traction_rov[0]:.2f}, {traction_rov[1]:.2f}) N")
                         else:
                             self.traction_rov_label.setText("(0.00, 0.00) N")
@@ -3127,6 +3202,8 @@ class SimulationTab(QWidget):
                                     tr_sol, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
                                     traction_boat = (float(-tr_sol[0] * uboat_x), float(-tr_sol[0] * uboat_y))
                                     traction_rov = (float(tr_sol[1] * urov_x), float(tr_sol[1] * urov_y))
+                                    traction_cable_on_rov_interface = (-traction_rov[0], -traction_rov[1])
+                                    traction_interface_valid = True
                                     self.traction_boat_label.setText(f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N")
                                     self.traction_rov_label.setText(f"({traction_rov[0]:.2f}, {traction_rov[1]:.2f}) N")
 
@@ -3252,6 +3329,8 @@ class SimulationTab(QWidget):
                                     float(tr_sol[1] * urov_x),
                                     float(tr_sol[1] * urov_y),
                                 )
+                                traction_cable_on_rov_interface = (-traction_rov[0], -traction_rov[1])
+                                traction_interface_valid = True
                                 self.traction_boat_label.setText(
                                     f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N"
                                 )
@@ -3310,15 +3389,39 @@ class SimulationTab(QWidget):
             self.command_rov_label.setText(f"({fx_rov_cmd:.2f}, {fy_rov_cmd:.2f}) N")
             
             # Forces de traction du câble sur le ROV (déjà orientées câble -> ROV)
+            Fx_traction_model = 0.0
+            Fy_traction_model = 0.0
             if data.get('Fx_traction_rov') and data.get('Fy_traction_rov'):
-                Fx_traction = data['Fx_traction_rov'][-1] if data['Fx_traction_rov'] else 0.0
-                Fy_traction = data['Fy_traction_rov'][-1] if data['Fy_traction_rov'] else 0.0
-                Fx_traction_display = Fx_traction
-                Fy_traction_display = Fy_traction
+                Fx_traction_model = data['Fx_traction_rov'][-1] if data['Fx_traction_rov'] else 0.0
+                Fy_traction_model = data['Fy_traction_rov'][-1] if data['Fy_traction_rov'] else 0.0
+
+            if traction_interface_valid:
+                # Affichage interface unique: action/réaction strictes au même instant et dans le même repère.
+                Fx_traction_display = traction_cable_on_rov_interface[0]
+                Fy_traction_display = traction_cable_on_rov_interface[1]
                 self.traction_cable_label.setText(f"({Fx_traction_display:.2f}, {Fy_traction_display:.2f}) N")
             else:
-                Fx_traction_display = 0.0
-                Fy_traction_display = 0.0
+                Fx_traction_display = Fx_traction_model
+                Fy_traction_display = Fy_traction_model
+                self.traction_cable_label.setText(f"({Fx_traction_display:.2f}, {Fy_traction_display:.2f}) N")
+
+            # Diagnostic: comparer la force dynamique (modèle ROV) et la force d'interface reconstruite.
+            if traction_interface_valid:
+                mismatch = float(np.hypot(
+                    Fx_traction_model - Fx_traction_display,
+                    Fy_traction_model - Fy_traction_display,
+                ))
+                ref = max(float(np.hypot(Fx_traction_display, Fy_traction_display)), 1.0)
+                if mismatch / ref > 0.15:
+                    trace_print(
+                        5,
+                        (
+                            "[DEBUG] Traction interface/model mismatch: "
+                            f"interface=({Fx_traction_display:.2f},{Fy_traction_display:.2f}) N, "
+                            f"model=({Fx_traction_model:.2f},{Fy_traction_model:.2f}) N, "
+                            f"rel={mismatch / ref:.2f}"
+                        ),
+                    )
             
             # Force de traînée (horizontale et verticale combinées)
             if data.get('Fx_drag_rov') and data.get('Fy_drag_rov'):
@@ -3598,158 +3701,8 @@ class SimulationTab(QWidget):
                     # Mettre à jour le graphique "Courant"
                     self.update_current_profile_plot(y_ref=y_rov)
                     
-                    # Mettre à jour le graphique "Tension"
-                    T_cable = data.get('T_cable_curr', [])
-                    from src.visualization.plotter import create_tension_curvilinear_plot
-                    
-                    # Toujours mettre à jour le graphique, même s'il n'y a pas de données
-                    # Cela garantit que le graphique est initialisé
-                    if len(x_cable) > 0 and len(y_cable) > 0 and len(T_cable) > 0:
-                        try:
-                            # Calculer l'abscisse curviligne s le long du câble
-                            # s = 0 au bateau, s = L au ROV
-                            # Convention : le câble va du bateau (index 0) au ROV (index -1)
-                            x_cable_arr = np.asarray(x_cable)
-                            y_cable_arr = np.asarray(y_cable)
-                            T_cable_arr = np.asarray(T_cable)
-                            
-                            # Si les tensions sont définies par segment (N) au lieu de nœud (N+1),
-                            # interpoler sur les nœuds pour garantir l'affichage.
-                            if len(x_cable_arr) == len(y_cable_arr) and len(T_cable_arr) == len(x_cable_arr) - 1:
-                                s_curvilinear = np.zeros(len(x_cable_arr))
-                                for i in range(1, len(x_cable_arr)):
-                                    dx = x_cable_arr[i] - x_cable_arr[i-1]
-                                    dy = y_cable_arr[i] - y_cable_arr[i-1]
-                                    ds = np.sqrt(dx**2 + dy**2)
-                                    s_curvilinear[i] = s_curvilinear[i-1] + ds
-                                s_seg = 0.5 * (s_curvilinear[:-1] + s_curvilinear[1:])
-                                T_cable_arr = np.interp(
-                                    s_curvilinear, s_seg, T_cable_arr,
-                                    left=T_cable_arr[0], right=T_cable_arr[-1]
-                                )
-                            
-                            # Vérifier que les dimensions correspondent
-                            if len(x_cable_arr) == len(y_cable_arr) == len(T_cable_arr):
-                                # IMPORTANT: Après correction de _compute_catenary_tensions :
-                                # Les tensions T retournées par le solveur suivent l'ordre des positions :
-                                # T[0] = tension au bateau, T[-1] = tension au ROV
-                                # (cohérent avec x_cable[0] = bateau, x_cable[-1] = ROV)
-                                
-                                # Vérifier l'ordre du câble et le réorganiser si nécessaire
-                                # Le câble doit aller du bateau (y=0) au ROV (y=y_rov)
-                                dist_first_to_boat = np.sqrt((x_cable_arr[0] - x_boat)**2 + (y_cable_arr[0] - 0.0)**2)
-                                dist_first_to_rov = np.sqrt((x_cable_arr[0] - x_rov)**2 + (y_cable_arr[0] - y_rov)**2)
-                                
-                                # Si le premier point est plus proche du ROV, inverser l'ordre
-                                if dist_first_to_rov < dist_first_to_boat:
-                                    # Le câble est dans l'ordre inverse : ROV en premier, bateau en dernier
-                                    # Il faut inverser les positions ET les tensions pour maintenir la cohérence
-                                    x_cable_arr = np.flip(x_cable_arr)
-                                    y_cable_arr = np.flip(y_cable_arr)
-                                    T_cable_arr = np.flip(T_cable_arr)
-                                    # Après inversion : T_cable_arr[0] = ancienne T[-1] = tension au bateau ✓
-                                    #                  T_cable_arr[-1] = ancienne T[0] = tension au ROV ✓
-                                # Sinon, le câble est déjà dans le bon ordre et les tensions aussi, pas besoin d'inverser
-                                
-                                # CORRECTION : Forcer le dernier point du câble à correspondre exactement à la position du ROV
-                                # Cela évite les sauts dans l'abscisse curviligne et les slack négatifs
-                                if len(x_cable_arr) > 0:
-                                    x_cable_arr[-1] = x_rov
-                                    y_cable_arr[-1] = y_rov
-                                
-                                # CORRECTION : Forcer le premier point du câble à correspondre exactement à la position du bateau
-                                if len(x_cable_arr) > 0:
-                                    x_cable_arr[0] = x_boat
-                                    y_cable_arr[0] = 0.0
-                                
-                                # Calculer l'abscisse curviligne s en cumulant les distances
-                                s_curvilinear = np.zeros(len(x_cable_arr))
-                                for i in range(1, len(x_cable_arr)):
-                                    dx = x_cable_arr[i] - x_cable_arr[i-1]
-                                    dy = y_cable_arr[i] - y_cable_arr[i-1]
-                                    ds = np.sqrt(dx**2 + dy**2)
-                                    s_curvilinear[i] = s_curvilinear[i-1] + ds
-                                
-                                # Calculer les composantes Tx et Ty de la tension
-                                # Pour chaque point du câble, calculer l'angle local
-                                Tx_cable = np.zeros(len(x_cable_arr))
-                                Ty_cable = np.zeros(len(y_cable_arr))
-                                
-                                for i in range(len(x_cable_arr)):
-                                    if i == 0:
-                                        # Premier point (bateau) : utiliser le segment suivant
-                                        if len(x_cable_arr) > 1:
-                                            dx = x_cable_arr[1] - x_cable_arr[0]
-                                            dy = y_cable_arr[1] - y_cable_arr[0]
-                                        else:
-                                            dx, dy = 0, 0
-                                    elif i == len(x_cable_arr) - 1:
-                                        # Dernier point (ROV) : utiliser le segment précédent
-                                        dx = x_cable_arr[i] - x_cable_arr[i-1]
-                                        dy = y_cable_arr[i] - y_cable_arr[i-1]
-                                    else:
-                                        # Point intermédiaire : moyenne des deux segments adjacents
-                                        dx = (x_cable_arr[i+1] - x_cable_arr[i-1]) / 2.0
-                                        dy = (y_cable_arr[i+1] - y_cable_arr[i-1]) / 2.0
-                                    
-                                    ds = np.sqrt(dx**2 + dy**2)
-                                    if ds > 1e-6:
-                                        cos_theta = dx / ds
-                                        sin_theta = dy / ds
-                                        Tx_cable[i] = T_cable_arr[i] * cos_theta
-                                        Ty_cable[i] = T_cable_arr[i] * sin_theta
-                                    else:
-                                        Tx_cable[i] = 0
-                                        Ty_cable[i] = 0
-                                
-                                # Créer le graphique Tension
-                                # Forcer la recréation complète si c'est la première fois avec des données
-                                if not hasattr(self, '_tension_graph_initialized'):
-                                    self.plotly_widget_tension.is_first_update = True
-                                    self._tension_graph_initialized = True
-                                
-                                fig_tension = create_tension_curvilinear_plot(
-                                    s_curvilinear.tolist(), T_cable_arr.tolist(), "Tension",
-                                    s_range=self.current_s_range, T_range=self.current_T_range,
-                                    Tx=Tx_cable.tolist(), Ty=Ty_cable.tolist(),
-                                    x_cable=x_cable_arr.tolist(), y_cable=y_cable_arr.tolist()
-                                )
-                                self.plotly_widget_tension.update_figure(fig_tension)
-                                
-                                # Mettre à jour les plages stockées pour le graphique Tension
-                                # Maintenant : s en abscisse (X), T en ordonnée (Y)
-                                if fig_tension.layout.xaxis.range is not None:
-                                    s_min, s_max = fig_tension.layout.xaxis.range
-                                    # Arrondir par paliers de 10 mètres
-                                    s_min = np.floor(s_min / 10.0) * 10.0
-                                    s_max = np.ceil(s_max / 10.0) * 10.0
-                                    self.current_s_range = [s_min, s_max]
-                                if fig_tension.layout.yaxis.range is not None:
-                                    T_min, T_max = fig_tension.layout.yaxis.range
-                                    # Arrondir par paliers de 10 N
-                                    T_min = np.floor(T_min / 10.0) * 10.0
-                                    T_max = np.ceil(T_max / 10.0) * 10.0
-                                    self.current_T_range = [T_min, T_max]
-                            else:
-                                # Dimensions incompatibles, créer un graphique vide
-                                trace_print(8, f"Warning: Dimensions incompatibles - x_cable: {len(x_cable_arr)}, y_cable: {len(y_cable_arr)}, T_cable: {len(T_cable_arr)}")
-                                fig_tension = create_tension_curvilinear_plot([], [], "Tension")
-                                self.plotly_widget_tension.update_figure(fig_tension)
-                        except Exception as e:
-                            trace_print(8, f"Erreur lors de la mise à jour du graphique Tension: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            # Créer un graphique vide en cas d'erreur
-                            fig_tension = create_tension_curvilinear_plot([], [], "Tension")
-                            self.plotly_widget_tension.update_figure(fig_tension)
-                    else:
-                        # Pas de données disponibles, créer un graphique vide
-                        # Forcer la recréation complète si c'est la première fois
-                        if not hasattr(self, '_tension_graph_initialized'):
-                            self.plotly_widget_tension.is_first_update = True
-                            self._tension_graph_initialized = True
-                        fig_tension = create_tension_curvilinear_plot([], [], "Tension")
-                        self.plotly_widget_tension.update_figure(fig_tension)
+                    # Mettre à jour le graphique "Tension" via helper factorisé.
+                    self._refresh_tension_curvilinear_plot(data)
                     
                     self.last_plot_update_time = current_time
             except Exception as e:

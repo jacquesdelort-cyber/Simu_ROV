@@ -236,6 +236,26 @@ class AllParametersTab(QWidget):
         scroll.setWidgetResizable(True)
         scroll_content = QWidget()
         layout = QVBoxLayout(scroll_content)
+
+        mode_group = QGroupBox("Mode de simulation")
+        mode_layout = QGridLayout()
+        mode_layout.addWidget(QLabel("Simulation dynamique:"), 0, 0)
+        self.dynamic_simulation = QCheckBox("Activer (câble en équilibre dynamique)")
+        self.dynamic_simulation.setChecked(True)
+        self.dynamic_simulation.toggled.connect(self._on_dynamic_simulation_toggled)
+        mode_layout.addWidget(self.dynamic_simulation, 0, 1)
+        mode_layout.addWidget(
+            HelpButton(
+                "Coché : résolution dynamique du câble à chaque pas (comportement actuel). "
+                "Décoché : équilibre statique du câble à chaque pas (comme à l'initialisation) ; "
+                "le ROV, le bateau et la longueur L restent intégrés dynamiquement.",
+                self,
+            ),
+            0,
+            2,
+        )
+        mode_group.setLayout(mode_layout)
+        layout.addWidget(mode_group)
         
         # Méthode d'intégration
         method_group = QGroupBox("Méthode d'intégration")
@@ -783,6 +803,13 @@ class AllParametersTab(QWidget):
         
         # Paramètres de calcul
         calc_params = self.main_window.calc_params
+        if hasattr(self, "dynamic_simulation"):
+            self.dynamic_simulation.setChecked(
+                bool(calc_params.get("dynamic_simulation", True))
+            )
+            self._on_dynamic_simulation_toggled(
+                self.dynamic_simulation.isChecked()
+            )
         self.method_combo.setCurrentText(calc_params.get('method', 'RK45'))
         self.rtol.setText(str(calc_params.get('rtol', 1e-5)))
         self.atol.setText(str(calc_params.get('atol', 1e-7)))
@@ -980,6 +1007,11 @@ class AllParametersTab(QWidget):
             
             # Paramètres de calcul
             self.main_window.calc_params = {
+                'dynamic_simulation': (
+                    self.dynamic_simulation.isChecked()
+                    if hasattr(self, "dynamic_simulation")
+                    else True
+                ),
                 'method': self.method_combo.currentText(),
                 'rtol': parse_float(self.rtol.text(), 1e-5, "Tolérance relative (rtol)"),
                 'atol': parse_float(self.atol.text(), 1e-7, "Tolérance absolue (atol)"),
@@ -1496,6 +1528,7 @@ class AllParametersTab(QWidget):
         
         # Réinitialiser aussi les paramètres de calcul et conditions initiales
         self.main_window.calc_params = {
+            'dynamic_simulation': True,
             'method': 'RK45',
             'rtol': 1e-5,
             'atol': 1e-7,
@@ -1552,6 +1585,13 @@ class AllParametersTab(QWidget):
         
         QMessageBox.information(self, "Succès", "Paramètres réinitialisés.")
     
+    def _on_dynamic_simulation_toggled(self, checked: bool):
+        """Désactive visuellement l'intégration contrainte si le câble est quasi-statique."""
+        if hasattr(self, "use_constrained_integrator"):
+            self.use_constrained_integrator.setEnabled(bool(checked))
+            if hasattr(self, "dae_projection_substeps"):
+                self.dae_projection_substeps.setEnabled(bool(checked))
+
     def on_method_changed(self, text):
         """Appelé quand la méthode change"""
         self.save_all_parameters_from_display()

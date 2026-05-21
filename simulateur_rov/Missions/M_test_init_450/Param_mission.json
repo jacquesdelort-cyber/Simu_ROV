@@ -1,5 +1,5 @@
 {
-    "date_sauvegarde": "2026-04-11T18:33:23.622345",
+    "date_sauvegarde": "2026-04-22T14:27:03.459308",
     "mission": "M_test_init_450",
     "description": "L = 404 m, position (30, -450) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV puis remontée.  Pas de courant",
     "parameters": {
@@ -69,6 +69,8 @@
         "y_rov_init": -400.0,
         "x_boat_init": 0.0,
         "L_init": 450.0,
-        "v_courant": "0.0"
+        "v_courant": "0.0",
+        "cable_init_mode": "strict_static",
+        "legacy_init_geometry": false
     }
 }

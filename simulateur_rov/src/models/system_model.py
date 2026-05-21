@@ -1,6 +1,7 @@
 """Système complet ROV-Câble-Bateau"""
 import numpy as np
 from .rov_model import ROV
+from src.utils.logger import trace_print
 
 # Borne numérique des vitesses ROV (m/s) pour forces, solveur câble et champs dérivés associés.
 # L'état intégré (y[2], y[3]) n'est pas modifié ; seules les grandeurs utilisées dans compute_derivatives
@@ -10,6 +11,7 @@ V_MAX_ROV_VELOCITY_FORCES_MS = 500.0
 A_MAX_ROV_MS2 = 45.0
 # Plafond des vitesses ROV dans le vecteur d'état après intégration (m/s) — distinct des 500 m/s pour les forces.
 V_MAX_ROV_STATE_IN_Y_MS = 80.0
+TENSION_GUARD_BUILD_ID = "tension-guard-runtime-marker-20260420-1"
 from .cable_model import Cable
 from .boat_model import Boat
 from .environment import Environment
@@ -48,6 +50,11 @@ class ROVSystem:
         # État précédent du câble (pour itération)
         self.x_cable_prev = None
         self.y_cable_prev = None
+
+        # True : solveur dynamique câble ; False : équilibre statique à chaque pas (quasi-statique)
+        self.dynamic_simulation = True
+        # Aligné sur get_initial_state : statique avec déformation courant si True
+        self.use_current_geometry_for_static = True
     
     def get_state_size(self):
         """Retourne la taille du vecteur d'état"""
@@ -148,6 +155,13 @@ class ROVSystem:
         array
             Dérivées dy/dt
         """
+        if not hasattr(self, "_tension_guard_banner_printed"):
+            self._tension_guard_banner_printed = True
+            trace_print(
+                5,
+                f"[DEBUG] compute_derivatives build marker: {TENSION_GUARD_BUILD_ID}",
+            )
+
         # Dépaqueter l'état
         # IMPORTANT: La longueur L est extraite de l'état à chaque itération
         # Elle évolue selon dL_dt = u['dL_dt'] et est transmise au solveur
@@ -208,21 +222,26 @@ class ROVSystem:
         # IMPORTANT: La longueur L est transmise au solveur à chaque itération
         # La longueur L est déterminée exclusivement par la longueur initiale et la commande dL_dt
         try:
-            if self.x_cable_prev is None or self.y_cable_prev is None:
-                # Première itération : solution statique
-                # Passer les paramètres du ROV pour calculer correctement la tension initiale
-                x_cable_new, y_cable_new, T_new = self.cable.solver.solve_equilibrium_static(
-                    x_rov, y_rov, x_boat, L, rov_m=self.rov.m, rov_vol=self.rov.V
+            use_static_cable = (
+                not self.dynamic_simulation
+                or self.x_cable_prev is None
+                or self.y_cable_prev is None
+            )
+            if use_static_cable:
+                x_cable_new, y_cable_new, T_new = self.cable.solve_equilibrium(
+                    x_rov, y_rov, vx_rov_f, vy_rov_f,
+                    x_boat, vx_boat, L,
+                    None, None,
+                    rov_m=self.rov.m, rov_vol=self.rov.V,
+                    force_static=True,
+                    use_current_geometry=self.use_current_geometry_for_static,
                 )
             else:
-                # Solution dynamique
-                # Passer les paramètres du ROV pour calculer correctement la tension initiale
-                # La longueur L est extraite de l'état et transmise au solveur
                 x_cable_new, y_cable_new, T_new = self.cable.solve_equilibrium(
                     x_rov, y_rov, vx_rov_f, vy_rov_f,
                     x_boat, vx_boat, L,
                     self.x_cable_prev, self.y_cable_prev,
-                    rov_m=self.rov.m, rov_vol=self.rov.V
+                    rov_m=self.rov.m, rov_vol=self.rov.V,
                 )
         except Exception as e:
             raise RuntimeError(f"Erreur lors de la résolution du câble à t={t:.2f} s: {str(e)}")
@@ -266,6 +285,30 @@ class ROVSystem:
                 # Utiliser la moyenne pour éviter les erreurs d'arrondi
                 x_avg = np.mean(x_cable_new)
                 x_cable_new[:] = x_avg
+
+        # Diagnostic de cohérence solveur <-> état ODE:
+        # la géométrie retournée par le solveur (x_cable_new, y_cable_new) devrait rester
+        # proche de la géométrie portée par l'état intégré (x_cable, y_cable).
+        try:
+            if (
+                len(x_cable_new) == len(x_cable)
+                and len(y_cable_new) == len(y_cable)
+                and len(x_cable_new) > 2
+            ):
+                dx_err = np.asarray(x_cable_new, dtype=float) - np.asarray(x_cable, dtype=float)
+                dy_err = np.asarray(y_cable_new, dtype=float) - np.asarray(y_cable, dtype=float)
+                geom_err_rms = float(np.sqrt(np.mean(dx_err**2 + dy_err**2)))
+                geom_err_max = float(np.max(np.sqrt(dx_err**2 + dy_err**2)))
+                if geom_err_rms > 0.35 or geom_err_max > 0.8:
+                    trace_print(
+                        5,
+                        (
+                            "[DEBUG] compute_derivatives: écart géométrie solveur/ODE élevé "
+                            f"à t={t:.2f}s (rms={geom_err_rms:.3f} m, max={geom_err_max:.3f} m)"
+                        ),
+                    )
+        except Exception:
+            pass
 
         # Stabiliser les tensions quand le solveur renvoie une valeur quasi nulle
         # (évite les alternances 0 / valeur nominale d'un pas à l'autre)
@@ -348,6 +391,42 @@ class ROVSystem:
             T_rov_target = max(T_rov_target, target_cap * 0.1)
 
         T_rov_target = float(np.clip(T_rov_target, 0.0, T_cap))
+        # Hystérésis + limitation temporelle en mode slack élevé pour éviter un comportement
+        # ON/OFF de la tension cible (pics puis chutes brutales).
+        slack_ratio_curr = max(slack_curr / max(L_straight_curr, 1.0), 0.0)
+        slack_mode_prev = bool(getattr(self, "_high_slack_mode", False))
+        enter_thr = 0.06
+        exit_thr = 0.04
+        high_slack_mode = (slack_ratio_curr >= enter_thr) if not slack_mode_prev else (slack_ratio_curr > exit_thr)
+        self._high_slack_mode = high_slack_mode
+
+        t_prev_rov = float(max(T[-1], 0.0)) if len(T) > 0 else float(max(T_rov_target, 0.0))
+        if t_prev_rov > 1e-6 and high_slack_mode:
+            # Cap relatif conservateur en mode slack.
+            max_ratio_up = 1.20
+            min_ratio_dn = 0.85
+            T_rov_target = min(T_rov_target, max_ratio_up * t_prev_rov)
+            T_rov_target = max(T_rov_target, min_ratio_dn * t_prev_rov)
+
+        # Rate limiter temporel absolu sur la consigne T_rov_target.
+        # On limite dT/dt de la cible elle-même pour éviter les impulsions.
+        t_prev_cmd = getattr(self, "_T_rov_target_cmd_prev", None)
+        t_prev_time = getattr(self, "_T_rov_target_cmd_prev_t", None)
+        dt_cmd = 0.05
+        if t_prev_time is not None:
+            try:
+                dt_cmd = float(max(1e-3, min(0.5, float(t) - float(t_prev_time))))
+            except Exception:
+                dt_cmd = 0.05
+        if t_prev_cmd is not None:
+            rate_up = 220.0 if high_slack_mode else 420.0
+            rate_dn = 260.0 if high_slack_mode else 520.0
+            delta = float(T_rov_target - float(t_prev_cmd))
+            delta_clamped = float(np.clip(delta, -rate_dn * dt_cmd, rate_up * dt_cmd))
+            T_rov_target = float(t_prev_cmd) + delta_clamped
+        self._T_rov_target_cmd_prev = float(np.clip(T_rov_target, 0.0, T_cap))
+        self._T_rov_target_cmd_prev_t = float(t)
+        T_rov_target = float(np.clip(T_rov_target, 0.0, T_cap))
 
         # Utiliser la tension de l'état actuel au niveau du ROV (index -1)
         # La tension T[-1] est mise à jour dynamiquement via dT_dt vers T_rov_target
@@ -359,6 +438,10 @@ class ROVSystem:
         else:
             # Slack >= 0 : utiliser la tension dynamique qui évolue progressivement
             T_rov = T[-1] if len(T) > 0 else T_rov_target
+            # En fort slack, empêcher que la force effective au ROV reste bien au-dessus
+            # de la consigne plafonnée (sinon pics de TN/accélération malgré T_ctrl limité).
+            if high_slack_mode and slack_ratio_curr > 0.03:
+                T_rov = min(float(T_rov), float(T_rov_target))
         T_rov = float(np.clip(T_rov, 0.0, T_cap))
 
         # Calculer le vecteur unitaire au niveau du ROV (direction vers le bateau)
@@ -378,16 +461,36 @@ class ROVSystem:
             cos_theta0 = 0.0
             sin_theta0 = 1.0  # Vers le haut (y positif, vers le bateau)
         elif len(x_cable_new) > 1:
-            # Direction vers le bateau : du point ROV (index -1) vers le point précédent (index -2)
-            if len(x_cable_new) > 2:
-                # Utiliser le segment adjacent au ROV (du point -1 vers le point -2)
+            # Direction vers le bateau, lissée sur quelques segments proches du ROV
+            # pour réduire l'injection de pics due à un coude très local.
+            if len(x_cable_new) > 3:
+                vx_sum = 0.0
+                vy_sum = 0.0
+                weights = (0.6, 0.3, 0.1)
+                n_used = min(3, len(x_cable_new) - 1)
+                for j in range(1, n_used + 1):
+                    idx_tail = -j
+                    idx_head = -j - 1
+                    vx = float(x_cable_new[idx_head] - x_cable_new[idx_tail])
+                    vy = float(y_cable_new[idx_head] - y_cable_new[idx_tail])
+                    seg_norm = float(np.hypot(vx, vy))
+                    if seg_norm > 1e-9:
+                        w = weights[j - 1]
+                        vx_sum += w * (vx / seg_norm)
+                        vy_sum += w * (vy / seg_norm)
+                if abs(vx_sum) + abs(vy_sum) > 1e-9:
+                    dx_rov = vx_sum
+                    dy_rov = vy_sum
+                else:
+                    dx_rov = float(x_cable_new[-2] - x_cable_new[-1])
+                    dy_rov = float(y_cable_new[-2] - y_cable_new[-1])
+            elif len(x_cable_new) > 2:
                 dx_rov = x_cable_new[-2] - x_cable_new[-1]  # Vers le bateau
                 dy_rov = y_cable_new[-2] - y_cable_new[-1]  # Vers le bateau
             else:
-                # Si seulement 2 points, utiliser la direction depuis le ROV vers le bateau
                 dx_rov = x_cable_new[0] - x_cable_new[-1]  # Vers le bateau
                 dy_rov = y_cable_new[0] - y_cable_new[-1]  # Vers le bateau
-            
+
             ds_rov = np.sqrt(dx_rov**2 + dy_rov**2)
             if ds_rov > 1e-6:
                 # Si dx_rov est très petit, forcer cos_theta0 = 0 pour éviter les erreurs numériques
@@ -561,10 +664,87 @@ class ROVSystem:
             straight_ratio = abs(L - L_straight) / max(L_straight, 1.0)
             if straight_ratio < 0.002:
                 tau_tension = max(tau_tension, 0.5)
+
+        # Détecter une géométrie interne non fiable (zigzags serrés) qui peut
+        # injecter des tensions non physiques via la boucle solveur <-> dynamique.
+        geometry_unreliable = False
+        sharp_count = 0
+        sharp_min_cos = 1.0
+        try:
+            if len(x_cable_new) >= 8 and len(y_cable_new) == len(x_cable_new):
+                n_seg = len(x_cable_new) - 1
+                edge_exclusion = set(range(min(20, n_seg))) | set(range(max(0, n_seg - 20), n_seg))
+                for i in range(1, n_seg - 1):
+                    seg_l = i - 1
+                    seg_r = i
+                    if seg_l in edge_exclusion or seg_r in edge_exclusion:
+                        continue
+                    v1x = float(x_cable_new[i] - x_cable_new[i - 1])
+                    v1y = float(y_cable_new[i] - y_cable_new[i - 1])
+                    v2x = float(x_cable_new[i + 1] - x_cable_new[i])
+                    v2y = float(y_cable_new[i + 1] - y_cable_new[i])
+                    n1 = float(np.hypot(v1x, v1y))
+                    n2 = float(np.hypot(v2x, v2y))
+                    if n1 <= 1e-9 or n2 <= 1e-9:
+                        continue
+                    cosang = float(np.clip((v1x * v2x + v1y * v2y) / (n1 * n2), -1.0, 1.0))
+                    sharp_min_cos = min(sharp_min_cos, cosang)
+                    if cosang < -0.95:
+                        sharp_count += 1
+                geometry_unreliable = sharp_count >= 4
+        except Exception:
+            geometry_unreliable = False
+        if 39.0 <= float(t) <= 40.5:
+            trace_print(
+                7,
+                (
+                    "[DEBUG] tension_guard status: "
+                    f"geom_unreliable={geometry_unreliable}, sharp_count={sharp_count}, "
+                    f"sharp_min_cos={sharp_min_cos:.4f}, slack_ratio={slack_ratio:.4f}"
+                ),
+            )
         
         # Mettre à jour T_new[-1] (ROV) avec la tension cible dynamique calculée plus haut
         if len(T_new) > 0:
             T_new[-1] = float(np.clip(T_rov_target, 0.0, T_cap))
+
+        # Verrou "dur" en fort slack: conserver un plafond absolu cohérent avec le guard
+        # de commande pour éviter toute dérive kN de l'état de tension.
+        if high_slack_mode and slack_ratio_curr > 0.03 and len(T_new) > 0:
+            try:
+                t_hard_cap_slack = 120.0
+                T_rov_target = float(min(T_rov_target, t_hard_cap_slack))
+                T_new = np.minimum(np.asarray(T_new, dtype=float), t_hard_cap_slack)
+            except Exception:
+                pass
+
+        # Verrou physique en fort slack: plafonner les tensions dynamiques pour éviter
+        # une montée à plusieurs kN quand le câble est encore largement mou.
+        if len(T_new) > 0 and slack_ratio > 0.03:
+            try:
+                drag_ref = float(np.hypot(Fx_drag_rov, Fy_drag_rov))
+                app_ref = float(abs(F_apparent_weight))
+                base_ref = max(app_ref + 0.6 * drag_ref, 20.0)
+                slack_factor = 1.0 + 0.5 * float(np.clip(slack_ratio / 0.08, 0.0, 1.0))
+                t_abs_cap_slack = max(120.0, min(T_cap, 6.0 * base_ref * slack_factor))
+                if geometry_unreliable:
+                    t_abs_cap_slack = min(t_abs_cap_slack, max(120.0, 3.5 * base_ref))
+                T_new = np.minimum(np.asarray(T_new, dtype=float), t_abs_cap_slack)
+                T_rov_target = float(min(T_rov_target, t_abs_cap_slack))
+                # Cohérence locale au ROV: en mode slack, le dernier noeud ne doit pas
+                # dépasser la consigne pilotée (sinon TN peut repartir à des kN).
+                if high_slack_mode:
+                    T_new[-1] = float(min(T_new[-1], T_rov_target))
+                if geometry_unreliable:
+                    trace_print(
+                        5,
+                        (
+                            "[DEBUG] tension_guard: géométrie interne non fiable, cap tension renforcé "
+                            f"(sharp_count={sharp_count}, min_cos={sharp_min_cos:.4f}, cap={t_abs_cap_slack:.1f} N)"
+                        ),
+                    )
+            except Exception:
+                pass
 
         # Empêcher les chutes brutales de tension quand le câble est quasi droit
         if len(T_new) > 0 and len(T) > 0 and L_straight > 1e-9:
@@ -631,6 +811,18 @@ class ROVSystem:
         dT_dt_abs_cap = max(800.0, 4.0 * T_cap / max(tau_tension, 0.02))
         dT_dt = np.clip((T_new - T) / tau_tension, -dT_dt_abs_cap, dT_dt_abs_cap)
 
+        if high_slack_mode and slack_ratio_curr > 0.03 and len(T_new) > 0 and len(T) > 0:
+            # Ramener rapidement T vers le cap dur en mode slack (toutes composantes),
+            # sinon T0/TN peuvent rester à plusieurs kN pendant de nombreux pas.
+            try:
+                t_hard_cap_slack = 120.0
+                T_target_hard = np.minimum(np.asarray(T_new, dtype=float), t_hard_cap_slack)
+                relax_tau_all = 0.02
+                dT_dt_hard = (T_target_hard - np.asarray(T, dtype=float)) / relax_tau_all
+                dT_dt = np.clip(np.asarray(dT_dt_hard, dtype=float), -dT_dt_abs_cap, dT_dt_abs_cap)
+            except Exception:
+                pass
+
         # IMPORTANT : Si slack < 0, forcer une adaptation immédiate de la tension au ROV
         # pour ramener rapidement slack >= 0
         if slack_curr < 0.0 and len(T) > 0 and len(T_new) > 0:
@@ -640,6 +832,19 @@ class ROVSystem:
                 -dT_dt_abs_cap,
                 dT_dt_abs_cap,
             )
+        elif high_slack_mode and len(T) > 0 and len(T_new) > 0 and slack_ratio_curr > 0.03:
+            # En fort slack, accélérer la détente si l'état T[-1] est au-dessus du plafond cible.
+            try:
+                dT_dt = np.asarray(dT_dt, dtype=float)
+                if float(T[-1]) > float(T_rov_target):
+                    relax_tau = 0.02
+                    dT_dt[-1] = np.clip(
+                        (float(T_rov_target) - float(T[-1])) / relax_tau,
+                        -dT_dt_abs_cap,
+                        dT_dt_abs_cap,
+                    )
+            except Exception:
+                pass
 
         # Assembler les dérivées
         dydt = np.zeros_like(y)

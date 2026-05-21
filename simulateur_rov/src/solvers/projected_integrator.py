@@ -9,7 +9,10 @@ from typing import Any, Callable
 
 import numpy as np
 
-from src.models.state_projection import project_cable_state_inplace
+from src.models.state_projection import (
+    apply_slack_tension_soft_cap_inplace,
+    project_cable_state_inplace,
+)
 
 
 def _rk4_step(
@@ -59,6 +62,8 @@ def integrate_span_with_projection(
         t += dt
         if project:
             project_cable_state_inplace(system, y, t, k_tail=k_tail)
+    # Sécurité : projection échouée ou dérive RK sur T → même logique que GUARD slack.
+    apply_slack_tension_soft_cap_inplace(system, y, t_sim=t1)
     return y
 
 

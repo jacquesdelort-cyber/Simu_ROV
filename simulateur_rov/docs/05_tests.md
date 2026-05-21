@@ -49,6 +49,7 @@ Fichiers de tests `pytest` et scripts visuels (liste à jour du dépôt) :
 - `tests/test_mission_init_regression.py`
 - `tests/test_rov_model.py`
 - `tests/test_scenario_utils.py`
+- `tests/test_simulation_dynamics.py`
 - `tests/test_straight_snap_normalize.py`
 - `tests/test_utils_create_point_with_target_length.py`
 - `tests/test_utils_deplacer_point.py`
@@ -266,6 +267,10 @@ Tests liés à la **projection** d'état câble et au chantier intégration cont
 ### 3.20 `tests/test_cable_shared_cases_add.py`
 
 Extensions de cas partagés pour le solveur câble (import depuis `cable_shared_cases.py`).
+
+### 3.21 `tests/test_simulation_dynamics.py`
+
+Intégration temporelle via ``ROVSystem.integrate`` (``solve_ivp``) : finitude des dérivées au premier pas, trajectoire courte sans commande, effet de signe de ``Fx_rov`` / ``Fy_rov``, augmentation de ``L`` sous ``dL_dt`` constant. Maillage câble réduit et pas de temps courts pour limiter le coût du solveur câble dynamique.
 
 ## 4. Assertions de contrôle en fin d'itération
 
@@ -522,6 +527,7 @@ Les entrées sont triées par **nom** dans l'UI. Groupes typiques :
 | Normalisation du câble – unitaires | `_normalize_cable_segments`, `_normalize_cable_length` |
 | Géométrie / Normalisation – rapports graphiques | scripts `tests/test_*_visual.py` associés |
 | Initialisation missions | `test_buoyant_current_init`, `test_initial_conditions_modes`, `test_mission_init_courant_1`, `test_mission_init_regression` |
+| Simulation dynamique | `test_simulation_dynamics` (`integrate` / `solve_ivp`, pas courts) |
 
 Pour modifier les commandes ou ajouter un test : éditer `src/tests/test_catalog.py`, puis cliquer sur **Mettre à jour** dans l'onglet Tests.
 

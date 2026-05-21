@@ -1,7 +1,7 @@
 {
-    "date_sauvegarde": "2026-04-17T08:45:38.741791",
+    "date_sauvegarde": "2026-04-22T14:35:36.487231",
     "mission": "M_test_init_courant_2",
-    "description": "L = 404 m, position (30, -450) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV puis remontée.  Pas de courant",
+    "description": "L = 410 m, position (30, -400) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV puis remontée.  Courant cisaillement.",
     "parameters": {
         "rov": {
             "m": 30.0,
