@@ -9,7 +9,7 @@ import numpy as np
 from src.utils.logger import trace_print
 
 _ANSI_RESET = "\033[0m"
-_ANSI_RED = "\033[91m"
+_ANSI_RED = "\033[91m" 
 
 
 def contrôle_câble(
@@ -2725,7 +2725,7 @@ def consigne_moulinet(
         if T_boat > T_cible:
             consigne = dL_dt_max *matrice_consigne[4][i_T_boat]
         else:
-            consigne = dL_dt_min *matrice_consigne[4][i_T_boat]
+            consigne = abs(dL_dt_min) *matrice_consigne[4][i_T_boat]
         exp = "L_STRAIGHT_UNKNOWN_SLACK_OK_ASSUMED"
 
     # Cas nominal, on connait L_straight
