@@ -28,7 +28,8 @@ def cable_cases_module(tmp_path: Path):
 
 def test_add_cable_to_test_cases_inserts_nouveau_cas(cable_cases_module):
     mod, dst = cable_cases_module
-    n_before = len(mod.ALL_SHARED_CABLE_CASES)
+    # Le fichier source peut déjà contenir un « Nouveau cas » (remplacé, pas ajouté).
+    n_other = sum(1 for case in mod.ALL_SHARED_CABLE_CASES if case.name != "Nouveau cas")
 
     c = mod.add_cable_to_test_cases(
         np.array([0.0, 2.0]),
@@ -42,7 +43,7 @@ def test_add_cable_to_test_cases_inserts_nouveau_cas(cable_cases_module):
     )
 
     assert c.name == "Nouveau cas"
-    assert len(mod.ALL_SHARED_CABLE_CASES) == n_before + 1
+    assert len(mod.ALL_SHARED_CABLE_CASES) == n_other + 1
     assert mod.ALL_SHARED_CABLE_CASES[0].name == "Nouveau cas"
     assert np.allclose(mod.ALL_SHARED_CABLE_CASES[0].x_cable, [0.0, 2.0])
 

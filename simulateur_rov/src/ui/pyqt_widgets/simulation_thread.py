@@ -1333,6 +1333,8 @@ class SimulationThread(QThread):
                                 auto_func = scenario_utils.get_auto_L_function("auto_L_1") or scenario_utils.auto_L_1
                             if t_current == 0 and hasattr(auto_func, "_history"):
                                 auto_func._history = []
+                            if t_current == 0 and hasattr(scenario_utils.consigne_moulinet, "_history"):
+                                scenario_utils.consigne_moulinet._history = []
                             trupt = None
                             try:
                                 trupt = float(self.parameters.get("cable", {}).get("tension_rupture", 50.0))
@@ -1402,32 +1404,44 @@ class SimulationThread(QThread):
                                             f"slack={slack_ctrl:.2f} reasons={'+'.join(reasons)}",
                                         )
                                     prev_t_boat_for_control = float(t_boat)
-                                fx_rov_cmd = (
-                                    float(self.simulation_state.get('fx_rov', self.fx_rov))
-                                    if isinstance(self.simulation_state, dict)
-                                    else float(self.fx_rov)
-                                )
-                                fy_rov_cmd = (
-                                    float(self.simulation_state.get('fy_rov', self.fy_rov))
-                                    if isinstance(self.simulation_state, dict)
-                                    else float(self.fy_rov)
-                                )
+                                if fx_rov_cmd is None:
+                                    fx_for_auto = (
+                                        float(self.simulation_state.get('fx_rov', self.fx_rov))
+                                        if isinstance(self.simulation_state, dict)
+                                        else float(self.fx_rov)
+                                    )
+                                else:
+                                    fx_for_auto = float(fx_rov_cmd)
+                                if fy_rov_cmd is None:
+                                    fy_for_auto = (
+                                        float(self.simulation_state.get('fy_rov', self.fy_rov))
+                                        if isinstance(self.simulation_state, dict)
+                                        else float(self.fy_rov)
+                                    )
+                                else:
+                                    fy_for_auto = float(fy_rov_cmd)
                                 L_straight_cmd = float(
                                     np.hypot(
                                         float(x_rov_current) - float(x_boat_current),
                                         float(y_rov_current),
                                     )
                                 )
+                                t_rov = None
+                                try:
+                                    t_rov = float(T_current[-1])
+                                except Exception:
+                                    t_rov = None
                                 auto_result = auto_func(
                                     t_current,
                                     y_rov_current,
                                     L_current,
-                                    L_straight_cmd,
-                                    t_boat,
-                                    fx_rov_cmd,
-                                    fy_rov_cmd,
-                                    float(x_rov_current),
-                                    float(x_boat_current),
+                                    L_straight=L_straight_cmd,
+                                    T_boat=t_boat,
+                                    T_rov=t_rov,
+                                    Fx_rov=fx_for_auto,
+                                    Fy_rov=fy_for_auto,
+                                    x_rov=float(x_rov_current),
+                                    x_boat=float(x_boat_current),
                                     Trupt=trupt,
                                     Tcible=tcible,
                                     Gamma_moulinet_min=gamma_moulinet_min,

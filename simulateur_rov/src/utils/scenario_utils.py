@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import math
+from tkinter import NO
 import numpy as np
 
 from src.utils.logger import trace_print
@@ -2528,35 +2529,83 @@ def consigne_moulinet(
     
     t: float, # Le temps exprimmmé en secondes
     y_rov: float, # La profondeur du rov exprimmée en mètres. ELle doit être négative
+    T_boat: float, # La tension du câble au niveau du bateau exprimmée en Newtons. Elle doit être positive.
     L: float, # La longueur de câble entre le bateau et le ROV exprimmée en mètres
-    T_boat: float, # La tension du câble au niveau du bateau exprimmée en Newtons
-    T_cible: float = 50.0, # La tension cible du câble au niveau du bateau exprimmée en Newtons
+    T_rupture: float = 50.0, # La tension de rupture du câble exprimmée en Newtons. 
+    T_cible: float = 20.0, # La tension cible du câble au niveau du bateau exprimmée en Newtons
     L_straight: float | None = None, # La distance en ligne droite bateau-ROV exprimmée en mètres.
     dL_dt_max: float = 1.0, # La consigne maximale de vitesse du moulinet exprimée en m/s
     dL_dt_min: float = -1.0, # La consigne minimale de vitesse du moulinet exprimée en m/s
     K: int = 10, # Nombre d'itérations utilisées dans l'historique.
     N: int = 10, # Nombre de pas de temps utilisés pour lisser la commande.
+    delta_t: float = 0.1, # Le pas de temps entre deux calculs de la consigne.
 ) -> tuple[float, str]:
-    """
-    Loi de commande dL/dt sans utilisation de la distance droite bateau-ROV.
+    f"""
+    Loi de commande dL/dt avec ou sans utilisation de la distance droite bateau-ROV.
     Les paramètres pour lesquels une valeur par défaut est fournie peuvent être omis lors de l'appel.
+    
+    Les deux facteurs clés qui doivent être combinés pour gérer le moulinet sont la tension du fil (T_boat) et le mou sur
+    le câble (slack = L - L_straight). On calcule la contribution des deux facteurs et on les combine grace à une matrice 
+    empirique matrice_consigne[i_slack][i_T_boat]. La tension reste le facteur prioritaire.
+    Plus la valeur donnée par la matrice est positive et élevée (jusqu'à +1), plus il faut donner du mou rapidement.
+    Plus la valeur donnée par la matrice est négative et faible (jusqu'à -1), plus il faut reprendre du mou rapidement.
+
     La fonction renvoie un tuple (consigne, expl) où :
-    - consigne st la consigne de vitesse du moulinet (dL/dt) en m/s (elle est comprise entre -1.0 et 1.0 m/s)
+    - consigne st la consigne de vitesse du moulinet (dL/dt) en m/s (elle est comprise entre dL_dt_max et dL_dt_min m/s)
     - expl est une chaîne de caractères qui explique la commande retournée.
     """
 
-    debug_auto_consigne_moulinet = 9
-
-    if not hasattr(consigne_moulinet, "_history"):
-        consigne_moulinet._history = []
+    debug_consigne_moulinet = 9
+    
 
     def _finalize(ret, exp):
-        ret = max(min(ret, dl_dt_max), dl_dt_min)
+        """
+        Clampe la valeur de retour entre les valeurs minimales et maximales autorisées.
+        """
+        ret = max(min(ret, dL_dt_max), dL_dt_min)
         return ret, exp
+
+    def _moyenne_glissante(hist, name, N):
+        """
+        Calcule la moyenne glissante sur les N dernières valeurs de l'historique.
+        S'il y a moins de N valeurs dans l'historique, la moyenne est calculée 
+        sur le nombre de valeurs disponibles et None si aucune valeur n'est disponible.
+        """
+        len_hist = len(hist)
+        nb_val = 0
+        ret = 0.0
+        for i in range(min(N, len_hist)):
+            val = hist[i].get(name)
+            if val is not None:
+                nb_val += 1
+                ret += val
+        if nb_val > 0:
+            return ret / nb_val
+        else:
+            return None
+
+    # Contrôle de vraisemblance sur les paramètres d'entrée:
+    if T_rupture <= 5.0:
+        return 0.0, "ERR_T_RUPTURE_TROP_FAIBLE"
+    if T_cible <= 2.0:
+        return 0.0, "ERR_T_CIBLE_TROP_FAIBLE"
+    if T_cible > T_rupture*2/3:
+        return 0.0, "ERR_T_CIBLE_SUPERIEURE_A_66%_T_RUPTURE"
+    if dL_dt_max <= dL_dt_min:
+        return 0.0, "ERR_D_L_DT_MAX_INFERIEUR_A_D_L_DT_MIN"
+    if K <= 0:
+        return 0.0, "ERR_K_NON_POSITIF"
+    if y_rov > 0 :
+        return 0.0, "ERR_Y_ROV_STRICTEMENT_POSITIF"
+    if N < 5:
+        return 0.0, "ERR_N_INFERIEUR_A_5"
 
     # Gestion de l'historique des données reçues ou calculées. 
     # Cet historique est utilisé pour le lissage de la commande.
     # Il est conservé entre chaque appel de la fonction.
+
+    if not hasattr(consigne_moulinet, "_history"):
+        consigne_moulinet._history = []
     history = consigne_moulinet._history
     # 0n insère une nouvelle entrée en début d'historique
     history.insert(
@@ -2566,6 +2615,7 @@ def consigne_moulinet(
             "y_rov": float(y_rov),
             "L": float(L),
             "L_straight": None if L_straight is None else float(L_straight),
+            "T_boat": float(T_boat),
             "dy_rov": None,
             "vy_rov": None,
             "slack": None,
@@ -2575,7 +2625,8 @@ def consigne_moulinet(
             "dL_dt": None,
             "dL_straight": None,
             "dL_straight_dt": None,
-            "dl_dt_cmd_prev": None,
+            # "dl_dt_cmd_prev": None,   --- Non utilisé dans cette version
+            "consigne": None,
         },
     )
 
@@ -2589,35 +2640,163 @@ def consigne_moulinet(
     prev = history[1]
 
     curr["dt"] = curr["t"] - prev["t"]
-    dt = curr["dt"]
     if curr["dt"] <= 0:
-        return 0.0, "DT_NON_POSITIF"
+        return 0.0, "ERR_DT_NON_POSITIF"
     
     curr["dL"] = curr["L"] - prev["L"]
-    curr["dT_boat"] = curr["T_boat"] - prev["T_boat"]      
+    t_curr = curr.get("T_boat")
+    t_prev = prev.get("T_boat")
+    curr["dT_boat"] = (t_curr - t_prev) if t_curr is not None and t_prev is not None else 0.0
     curr["dL_dt"] = curr["dL"] / curr["dt"]
 
-    # Estimation de dT/dL sur l'ensemble de la fenêtre historisée
-    est_dT_dL = None
-    delta_L = history[0]["L"] - history[-1]["L"]
-    delta_T = history[0]["T_boat"] - history[-1]["T_boat"]
-    est_dT_dL = delta_T / delta_L if delta_L != 0 else None
 
-    # Estimation de dy_rov/dt sur l'ensemble de la fenêtre historisée
-    if not prev["y_rov"] is None:
-        dy_rov = y_rov - prev["y_rov"]
-        curr["dy_rov"] = dy_rov
-        curr["vy_rov"] = dy_rov / curr["dt"]
+    # Matrice de consigne
+    # matrice_consigne[i_slack][i_T_boat] 
+
+    # Plus i_slack est petit, plus il faut donner du mou rapidement, pour une tension donnée.
+    # Plus i_stack est grand, plus il faut reprendre du mou rapidement, pour une tension donnée.
+
+    # i_slack = 0: Slack en dessous dd slack min - On est en mode straight, ou presque.
+    # i_slack = 1: Slack très en dessous du slack cible
+    # i_slack = 2: Slack significativement en dessous du slack cible
+    # i_slack = 3: Juste en dessous du slack cible - OK
+    # i_slack = 4: Egale ou juste au dessus du slack cible - OK
+    # i_slack = 5: Significativement au dessus du slack cible
+    # i_slack = 6: Slack très en dessus du slack max 
+    # i_slack = 7: Slack en dessus du slack max - Le câble est totalement détendu.
+
+    # Plus i_T_boat est petit, plus il faut reprendre du mou rapidement, pour un slack donné.
+    # Plus i_T_boat est grand, plus il faut donner du mou rapidement, pour un slack donné.
+
+    # i_T_boat = 0: Tension en dessous de la tension min
+    # i_T_boat = 1: Très en dessous de la cible
+    # i_T_boat = 2: Significativement en dessous de la cible
+    # i_T_boat = 3: Juste en dessous de la cible - OK
+    # i_T_boat = 4: Egaluste au dessus de la cible
+    # i_T_boat = 5: Significativement au dessus de la cible
+    # i_T_boat = 6: Risque fort de rupture
+    # i_T_boat = 7: Limite rupture atteinte ou dépassée
+
+    matrice_consigne = [
+        [ 0.50,  0.50,  0.50,  0.50, 0.50, 0.75, 0.75, 1.00],  # Pas de mou,                    Pas de mou,
+        [ 0.50,  0.50,  0.50,  0.50, 0.50, 0.50, 0.75, 1.00],  # Tension faible                 Tension forte
+        [ 0.25,  0.25,  0.25,  0.25, 0.50, 0.50, 0.75, 1.00],
+        [ 0.25,  0.25,  0.25,  0.00, 0.00, 0.50, 0.75, 1.00],
+        [-0.25, -0.25, -0.25,  0.00, 0.00, 0.50, 0.75, 1.00],
+        [-0.50, -0.50, -0.50, -0.25, 0.25, 0.50, 0.75, 1.00],
+        [-0.75, -0.75, -0.50, -0.25, 0.25, 0.50, 0.75, 1.00],
+        [-1.00, -0.75, -0.50, -0.25, 0.25, 0.50, 0.75, 1.00],  # Beaucoup de mou,               Beaucoup de mou
+    ]                                                          # Tension faible                 Tension forte
+
+    # Impact de la tension sur la future consigne
+    # On calcule un indice i_T_boat
+    T_min = T_cible /2
+    t1 = T_min
+    t2 = T_min + (T_cible-  T_min) / 3
+    t3 = T_min + (T_cible - T_min) * 2 / 3
+    t4 = T_cible
+    t5 = T_cible + (T_rupture - T_cible) / 3         
+    t6 = T_cible + (T_rupture - T_cible) * 2 / 3     
+    t7 = T_rupture                                   
+    print(f"t1: {t1:.2f}, t2: {t2:.2f}, t3: {t3:.2f}, t4: {t4:.2f}, t5: {t5:.2f}, t6: {t6:.2f}, t7: {t7:.2f}")
+
+    if T_boat < t1:
+        i_T_boat = 0    # Tension en dessous de la tension min
+    elif T_boat < t2:
+        i_T_boat = 1    # Très en dessous de la cible
+    elif T_boat < t3:
+        i_T_boat = 2    # Significativement en dessous de la cible
+    elif T_boat < t4:
+        i_T_boat = 3    # Juste en dessous de la cible - OK
+    elif T_boat < t5:
+        i_T_boat = 4    # Egal ou juste au dessus de la cible
+    elif T_boat < t6:
+        i_T_boat = 5    # Significativement au dessus de la cible
+    elif T_boat < t7:
+        i_T_boat = 6    # Risque fort de rupture
+    else:
+        i_T_boat = 7    # Limite rupture atteibnte ou dépassée
 
     # Cas dégradé: on ne connait pas L_straight.
     if L_straight is None:
+        # On ne connait pas L_straight, donc on en connait pas le slack.
+        # On retient une valeur par défaut i_slack = 4 : Juste au dessus du slack cible - OK.
+        i_slack = 4
         if T_boat > T_cible:
-            new_dL_dt = dL_dt_max
+            consigne = dL_dt_max *matrice_consigne[4][i_T_boat]
         else:
-            new_dL_dt = dL_dt_min
-        # Lissage de la commande
-        new_dL_dt = ((N-1)*curr["dL_dt"] + new_dL_dt) / N
-        return _finalize(new_dL_dt, "NO_L_STRAIGHT")
+            consigne = dL_dt_min *matrice_consigne[4][i_T_boat]
+        exp = "L_STRAIGHT_UNKNOWN_SLACK_OK_ASSUMED"
+
+    # Cas nominal, on connait L_straight
+    else :
+        if not prev["L_straight"] is None:
+            curr["dL_straight"] = L_straight - prev["L_straight"]
+            curr["dL_straight_dt"] = curr["dL_straight"] / curr["dt"]
+        else:
+            curr["dL_straight"] = None
+            curr["dL_straight_dt"] = None
+    
+        curr["slack"] = curr["L"] - L_straight
+        slack = curr["slack"]
+
+        # m_T_boat = _moyenne_glissante(history, "T_boat", N)
+        # m_dT_boat = _moyenne_glissante(history, "dT_boat", N)
+        m_L_straight = _moyenne_glissante(history, "L_straight", N)
+        m_slack = _moyenne_glissante(history, "slack", N)
+    
+        slack_min   = 2 + 0.02 * m_L_straight
+        slack_cible = 4 + 0.03 * m_L_straight
+
+        slack_max   = 6 + 0.04 * m_L_straight
+
+        # Impact de la tension sur la future consigne
+        # On calcule un indice i_slack
+
+        s0 = slack_min
+        s1 = slack_min + (slack_cible - slack_min) / 3
+        s2 = slack_min  + (slack_cible - slack_min ) * 2 / 3
+        s3 = slack_cible
+        s4 = slack_cible + (slack_max - slack_cible) / 3
+        s5 = slack_cible + (slack_max - slack_cible) * 2 / 3
+        s6 = slack_max
+
+        print(f"s0: {s0:.2f}, s1: {s1:.2f}, s2: {s2:.2f}, s3: {s3:.2f}, s4: {s4:.2f}, s5: {s5:.2f}, s6: {s6:.2f}")
+        print(f"slack: {slack:.2f}")
+
+        if slack < s0:
+            i_slack = 0   # Slack en dessous dd slack min - On est en mode straight, ou presque.
+        elif slack < s1:
+            i_slack = 1    # Slack très en dessous du slack cible
+        elif slack < s2:
+            i_slack = 2    # Slack significativement en dessous du slack cible
+        elif slack < s3:
+            i_slack = 3    # Juste en dessous du slack cible - OK
+        elif slack < s4:
+            i_slack = 4    # Egal ou juste au dessus du slack cible - OK
+        elif slack < s5:
+            i_slack = 5    # Significativement au dessus du slack cible
+        elif slack < s6:
+            i_slack = 6    # Slack très en dessus du slack max 
+        else:
+            i_slack = 7    # Slack en dessus du slack max - Le câble est totalement détendu.
+
+        dSlack_dt = (slack - m_slack) / curr["dt"]
+        if dSlack_dt is None:
+            dSlack_dt = 0.0
+        consigne = dL_dt_max * matrice_consigne[i_slack][i_T_boat] - dSlack_dt
+        exp = "MAIN"
+
+    # Lissage de la commande
+    m_consigne = _moyenne_glissante(history, "consigne", N)
+    if m_consigne is None:
+        m_consigne = 0.0
+        
+    consigne, exp = _finalize(consigne, exp)
+    curr["consigne"] = consigne
+    print(f"dSlack_dt: {dSlack_dt:.2f}, i_slack: {i_slack}, i_T_boat: {i_T_boat}, consigne: {consigne:.2f}, exp: {exp}")
+    return consigne, exp
+        
 
 
 
@@ -2663,5 +2842,6 @@ def auto_L_min(
         and not x_rov is None and not y_rov is None and not z_rov is None):
             L_straight = math.hypot(x_rov - x_boat, y_rov - y_boat, z_rov - z_boat)
 
-    ret , exp = consigne_moulinet(t, y_rov, L, T_boat)
+    ret , exp = consigne_moulinet(t, y_rov, T_boat, L, T_rupture= 50.0, T_cible= 20.0, L_straight= L_straight)
     return ret, exp
+

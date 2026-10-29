@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -77,6 +78,22 @@ def test_slack_side_auto_prefers_toward_rov_for_420():
     assert xs_a is not None and xs_o is not None
     assert float(np.min(xs_a)) > -1.0
     assert float(np.min(xs_o)) < -5.0
+
+
+def test_build_polyline_M103_no_hyp_overflow_warnings():
+    """Géométrie M103_courant : pas de RuntimeWarning sinh/cosh à l'init."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", RuntimeWarning)
+        xs, ys = build_buoyant_cable_polyline(
+            0.0, 0.0, 30.0, -400.0, 420.0, 150, slack_side="auto"
+        )
+    overflow_msgs = [
+        str(w.message)
+        for w in caught
+        if issubclass(w.category, RuntimeWarning) and "overflow" in str(w.message).lower()
+    ]
+    assert not overflow_msgs, overflow_msgs
+    assert xs is not None and ys is not None
 
 
 def test_slack_side_toward_rov_vertex_x_M_test_init_420():

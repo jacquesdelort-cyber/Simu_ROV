@@ -1,0 +1,77 @@
+{
+    "date_sauvegarde": "2026-06-11T19:13:17.880848",
+    "mission": "M104",
+    "description": "",
+    "parameters": {
+        "rov": {
+            "m": 100.0,
+            "vol": null,
+            "a": 0.5,
+            "b": 1.0,
+            "h": 0.5,
+            "Cx": 0.8,
+            "Cy": 1.0
+        },
+        "cable": {
+            "d": 0.01,
+            "rho_cable": 1500.0,
+            "Cx_cable": 1.2,
+            "Cf_cable": 0.04,
+            "tension_rupture": 50.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5,
+            "dl_dt_min": -1.0,
+            "dl_dt_max": 1.0,
+            "gamma_moulinet_min": -0.5,
+            "gamma_moulinet_max": 0.5
+        },
+        "environment": {
+            "rho_eau": 1025.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "dynamic_simulation": true,
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 600.0,
+        "steps_per_update": 5,
+        "N_segments": 50,
+        "straight_blend_alpha": 1.0,
+        "max_data_size": 10000,
+        "excel_write_interval": 50,
+        "plot_points_limit": 1000,
+        "sc_fx_rov": "(t>0: 25)",
+        "sc_fy_rov": "(t>0:-50)",
+        "sc_v_bateau": "",
+        "sc_v_moulinet": "",
+        "auto_L": "auto_L_1",
+        "Tcible": 20.0,
+        "guard_profile": "soft",
+        "guard_enable": true,
+        "guard_tension_spike_factor": 12.0,
+        "guard_tension_abs": 1200.0,
+        "guard_geom_ds_ratio": 3.2,
+        "guard_geom_rel_L": 0.07,
+        "guard_hard_block_duration_s": 1.5,
+        "trace_boost_level": 7,
+        "trace_boost_duration_s": 2.0,
+        "use_constrained_integrator": false,
+        "dae_projection_substeps": 4
+    },
+    "init_params": {
+        "x_rov_init": 1.0,
+        "y_rov_init": 0.0,
+        "x_boat_init": 1.0,
+        "L_init": 2.0,
+        "v_courant": "0.0",
+        "cable_init_mode": "strict_static",
+        "legacy_init_geometry": false
+    }
+}

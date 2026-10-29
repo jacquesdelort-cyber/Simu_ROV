@@ -5,6 +5,8 @@ from src.utils.scenario_utils import (
     commande_scenario,
     auto_L_1,
     auto_L_8,
+    auto_L_min,
+    consigne_moulinet,
 )
 
 
@@ -138,22 +140,47 @@ def test_auto_L_8_controle_cable_with_data_dict():
         "x_cable_curr": [0.0, 25.0, 50.0, 75.0, 100.0],
         "y_cable_curr": [0.0, -90.0, -180.0, -270.0, -360.0],
     }
-    # Appel positionnel aligné sur simulation_thread (T_boat, fx, fy, x_rov, x_boat)
     ret, exp = auto_L_8(
         40.6,
         -367.23,
         420.0,
-        380.75,
-        89.95,
-        0.0,
-        0.2,
-        100.54,
-        0.0,
+        L_straight=380.75,
+        T_boat=89.95,
+        T_rov=25.0,
+        Fx_rov=0.0,
+        Fy_rov=0.2,
+        x_rov=100.54,
+        x_boat=0.0,
         Trupt=100.0,
         Tcible=50.0,
         K=3,
         N=1,
         data=data,
     )
+    assert isinstance(ret, float)
+    assert isinstance(exp, str)
+
+
+def test_consigne_moulinet_history_has_T_boat():
+    if hasattr(consigne_moulinet, "_history"):
+        consigne_moulinet._history = []
+
+    consigne_moulinet(0.0, -400.0, 35.0, 420.0)
+    ret, exp = consigne_moulinet(0.1, -399.9, 34.0, 420.0)
+
+    assert "T_boat" in consigne_moulinet._history[0]
+    assert consigne_moulinet._history[0]["T_boat"] == pytest.approx(34.0)
+    assert isinstance(ret, float)
+    assert isinstance(exp, str)
+
+
+def test_auto_L_min_two_steps_no_keyerror():
+    if hasattr(consigne_moulinet, "_history"):
+        consigne_moulinet._history = []
+
+    auto_L_min(0.0, -400.0, 420.0, T_boat=35.0)
+    ret, exp = auto_L_min(0.1, -399.9, 420.0, T_boat=34.0)
+
+    assert "T_boat" in consigne_moulinet._history[0]
     assert isinstance(ret, float)
     assert isinstance(exp, str)

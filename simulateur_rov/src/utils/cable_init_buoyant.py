@@ -56,6 +56,21 @@ def straight_length(x_r: float, z_r: float) -> float:
     return float(np.hypot(x_r, z_r))
 
 
+_MAX_HYP_ARG = 700.0
+
+
+def _cosh_m1(u: float) -> float:
+    if abs(u) > _MAX_HYP_ARG:
+        return 1e30
+    return float(np.cosh(u) - 1.0)
+
+
+def _sinh_safe(u: float) -> float:
+    if abs(u) > _MAX_HYP_ARG:
+        return float(np.copysign(1e30, u))
+    return float(np.sinh(u))
+
+
 def catenary_z(x: np.ndarray, x_H: float, z_H: float, a: float) -> np.ndarray:
     """z(x) = z_H + a * (cosh((x - x_H) / a) - 1)."""
     return z_H + a * (np.cosh((x - x_H) / a) - 1.0)
@@ -63,9 +78,13 @@ def catenary_z(x: np.ndarray, x_H: float, z_H: float, a: float) -> np.ndarray:
 
 def arc_catenary(xa: float, xb: float, a: float, x_H: float) -> float:
     """Longueur d'arc le long de z = z_H + a(cosh((x-x_H)/a)-1) entre xa et xb."""
-    return float(
-        abs(a * (np.sinh((xb - x_H) / a) - np.sinh((xa - x_H) / a)))
-    )
+    if a <= 1e-12:
+        return 1e30
+    ub = (xa - x_H) / a
+    ua = (xb - x_H) / a
+    if abs(ub) > _MAX_HYP_ARG or abs(ua) > _MAX_HYP_ARG:
+        return 1e30
+    return float(abs(a * (_sinh_safe(ua) - _sinh_safe(ub))))
 
 
 # ---------------------------------------------------------------------------
@@ -86,9 +105,7 @@ def solve_a_vertex_at_boat(x_r: float, z_r: float) -> tuple[float, float]:
     def f_a(ap: float) -> float:
         if ap <= 1e-12:
             return 1e30
-        if xr / ap > 700.0:
-            return 1e30
-        return ap * (np.cosh(xr / ap) - 1.0) - zr
+        return ap * _cosh_m1(xr / ap) - zr
 
     # a trop petit => overflow cosh ; partir d'un lo raisonnable
     lo = max(xr**2 / (2.0 * zr) * 0.01, 1e-4)
@@ -106,7 +123,7 @@ def solve_a_vertex_at_boat(x_r: float, z_r: float) -> tuple[float, float]:
     if not sol.converged:
         raise ValueError("solve_a_vertex_at_boat: non convergence")
     a = float(sol.root)
-    L0 = float(a * abs(np.sinh(xr / a)))
+    L0 = float(a * abs(_sinh_safe(xr / a)))
     return a, L0
 
 
@@ -129,17 +146,19 @@ def _solve_three_unknowns(
         x_H, z_H, a = float(v[0]), float(v[1]), float(v[2])
         if a <= 1e-9:
             return np.array([1e12, 1e12, 1e12])
-        r0 = z_H + a * (np.cosh(x_H / a) - 1.0)
-        r1 = z_H + a * (np.cosh((xr - x_H) / a) - 1.0) - zr
-        r2 = (
-            a * (np.sinh((xr - x_H) / a) + np.sinh(x_H / a))
-        ) - L
+        u_boat = x_H / a
+        u_rov = (xr - x_H) / a
+        if abs(u_boat) > _MAX_HYP_ARG or abs(u_rov) > _MAX_HYP_ARG:
+            return np.array([1e12, 1e12, 1e12])
+        r0 = z_H + a * _cosh_m1(u_boat)
+        r1 = z_H + a * _cosh_m1(u_rov) - zr
+        r2 = a * (_sinh_safe(u_rov) + _sinh_safe(u_boat)) - L
         return np.array([r0, r1, r2], dtype=float)
 
     # Estimation : sommet entre bateau et ROV en x, légèrement en profondeur
     x_H0 = 0.35 * xr
     a0 = max(a_guess * 0.8, 1e-3)
-    z_H0 = -a0 * (np.cosh(x_H0 / a0) - 1.0) + 0.01
+    z_H0 = -a0 * _cosh_m1(x_H0 / a0) + 0.01
     v0 = np.array([x_H0, z_H0, a0], dtype=float)
     sol, infodict, ier, _ = fsolve(residuals, v0, full_output=True)
     if ier != 1 or np.max(np.abs(residuals(sol))) > 1e-5:
@@ -214,10 +233,13 @@ def _solve_L_ge_L0_single(
                     if x_H >= -env or x_H <= xr + env:
                         return np.array([1e12, 1e12])
 
+        u_rov = (xr - x_H) / ap
+        if abs(u_rov) > _MAX_HYP_ARG:
+            return np.array([1e12, 1e12])
         arc = arc_catenary(x_H, xr, ap, x_H)
         len_h = abs(x_H)
         r0 = len_h + arc - L
-        r1 = ap * (np.cosh((xr - x_H) / ap) - 1.0) - zr
+        r1 = ap * _cosh_m1(u_rov) - zr
         return np.array([r0, r1], dtype=float)
 
     a_min = max(a_ref, 1e-6)
