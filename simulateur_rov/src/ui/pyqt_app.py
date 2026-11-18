@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from .pyqt_widgets.simulation_tab import SimulationTab
 from .pyqt_widgets.all_parameters_tab import AllParametersTab
 from .test_tab import TestTab
+from .essais_tab import EssaisTab
 
 
 class ROVSimulatorApp(QMainWindow):
@@ -133,6 +134,10 @@ class ROVSimulatorApp(QMainWindow):
         # Onglet Tests (gestion et lancement des tests)
         self.test_tab = TestTab(self)
         self.tabs.addTab(self.test_tab, "🧪 Tests")
+
+        # Onglet Essais (campagnes d'initialisation statique)
+        self.essais_tab = EssaisTab(self)
+        self.tabs.addTab(self.essais_tab, "Essais")
 
         # Charger la table des matières une première fois
         self._load_help_toc()

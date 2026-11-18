@@ -165,6 +165,10 @@ class SimulationTab(QWidget):
         # Connecter le signal pour mettre à jour simulation_state
         self.fx_rov_input.valueChanged.connect(self.update_command_in_state)
         commands_layout.addWidget(self.fx_rov_input, 0, 1)
+        self.fx_rov_mode_btn = QPushButton("Scénario")
+        self.fx_rov_mode_btn.setMinimumWidth(110)
+        self.fx_rov_mode_btn.clicked.connect(self.on_fx_rov_mode_clicked)
+        commands_layout.addWidget(self.fx_rov_mode_btn, 0, 2)
         
         # Force verticale ROV
         commands_layout.addWidget(QLabel("<b>Fy ROV (N):</b>"), 1, 0)
@@ -177,6 +181,10 @@ class SimulationTab(QWidget):
         # Connecter le signal pour mettre à jour simulation_state
         self.fy_rov_input.valueChanged.connect(self.update_command_in_state)
         commands_layout.addWidget(self.fy_rov_input, 1, 1)
+        self.fy_rov_mode_btn = QPushButton("Scénario")
+        self.fy_rov_mode_btn.setMinimumWidth(110)
+        self.fy_rov_mode_btn.clicked.connect(self.on_fy_rov_mode_clicked)
+        commands_layout.addWidget(self.fy_rov_mode_btn, 1, 2)
         
         # Vitesse commande bateau
         commands_layout.addWidget(QLabel("<b>vx Bateau (m/s):</b>"), 2, 0)
@@ -189,6 +197,10 @@ class SimulationTab(QWidget):
         # Connecter le signal pour mettre à jour simulation_state
         self.vx_boat_cmd_input.valueChanged.connect(self.update_command_in_state)
         commands_layout.addWidget(self.vx_boat_cmd_input, 2, 1)
+        self.vx_boat_mode_btn = QPushButton("Scénario")
+        self.vx_boat_mode_btn.setMinimumWidth(110)
+        self.vx_boat_mode_btn.clicked.connect(self.on_vx_boat_mode_clicked)
+        commands_layout.addWidget(self.vx_boat_mode_btn, 2, 2)
         
         # Vitesse déroulement câble
         commands_layout.addWidget(QLabel("<b>dL/dt (m/s):</b>"), 3, 0)
@@ -204,11 +216,13 @@ class SimulationTab(QWidget):
         commands_layout.addWidget(self.dl_dt_input, 3, 1)
 
         self.dl_dt_mode_btn = QPushButton("Auto")
-        self.dl_dt_mode_btn.setCheckable(True)
-        self.dl_dt_mode_btn.setChecked(True)
-        self.dl_dt_mode_btn.toggled.connect(self.on_dl_dt_mode_toggled)
+        self.dl_dt_mode_btn.setMinimumWidth(110)
+        self.dl_dt_mode_btn.clicked.connect(self.on_dl_dt_mode_clicked)
         commands_layout.addWidget(self.dl_dt_mode_btn, 3, 2)
         state = self.main_window.get_simulation_state()
+        state['fx_rov_mode'] = "scenario"
+        state['fy_rov_mode'] = "scenario"
+        state['vx_boat_mode'] = "scenario"
         state['dl_dt_mode'] = "auto"
         self.main_window.update_simulation_state(state)
         
@@ -1775,7 +1789,10 @@ class SimulationTab(QWidget):
             state['fy_rov_source'] = "user"
             state['vx_boat_cmd_source'] = "user"
             state['dl_dt_source'] = "user"
-            state['dl_dt_mode'] = "auto" if self.dl_dt_mode_btn.isChecked() else "scen"
+            state['fx_rov_mode'] = self._scenario_manual_mode(self.fx_rov_mode_btn)
+            state['fy_rov_mode'] = self._scenario_manual_mode(self.fy_rov_mode_btn)
+            state['vx_boat_mode'] = self._scenario_manual_mode(self.vx_boat_mode_btn)
+            state['dl_dt_mode'] = self._dl_dt_mode_value()
             self.main_window.update_simulation_state(state)
 
             # Réinitialiser les styles des commandes au démarrage
@@ -2230,23 +2247,23 @@ class SimulationTab(QWidget):
         state['data'].update(data_copy)
         state['current_time'] = data.get('current_time', state.get('current_time', 0.0))
         self.main_window.update_simulation_state(state)
-        if state.get('fx_rov_source') == "scenario":
+        if state.get('fx_rov_mode') == "scenario" and state.get('fx_rov_source') == "scenario":
             fx_value = state.get('fx_rov')
             if fx_value is not None:
                 self.apply_scenario_fx_command(float(fx_value))
-        if state.get('fy_rov_source') == "scenario":
+        if state.get('fy_rov_mode') == "scenario" and state.get('fy_rov_source') == "scenario":
             fy_value = state.get('fy_rov')
             if fy_value is not None:
                 self.apply_scenario_fy_command(float(fy_value))
-        if state.get('vx_boat_cmd_source') == "scenario":
+        if state.get('vx_boat_mode') == "scenario" and state.get('vx_boat_cmd_source') == "scenario":
             vx_value = state.get('vx_boat_cmd')
             if vx_value is not None:
                 self.apply_scenario_vx_boat_command(float(vx_value))
-        if state.get('dl_dt_source') == "auto":
+        if state.get('dl_dt_mode') == "auto" and state.get('dl_dt_source') == "auto":
             dl_value = state.get('dl_dt')
             if dl_value is not None:
                 self.apply_auto_dl_dt_command(float(dl_value))
-        elif state.get('dl_dt_source') == "scenario":
+        elif state.get('dl_dt_mode') == "scenario" and state.get('dl_dt_source') == "scenario":
             dl_value = state.get('dl_dt')
             if dl_value is not None:
                 self.apply_scenario_dl_dt_command(float(dl_value))
@@ -2491,11 +2508,87 @@ class SimulationTab(QWidget):
         for label in ("Fx", "Fy", "Bat", "Moul"):
             self._update_scenario_field(label)
 
-    def on_dl_dt_mode_toggled(self, checked: bool) -> None:
-        """Bascule le mode de commande dL/dt entre Auto et Scen."""
-        self.dl_dt_mode_btn.setText("Auto" if checked else "Scen")
+    def _scenario_manual_mode(self, button: QPushButton) -> str:
+        """Retourne le mode porté par un bouton Scénario / Manuel."""
+        return "manuel" if button.text() == "Manuel" else "scenario"
+
+    def _dl_dt_mode_value(self) -> str:
+        """Retourne auto, scenario ou manuel selon la face du bouton dL/dt."""
+        label = self.dl_dt_mode_btn.text()
+        if label == "Manuel":
+            return "manuel"
+        if label == "Scénario":
+            return "scenario"
+        return "auto"
+
+    def _cycle_scenario_manual(
+        self,
+        button: QPushButton,
+        mode_key: str,
+        spinbox: QDoubleSpinBox,
+        source_key: str,
+        flag_attr: str,
+    ) -> None:
+        """Fait défiler Scénario et Manuel, et rend la saisie manuelle en noir."""
         state = self.main_window.get_simulation_state()
-        state['dl_dt_mode'] = "auto" if checked else "scen"
+        if button.text() == "Scénario":
+            button.setText("Manuel")
+            state[mode_key] = "manuel"
+            spinbox.setStyleSheet("color: #000000;")
+            setattr(self, flag_attr, False)
+            state[source_key] = "user"
+        else:
+            button.setText("Scénario")
+            state[mode_key] = "scenario"
+        self.main_window.update_simulation_state(state)
+
+    def on_fx_rov_mode_clicked(self) -> None:
+        """Bascule Fx ROV entre Scénario et Manuel."""
+        self._cycle_scenario_manual(
+            self.fx_rov_mode_btn,
+            "fx_rov_mode",
+            self.fx_rov_input,
+            "fx_rov_source",
+            "_fx_rov_scenario_update",
+        )
+
+    def on_fy_rov_mode_clicked(self) -> None:
+        """Bascule Fy ROV entre Scénario et Manuel."""
+        self._cycle_scenario_manual(
+            self.fy_rov_mode_btn,
+            "fy_rov_mode",
+            self.fy_rov_input,
+            "fy_rov_source",
+            "_fy_rov_scenario_update",
+        )
+
+    def on_vx_boat_mode_clicked(self) -> None:
+        """Bascule vx bateau entre Scénario et Manuel."""
+        self._cycle_scenario_manual(
+            self.vx_boat_mode_btn,
+            "vx_boat_mode",
+            self.vx_boat_cmd_input,
+            "vx_boat_cmd_source",
+            "_vx_boat_scenario_update",
+        )
+
+    def on_dl_dt_mode_clicked(self) -> None:
+        """Fait défiler dL/dt entre Auto, Scénario et Manuel."""
+        order = ("Auto", "Scénario", "Manuel")
+        modes = {"Auto": "auto", "Scénario": "scenario", "Manuel": "manuel"}
+        current = self.dl_dt_mode_btn.text()
+        try:
+            nxt = order[(order.index(current) + 1) % len(order)]
+        except ValueError:
+            nxt = "Auto"
+        self.dl_dt_mode_btn.setText(nxt)
+        state = self.main_window.get_simulation_state()
+        state['dl_dt_mode'] = modes[nxt]
+        if nxt == "Manuel":
+            self.dl_dt_input.setStyleSheet("color: #000000;")
+            self._dl_dt_scenario_update = False
+            self._dl_dt_auto_update = False
+            state['dl_dt_source'] = "user"
         self.main_window.update_simulation_state(state)
     
     def on_simulation_error(self, error_msg):
@@ -3093,7 +3186,8 @@ class SimulationTab(QWidget):
                         if ds_boat > 1e-6:
                             uboat_x = dx_boat / ds_boat
                             uboat_y = dy_boat / ds_boat
-                            # Force exercée par le bateau sur le câble = opposée à U_bateau (cohérent avec _trace_cable_equilibrium_forces)
+                            # Même tension que « Tension bateau » : la norme du vecteur est T_bateau.
+                            # Le bateau retient le câble, donc la force est opposée à la tangente.
                             traction_boat = (-T_boat * uboat_x, -T_boat * uboat_y)
                             self.traction_boat_label.setText(f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N")
                         else:
@@ -3165,48 +3259,6 @@ class SimulationTab(QWidget):
                             self.cable_drag_label.setText(
                                 f"({cable_drag_vec[0]:.2f}, {cable_drag_vec[1]:.2f}) N"
                             )
-                            # Même avec traînée issue du thread, recaler les tractions pour
-                            # fermer le bilan des forces câble.
-                            x_cable_now = data.get('x_cable_curr')
-                            y_cable_now = data.get('y_cable_curr')
-                            if x_cable_now is not None and y_cable_now is not None and len(x_cable_now) > 1:
-                                x_arr = np.asarray(x_cable_now, dtype=float)
-                                y_arr = np.asarray(y_cable_now, dtype=float)
-                                x_boat_now = data['x_boat'][-1] if data.get('x_boat') else 0.0
-                                x_rov_now = data['x_rov'][-1] if data.get('x_rov') else x_arr[-1]
-                                y_rov_now = data['y_rov'][-1] if data.get('y_rov') else y_arr[-1]
-                                dist_first_to_boat = np.sqrt((x_arr[0] - x_boat_now) ** 2 + (y_arr[0] - 0.0) ** 2)
-                                dist_first_to_rov = np.sqrt((x_arr[0] - x_rov_now) ** 2 + (y_arr[0] - y_rov_now) ** 2)
-                                if dist_first_to_rov < dist_first_to_boat:
-                                    x_arr = np.flip(x_arr)
-                                    y_arr = np.flip(y_arr)
-                                dx_boat = float(x_arr[1] - x_arr[0])
-                                dy_boat = float(y_arr[1] - y_arr[0])
-                                ds_boat = float(np.hypot(dx_boat, dy_boat))
-                                dx_rov = float(x_arr[-1] - x_arr[-2])
-                                dy_rov = float(y_arr[-1] - y_arr[-2])
-                                ds_rov = float(np.hypot(dx_rov, dy_rov))
-                                if ds_boat > 1e-9 and ds_rov > 1e-9:
-                                    uboat_x = dx_boat / ds_boat
-                                    uboat_y = dy_boat / ds_boat
-                                    urov_x = dx_rov / ds_rov
-                                    urov_y = dy_rov / ds_rov
-                                    A = np.array([[-uboat_x, urov_x], [-uboat_y, urov_y]], dtype=float)
-                                    b = -np.array(
-                                        [
-                                            cable_drag_vec[0] + cable_weight_vec[0],
-                                            cable_drag_vec[1] + cable_weight_vec[1],
-                                        ],
-                                        dtype=float,
-                                    )
-                                    tr_sol, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
-                                    traction_boat = (float(-tr_sol[0] * uboat_x), float(-tr_sol[0] * uboat_y))
-                                    traction_rov = (float(tr_sol[1] * urov_x), float(tr_sol[1] * urov_y))
-                                    traction_cable_on_rov_interface = (-traction_rov[0], -traction_rov[1])
-                                    traction_interface_valid = True
-                                    self.traction_boat_label.setText(f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N")
-                                    self.traction_rov_label.setText(f"({traction_rov[0]:.2f}, {traction_rov[1]:.2f}) N")
-
                             total_fx = traction_rov[0] + traction_boat[0] + cable_weight_vec[0] + cable_drag_vec[0]
                             total_fy = traction_rov[1] + traction_boat[1] + cable_weight_vec[1] + cable_drag_vec[1]
                             self.cable_total_forces_label.setText(f"({total_fx:.2f}, {total_fy:.2f}) N")
@@ -3293,49 +3345,6 @@ class SimulationTab(QWidget):
                             if cable_drag_vec is not None:
                                 self.cable_drag_label.setText(
                                     f"({cable_drag_vec[0]:.2f}, {cable_drag_vec[1]:.2f}) N"
-                                )
-
-                            # Recalculer les tractions d'extrémité à partir de l'équilibre global
-                            # pour la métrique câble (évite l'incohérence quand T_boat/T_rov
-                            # ne ferment pas exactement le bilan vectoriel).
-                            dx_boat = float(x_cable[1] - x_cable[0])
-                            dy_boat = float(y_cable[1] - y_cable[0])
-                            ds_boat = float(np.hypot(dx_boat, dy_boat))
-                            dx_rov = float(x_cable[-1] - x_cable[-2])
-                            dy_rov = float(y_cable[-1] - y_cable[-2])
-                            ds_rov = float(np.hypot(dx_rov, dy_rov))
-                            if ds_boat > 1e-9 and ds_rov > 1e-9:
-                                uboat_x = dx_boat / ds_boat
-                                uboat_y = dy_boat / ds_boat
-                                urov_x = dx_rov / ds_rov
-                                urov_y = dy_rov / ds_rov
-                                A = np.array(
-                                    [[-uboat_x, urov_x], [-uboat_y, urov_y]],
-                                    dtype=float,
-                                )
-                                b = -np.array(
-                                    [
-                                        cable_drag_vec[0] + cable_weight_vec[0],
-                                        cable_drag_vec[1] + cable_weight_vec[1],
-                                    ],
-                                    dtype=float,
-                                )
-                                tr_sol, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
-                                traction_boat = (
-                                    float(-tr_sol[0] * uboat_x),
-                                    float(-tr_sol[0] * uboat_y),
-                                )
-                                traction_rov = (
-                                    float(tr_sol[1] * urov_x),
-                                    float(tr_sol[1] * urov_y),
-                                )
-                                traction_cable_on_rov_interface = (-traction_rov[0], -traction_rov[1])
-                                traction_interface_valid = True
-                                self.traction_boat_label.setText(
-                                    f"({traction_boat[0]:.2f}, {traction_boat[1]:.2f}) N"
-                                )
-                                self.traction_rov_label.setText(
-                                    f"({traction_rov[0]:.2f}, {traction_rov[1]:.2f}) N"
                                 )
 
                             total_fx = traction_rov[0] + traction_boat[0] + cable_weight_vec[0] + cable_drag_vec[0]

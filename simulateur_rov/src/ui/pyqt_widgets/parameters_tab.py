@@ -125,7 +125,7 @@ class ParametersTab(QWidget):
         cable_group = self.create_cable_parameters_group()
         scroll_layout.addWidget(cable_group)
         
-        # Paramètres Bateau
+        # Paramètres Bateau et Moulinet
         boat_group = self.create_boat_parameters_group()
         scroll_layout.addWidget(boat_group)
         
@@ -198,8 +198,8 @@ class ParametersTab(QWidget):
         return group
     
     def create_boat_parameters_group(self):
-        """Crée le groupe de paramètres Bateau"""
-        group = QGroupBox("Paramètres Bateau")
+        """Crée le groupe de paramètres Bateau et Moulinet"""
+        group = QGroupBox("Paramètres Bateau et Moulinet")
         layout = QGridLayout()
         
         layout.addWidget(QLabel("Masse (kg):"), 0, 0)

@@ -166,8 +166,9 @@ Deux régimes sont utilisés :
 
    - Si le câble est plus dense que l'eau : la solution de référence est une
      caténaire reliant le bateau au ROV.
-   - Si le slack est négatif (L < distance droite) : la tension au ROV est
-     augmentée pour forcer slack >= 0, et la géométrie est forcée rectiligne.
+   - Si le mou est négatif (`L` plus court que la distance droite) : la géométrie
+     du mélange est la corde, et la tension cible reçoit une pénalité
+     quadratique du déficit, relaxée par `dT/dt`.
    - Lorsque la longueur de câble est **proche** de la distance droite
      (`r = L / L_straight ≈ 1`), le modèle n’effectue plus un basculement
      binaire entre « ligne droite » et « caténaire ». À la place, le solveur
@@ -175,19 +176,27 @@ Deux régimes sont utilisés :
      un **blending continu** entre les deux en fonction de r :
 
      - pour `r = 1`, la solution est 100 % rectiligne ;
-     - pour `r ≥ 1.01`, la solution est 100 % caténaire ;
-     - entre les deux, la transition est linéaire.
+     - pour `r ≥ 1,05`, la solution est 100 % caténaire ;
+     - entre les deux, le poids de la droite est un smoothstep
+       (`straight_blend_weight` dans `src/solvers/cable_continuity.py`),
+       appliqué à la géométrie et à la tension avec le même coefficient.
+       Le mélange est fait dans `Cable.solve_equilibrium` et à
+       l'initialisation, sans rééchantillonnage (la longueur est rétablie
+       par la projection de fin de pas).
 
    Cette interpolation continue supprime les discontinuités numériques quand le
-   câble passe d’un régime quasi tendu à un régime nettement fléchi. Dans tous
-   les cas, la géométrie obtenue est ensuite **renormalisée** pour respecter
-   exactement la longueur `L(t)` et garantir des segments de même longueur.
+   câble passe d’un régime quasi tendu à un régime nettement fléchi. La longueur
+   est rétablie une fois par pas accepté, par la projection, et non dans le
+   mélange lui-même.
 
 2) **Dynamique**
    
-   - Résolution du profil de câble avec forces hydrodynamiques et poids apparent
-   - Mise à jour des tensions via relaxation temporelle
-   - Ajustement de la tension au ROV si slack < 0 pour garantir slack >= 0
+   - Le profil n'est recalculé qu'une fois par pas accepté
+     (`refresh_cable_equilibrium_inplace`), puis mélangé avec la droite si
+     `r < 1,05`.
+   - Entre deux pas, les tensions suivent `dT/dt = (T_cible - T) / tau(slack)`.
+   - Si le mou est négatif, `T_cible` reçoit une pénalité quadratique ; la
+     tension appliquée au ROV reste l'état relaxé.
 
 ### 5.3 Poids apparent du câble
 

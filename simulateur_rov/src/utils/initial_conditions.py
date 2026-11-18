@@ -1,6 +1,8 @@
 """Conditions initiales."""
 import numpy as np
 
+from ..solvers.cable_continuity import blend_polyline_near_taut
+
 
 def _select_cable_init_mode(cable_init_mode=None, legacy_init_geometry=False):
     """Retourne le mode d'initialisation câble normalisé."""
@@ -62,6 +64,9 @@ def get_initial_state(system, x_rov=0.0, y_rov=-10.0, vx_rov=0.0, vy_rov=0.0,
         x_cable, y_cable, T = system.cable.solver.solve_equilibrium_static(
             x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
         )
+    x_cable, y_cable, T = blend_polyline_near_taut(
+        x_cable, y_cable, T, float(x_boat), float(x_rov), float(y_rov), float(L)
+    )
     
     # En mode strict, on fige les extrémités pour éviter toute dérive à l'initialisation.
     if mode == "strict_static":

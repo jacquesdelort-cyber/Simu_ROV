@@ -1,0 +1,77 @@
+{
+    "date_sauvegarde": "2026-11-13T16:48:32.024418",
+    "mission": "M_Référence",
+    "description": "L = 35 m, position (0, -20) m, ROV et câble avec une flottabilité légèrement positive.  \nCourant: 0.7 m/s  Les hélices du ROV (Fx et Fy) compensent pour maintenir le ROV immobile.  --> Tension cable au niveau du bateau : 20 N",
+    "parameters": {
+        "rov": {
+            "m": 30.0,
+            "vol": 0.03,
+            "a": 0.4,
+            "b": 0.7,
+            "h": 0.4,
+            "Cx": 0.9,
+            "Cy": 0.9
+        },
+        "cable": {
+            "d": 0.001,
+            "rho_cable": 950.0,
+            "Cx_cable": 0.9,
+            "Cf_cable": 0.04,
+            "tension_rupture": 60.0
+        },
+        "boat": {
+            "m": 10000.0,
+            "drag_coefficient": 0.5,
+            "dl_dt_min": -0.81,
+            "dl_dt_max": 0.81,
+            "gamma_moulinet_min": -0.2478,
+            "gamma_moulinet_max": 0.1239
+        },
+        "environment": {
+            "rho_eau": 1030.0,
+            "g": 9.81,
+            "mu": 0.001
+        }
+    },
+    "calc_params": {
+        "dynamic_simulation": false,
+        "method": "RK45",
+        "rtol": 1e-05,
+        "atol": 1e-07,
+        "max_step": 0.1,
+        "dt_max": 0.1,
+        "t_final": 3600.0,
+        "steps_per_update": 20,
+        "N_segments": 1000,
+        "straight_blend_alpha": 1.0,
+        "max_data_size": 10000,
+        "excel_write_interval": 50,
+        "plot_points_limit": 1000,
+        "sc_fx_rov": "(t >0:-38.04)",
+        "sc_fy_rov": "(t >0:-9.01)",
+        "sc_v_bateau": "",
+        "sc_v_moulinet": "",
+        "auto_L": "auto_L_min",
+        "Tcible": 20.0,
+        "guard_profile": "soft",
+        "guard_enable": true,
+        "guard_tension_spike_factor": 12.0,
+        "guard_tension_abs": 1200.0,
+        "guard_geom_ds_ratio": 3.2,
+        "guard_geom_rel_L": 0.07,
+        "guard_hard_block_duration_s": 1.5,
+        "trace_boost_level": 7,
+        "trace_boost_duration_s": 2.0,
+        "use_constrained_integrator": false,
+        "dae_projection_substeps": 4
+    },
+    "init_params": {
+        "x_rov_init": 0.0,
+        "y_rov_init": -20.0,
+        "x_boat_init": 0.0,
+        "L_init": 35.0,
+        "v_courant": "0.0:2.5",
+        "cable_init_mode": "strict_static",
+        "legacy_init_geometry": false
+    }
+}

@@ -218,7 +218,7 @@ class AllParametersTab(QWidget):
         cable_group = self.create_cable_parameters_group()
         layout.addWidget(cable_group)
         
-        # Paramètres Bateau
+        # Paramètres Bateau et Moulinet
         boat_group = self.create_boat_parameters_group()
         layout.addWidget(boat_group)
         
@@ -423,14 +423,16 @@ class AllParametersTab(QWidget):
         sim_layout.addWidget(QLabel("Intégration contrainte (DAE, RK4+projection):"), 5, 0)
         self.use_constrained_integrator = QCheckBox("Activer (use_constrained_integrator)")
         self.use_constrained_integrator.setToolTip(
-            "Half-explicit : sous-pas RK4 avec projection câble après chaque sous-pas "
+            "Half-explicit : sous-pas RK4 à géométrie de câble figée, "
+            "puis un solveur et une projection en fin de pas "
             "(voir docs/dae_cable_rov_spec.md). Désactivé par défaut."
         )
         sim_layout.addWidget(self.use_constrained_integrator, 5, 1)
         sim_layout.addWidget(
             HelpButton(
-                "Réduit les incohérences L vs Σds en forçant la normalisation du câble "
-                "plusieurs fois par pas de simulation. Coût CPU plus élevé.",
+                "Réduit les incohérences L vs Σds en normalisant le câble "
+                "une fois en fin de pas. Le solveur non linéaire n'est pas "
+                "appelé pendant les sous-pas RK4.",
                 self,
             ),
             5,
@@ -638,8 +640,8 @@ class AllParametersTab(QWidget):
         return group
     
     def create_boat_parameters_group(self):
-        """Crée le groupe de paramètres Bateau"""
-        group = QGroupBox("Paramètres Bateau")
+        """Crée le groupe de """
+        group = QGroupBox("Paramètres Bateau et Moulinet")
         layout = QGridLayout()
         
         layout.addWidget(QLabel("Masse (kg):"), 0, 0)

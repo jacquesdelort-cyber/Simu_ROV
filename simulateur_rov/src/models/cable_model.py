@@ -1,5 +1,6 @@
 """Modèle du câble ombilical"""
 import numpy as np
+from ..solvers.cable_continuity import blend_polyline_near_taut
 from ..solvers.cable_solver import CableSolver
 
 
@@ -81,16 +82,15 @@ class Cable:
                 x_cable, y_cable, T = self.solver.solve_equilibrium_static(
                     x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
                 )
-            self.x_cable_prev = x_cable.copy()
-            self.y_cable_prev = y_cable.copy()
-            return x_cable, y_cable, T
         else:
-            # Solution dynamique
             x_cable, y_cable, T = self.solver.solve_equilibrium_dynamic(
                 x_rov, y_rov, vx_rov, vy_rov,
                 x_boat, vx_boat, L, x_cable_prev, y_cable_prev, rov_m=rov_m, rov_vol=rov_vol
             )
-            self.x_cable_prev = x_cable.copy()
-            self.y_cable_prev = y_cable.copy()
-            return x_cable, y_cable, T
+        x_cable, y_cable, T = blend_polyline_near_taut(
+            x_cable, y_cable, T, float(x_boat), float(x_rov), float(y_rov), float(L)
+        )
+        self.x_cable_prev = np.asarray(x_cable, dtype=float).copy()
+        self.y_cable_prev = np.asarray(y_cable, dtype=float).copy()
+        return x_cable, y_cable, T
 

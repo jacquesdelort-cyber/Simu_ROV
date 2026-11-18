@@ -40,7 +40,7 @@ Les **tensions** discrètes sont traitées comme variables **algébriques** lié
 ## 4. Choix d’architecture numérique (phase 1 implémentée)
 
 - **Famille retenue pour l’instant** : **half-explicit** (schéma de type DAE semi-explicite), **sans nouvelle dépendance** (SciPy / NumPy uniquement).  
-- **Pas** : sous-pas **RK4** sur \([t_k, t_{k+1}]\), avec **projection** (`_normalize_cable_length` + tensions) après **chaque** sous-pas.  
+- **Pas** : sous-pas **RK4** sur \([t_k, t_{k+1}]\) à géométrie figée (le second membre n'appelle pas le solveur non linéaire). En fin d'intervalle, **un** appel à `refresh_cable_equilibrium_inplace`, puis **une** projection (`_normalize_cable_length` + tensions).  
 - **Évolution** possible : coordonnées minimales (ODE sur variété), ou solveur DAE dédié (SUNDIALS IDA) — voir section 6.
 
 Forme limite visée (documentation) :

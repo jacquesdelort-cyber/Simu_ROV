@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from src.models.state_projection import (
     apply_slack_tension_soft_cap_inplace,
+    raise_profile_to_rov_hold,
     reconcile_straight_mode_after_normalize,
     repack_cable_static_equilibrium_inplace,
 )
@@ -97,6 +98,12 @@ class SimulationThread(QThread):
         self.sc_v_bateau = sc_v_bateau
         self.sc_v_moulinet = sc_v_moulinet
         self.mission_name = mission_name
+        self._scenario_hold = {
+            "fx_rov": None,
+            "fy_rov": None,
+            "vx_boat_cmd": None,
+            "dl_dt": None,
+        }
         
         self._stop_requested = False
         self._paused = False
@@ -112,6 +119,34 @@ class SimulationThread(QThread):
     def resume(self):
         """Reprend la simulation"""
         self._paused = False
+
+    def _command_mode(self, key: str, default: str) -> str:
+        """Lit un mode de commande. L'ancien libellé scen vaut scenario."""
+        mode = default
+        if isinstance(self.simulation_state, dict):
+            mode = self.simulation_state.get(key, default)
+        if mode == "scen":
+            mode = "scenario"
+        if mode not in ("auto", "scenario", "manuel"):
+            return default
+        return mode
+
+    def _live_command(self, key: str, fallback: float) -> float:
+        """Retourne la commande réellement en vigueur dans l'état."""
+        if isinstance(self.simulation_state, dict):
+            return float(self.simulation_state.get(key, fallback))
+        return float(fallback)
+
+    def _remember_scenario(self, key: str, value) -> None:
+        """Mémorise une consigne émise, y compris si le champ est en Manuel."""
+        if value is not None:
+            self._scenario_hold[key] = float(value)
+
+    def _scenario_apply_value(self, key: str, mode: str, scenario_text: str):
+        """Consigne à écrire : dernière valeur connue, seulement en mode Scénario."""
+        if mode != "scenario" or not scenario_text:
+            return None
+        return self._scenario_hold.get(key)
     
     def run(self):
         """Exécute la simulation"""
@@ -1229,10 +1264,22 @@ class SimulationThread(QThread):
                 try:
                     # Niveau 10 : avec trace_print(level), le message s'affiche si level >= TRACE_LEVEL
                     # (spinbox 0..10). Un niveau 9 est masqué quand TRACE_LEVEL vaut 10.
+                    fx_rov_trace = self.fx_rov
+                    fy_rov_trace = self.fy_rov
+                    if isinstance(self.simulation_state, dict):
+                        with self._state_lock:
+                            fx_rov_trace = self.simulation_state.get("fx_rov", self.fx_rov)
+                            fy_rov_trace = self.simulation_state.get("fy_rov", self.fy_rov)
                     trace_print(
                         10,
                         f"\n{_ANSI_BLUE}[SimulationThread :]{_ANSI_RESET} : "
-                        + str_etat_système(system, y_current, t=t_current),
+                        + str_etat_système(
+                            system,
+                            y_current,
+                            t=t_current,
+                            fx_rov=fx_rov_trace,
+                            fy_rov=fy_rov_trace,
+                        ),
                     )
                     if 9.8 <= float(t_current) <= 10.2:
                         trace_print(
@@ -1278,9 +1325,10 @@ class SimulationThread(QThread):
                 vx_boat_cmd = None
                 dl_dt_cmd = None
                 dl_dt_auto_explain = ""
-                dl_dt_mode = "scen"
-                if isinstance(self.simulation_state, dict):
-                    dl_dt_mode = self.simulation_state.get('dl_dt_mode', 'scen')
+                fx_mode = self._command_mode("fx_rov_mode", "scenario")
+                fy_mode = self._command_mode("fy_rov_mode", "scenario")
+                vx_mode = self._command_mode("vx_boat_mode", "scenario")
+                dl_dt_mode = self._command_mode("dl_dt_mode", "scenario")
 
                 _trace_non_finite_rov("pre_command", y_current, t_current, step_count)
                 if self.sc_fx_rov or self.sc_fy_rov or self.sc_v_bateau or self.sc_v_moulinet or dl_dt_mode == "auto":
@@ -1293,37 +1341,55 @@ class SimulationThread(QThread):
                             t_boat = float(T_current[0])
                         step_triggers = []
                         if self.sc_fx_rov:
-                            fx_rov_cmd = commande_scenario(
-                                "Fx_rov",
-                                self.sc_fx_rov,
-                                t_current,
-                                L_current,
-                                y_rov_current,
-                                x_rov_current,
-                                t_boat,
-                                step_triggers,
+                            self._remember_scenario(
+                                "fx_rov",
+                                commande_scenario(
+                                    "Fx_rov",
+                                    self.sc_fx_rov,
+                                    t_current,
+                                    L_current,
+                                    y_rov_current,
+                                    x_rov_current,
+                                    t_boat,
+                                    step_triggers,
+                                ),
+                            )
+                            fx_rov_cmd = self._scenario_apply_value(
+                                "fx_rov", fx_mode, self.sc_fx_rov
                             )
                         if self.sc_fy_rov:
-                            fy_rov_cmd = commande_scenario(
-                                "Fy_rov",
-                                self.sc_fy_rov,
-                                t_current,
-                                L_current,
-                                y_rov_current,
-                                x_rov_current,
-                                t_boat,
-                                step_triggers,
+                            self._remember_scenario(
+                                "fy_rov",
+                                commande_scenario(
+                                    "Fy_rov",
+                                    self.sc_fy_rov,
+                                    t_current,
+                                    L_current,
+                                    y_rov_current,
+                                    x_rov_current,
+                                    t_boat,
+                                    step_triggers,
+                                ),
+                            )
+                            fy_rov_cmd = self._scenario_apply_value(
+                                "fy_rov", fy_mode, self.sc_fy_rov
                             )
                         if self.sc_v_bateau:
-                            vx_boat_cmd = commande_scenario(
-                                "Vx_bateau",
-                                self.sc_v_bateau,
-                                t_current,
-                                L_current,
-                                y_rov_current,
-                                x_rov_current,
-                                t_boat,
-                                step_triggers,
+                            self._remember_scenario(
+                                "vx_boat_cmd",
+                                commande_scenario(
+                                    "Vx_bateau",
+                                    self.sc_v_bateau,
+                                    t_current,
+                                    L_current,
+                                    y_rov_current,
+                                    x_rov_current,
+                                    t_boat,
+                                    step_triggers,
+                                ),
+                            )
+                            vx_boat_cmd = self._scenario_apply_value(
+                                "vx_boat_cmd", vx_mode, self.sc_v_bateau
                             )
                         if dl_dt_mode == "auto":
                             auto_L_selector = self.calc_params.get("auto_L", "auto_L_1") if isinstance(self.calc_params, dict) else "auto_L_1"
@@ -1405,19 +1471,11 @@ class SimulationThread(QThread):
                                         )
                                     prev_t_boat_for_control = float(t_boat)
                                 if fx_rov_cmd is None:
-                                    fx_for_auto = (
-                                        float(self.simulation_state.get('fx_rov', self.fx_rov))
-                                        if isinstance(self.simulation_state, dict)
-                                        else float(self.fx_rov)
-                                    )
+                                    fx_for_auto = self._live_command("fx_rov", self.fx_rov)
                                 else:
                                     fx_for_auto = float(fx_rov_cmd)
                                 if fy_rov_cmd is None:
-                                    fy_for_auto = (
-                                        float(self.simulation_state.get('fy_rov', self.fy_rov))
-                                        if isinstance(self.simulation_state, dict)
-                                        else float(self.fy_rov)
-                                    )
+                                    fy_for_auto = self._live_command("fy_rov", self.fy_rov)
                                 else:
                                     fy_for_auto = float(fy_rov_cmd)
                                 L_straight_cmd = float(
@@ -1480,17 +1538,24 @@ class SimulationThread(QThread):
                                 f"Tcible={tcible:.3f} "
                                 f"cmd={dl_dt_cmd:.4f}"
                             )
-                        elif self.sc_v_moulinet:
-                            dl_dt_cmd = commande_scenario(
-                                "dL_dt",
-                                self.sc_v_moulinet,
-                                t_current,
-                                L_current,
-                                y_rov_current,
-                                x_rov_current,
-                                t_boat,
-                                step_triggers,
+                        elif self.sc_v_moulinet and dl_dt_mode in ("scenario", "manuel"):
+                            self._remember_scenario(
+                                "dl_dt",
+                                commande_scenario(
+                                    "dL_dt",
+                                    self.sc_v_moulinet,
+                                    t_current,
+                                    L_current,
+                                    y_rov_current,
+                                    x_rov_current,
+                                    t_boat,
+                                    step_triggers,
+                                ),
                             )
+                            if dl_dt_mode == "scenario":
+                                dl_dt_cmd = self._scenario_apply_value(
+                                    "dl_dt", dl_dt_mode, self.sc_v_moulinet
+                                )
                     except Exception as e:
                         trace_print(9, f"{_ANSI_RED}Erreur commande_scenario: {e}{_ANSI_RESET}")
                         fx_rov_cmd = None
@@ -1534,19 +1599,38 @@ class SimulationThread(QThread):
 
                 if isinstance(self.simulation_state, dict):
                     # Écritures groupées sous lock pour cohérence UI.
+                    # Le mode est relu ici : un clic pendant le pas annule l'écriture.
                     with self._state_lock:
-                        if fx_rov_cmd is not None:
+                        if (
+                            fx_rov_cmd is not None
+                            and self._command_mode("fx_rov_mode", "scenario") == "scenario"
+                        ):
                             self.simulation_state['fx_rov'] = float(fx_rov_cmd)
                             self.simulation_state['fx_rov_source'] = "scenario"
-                        if fy_rov_cmd is not None:
+                        if (
+                            fy_rov_cmd is not None
+                            and self._command_mode("fy_rov_mode", "scenario") == "scenario"
+                        ):
                             self.simulation_state['fy_rov'] = float(fy_rov_cmd)
                             self.simulation_state['fy_rov_source'] = "scenario"
-                        if vx_boat_cmd is not None:
+                        if (
+                            vx_boat_cmd is not None
+                            and self._command_mode("vx_boat_mode", "scenario") == "scenario"
+                        ):
                             self.simulation_state['vx_boat_cmd'] = float(vx_boat_cmd)
                             self.simulation_state['vx_boat_cmd_source'] = "scenario"
-                        if dl_dt_cmd is not None:
+                        dl_mode_now = self._command_mode("dl_dt_mode", "scenario")
+                        if (
+                            dl_dt_cmd is not None
+                            and dl_mode_now == dl_dt_mode
+                            and dl_mode_now != "manuel"
+                        ):
                             self.simulation_state['dl_dt'] = float(dl_dt_cmd)
-                            self.simulation_state['dl_dt_source'] = "auto" if dl_dt_mode == "auto" else "scenario"
+                            self.simulation_state['dl_dt_source'] = (
+                                "auto" if dl_mode_now == "auto" else "scenario"
+                            )
+                        elif dl_mode_now == "manuel":
+                            dl_dt_cmd = None
 
                 # Fin de mission via événement de scénario
                 if hasattr(commande_scenario, "_mission_end") and commande_scenario._mission_end:
@@ -1806,14 +1890,13 @@ class SimulationThread(QThread):
                     (x_rov, y_rov, vx_rov, vy_rov,
                      x_boat, vx_boat, x_cable, y_cable, T, L) = system.unpack_state(y_current)
 
-                    # Projection finale du câble: imposer recollement/L_target sur l'état de fin de pas,
-                    # puis redistribuer les tensions sur cette géométrie finale.
-                    # Sautée si intégration half-explicit déjà projetée à chaque sous-pas.
+                    # Projection finale du câble sur le chemin ODE historique.
+                    # Le pas half-explicit projette déjà une fois en fin d'intervalle.
                     try:
                         if use_constrained_integrator and used_constrained_integrator_step:
                             trace_print(
                                 8,
-                                "[DAE] Projection finale câble ignorée (déjà appliquée par sous-pas RK4+projection).",
+                                "[DAE] Projection finale câble ignorée (déjà appliquée en fin de pas RK4).",
                             )
                         elif (
                             x_cable is not None and y_cable is not None
@@ -1858,12 +1941,45 @@ class SimulationThread(QThread):
                                 rov_vol=system.rov.V,
                             )
                             T_proj = np.asarray(T_proj, dtype=float)
+                            # La caténaire n'équilibre que le fil. Le pas ODE
+                            # historique passe ici, pas par la projection DAE :
+                            # sans la réaction du ROV, T reste ~0 sur un câble
+                            # droit alors que la vitesse est déjà celle du dévidage.
+                            try:
+                                u_end = u_func(float(t_current)) if callable(u_func) else {}
+                            except Exception:
+                                u_end = {}
+                            if isinstance(u_end, dict):
+                                system._hold_fx = float(u_end.get("Fx_rov", 0.0) or 0.0)
+                                system._hold_fy = float(u_end.get("Fy_rov", 0.0) or 0.0)
+                                system._hold_dL_dt = float(u_end.get("dL_dt", 0.0) or 0.0)
+                            T_proj = raise_profile_to_rov_hold(
+                                system,
+                                T_proj,
+                                float(x_rov),
+                                float(y_rov),
+                                float(vx_rov),
+                                float(vy_rov),
+                                float(x_boat),
+                                float(L),
+                            )
+                            T_proj = np.clip(T_proj, 0.0, t_max_clip)
+                            vx_rov, vy_rov = system.taut_rov_velocity(
+                                float(x_rov),
+                                float(y_rov),
+                                float(vx_rov),
+                                float(vy_rov),
+                                float(x_boat),
+                                float(L),
+                            )
 
                             idx_x_cable = 6
                             idx_y_cable = idx_x_cable + system.N + 1
                             idx_t = idx_y_cable + system.N + 1
                             y_current[0] = float(x_rov)
                             y_current[1] = float(y_rov)
+                            y_current[2] = float(vx_rov)
+                            y_current[3] = float(vy_rov)
                             y_current[idx_x_cable:idx_y_cable] = x_proj
                             y_current[idx_y_cable:idx_t] = y_proj
                             y_current[idx_t:idx_t + system.N + 1] = T_proj
@@ -1945,12 +2061,15 @@ class SimulationThread(QThread):
                         # La tension au ROV sera ajustée dans system_model pour forcer slack >= 0
                         cable_length_constrained = True
 
-                    # Utiliser une vitesse cohérente avec les positions (pour traînée + affichage)
+                    # Vitesse affichée = déplacement réel du ROV sur le pas qui vient d'être intégré.
+                    # Les positions stockées sont celles de la fin du pas (t_next). L'instant
+                    # précédent est donc le t_next du pas d'avant, égal à t_current : un écart
+                    # t_current - prev_t vaut toujours 0 et forçait la vitesse affichée à (0, 0).
                     prev_x = data.get('x_rov', [])[-1] if data.get('x_rov') else None
                     prev_y = data.get('y_rov', [])[-1] if data.get('y_rov') else None
                     prev_t = data.get('time', [])[-1] if data.get('time') else None
                     if prev_x is not None and prev_y is not None and prev_t is not None:
-                        dt_local = t_current - prev_t
+                        dt_local = float(t_next) - float(prev_t)
                         if dt_local > 0:
                             vx_rov = (x_rov - prev_x) / dt_local
                             vy_rov = (y_rov - prev_y) / dt_local

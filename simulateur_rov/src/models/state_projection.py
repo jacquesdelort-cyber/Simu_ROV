@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 
+from src.solvers.cable_continuity import smoothstep
 from src.utils.logger import trace_print
 
 # Même ordre de grandeur que ``cable_solver.STRAIGHT_ROV_SNAP_MAX_M`` (éviter import circulaire).
@@ -36,8 +37,12 @@ def slack_ratio_and_soft_cap_tensions(
     d_straight = float(np.hypot(float(x_rov) - float(x_boat), float(y_rov) - float(y_boat)))
     slack = float(L) - d_straight
     slack_ratio = max(slack / max(d_straight, 1.0), 0.0)
-    if slack_ratio > _SLACK_RATIO_TENSION_RELAX:
-        T_arr = np.minimum(T_arr, _SLACK_SOFT_TENSION_CAP_N)
+    # Activation continue du plafond mou : poids nul à 2 % de mou, plein à 6 %.
+    # Le seuil dur à 3 % sautait la tension d'un pas à l'autre.
+    gate = float(smoothstep((slack_ratio - 0.02) / 0.04))
+    if gate > 0.0:
+        capped = np.minimum(T_arr, _SLACK_SOFT_TENSION_CAP_N)
+        T_arr = (1.0 - gate) * T_arr + gate * capped
     return slack_ratio, T_arr
 
 
@@ -196,6 +201,41 @@ def compute_constraint_residuals(system: Any, y: np.ndarray) -> dict[str, float]
     }
 
 
+def raise_profile_to_rov_hold(
+    system: Any,
+    tension: np.ndarray,
+    x_rov: float,
+    y_rov: float,
+    vx_rov: float,
+    vy_rov: float,
+    x_boat: float,
+    length: float,
+) -> np.ndarray:
+    """
+    Relève tout le profil de tension jusqu'à la réaction du câble tendu.
+
+    Le supplément est uniforme : sur un fil inextensible déjà droit, la
+    traction qui retient le ROV se retrouve aussi au bateau.
+    """
+    profile = np.asarray(tension, dtype=float).copy()
+    if profile.size == 0 or not hasattr(system, "cable_hold_tension"):
+        return profile
+    try:
+        t_hold = float(system.cable_hold_tension(
+            x_rov, y_rov, vx_rov, vy_rov, x_boat, length
+        ))
+        t_cap = float(system._abs_tension_cap_n())
+    except Exception:
+        return profile
+    if not np.isfinite(t_hold) or t_hold <= float(profile[-1]):
+        return profile
+    t_hold = float(min(max(t_hold, 0.0), t_cap))
+    if t_hold <= float(profile[-1]):
+        return profile
+    profile = profile + (t_hold - float(profile[-1]))
+    return np.clip(profile, 0.0, t_cap)
+
+
 def project_cable_state_inplace(
     system: Any,
     y: np.ndarray,
@@ -280,6 +320,18 @@ def project_cable_state_inplace(
             float(L),
             T_proj,
         )
+        # La caténaire ignore le ROV. Sans cet ajout, le pas RK est effacé
+        # et la tension affichée reste celle du fil seul (~0 sur un câble droit).
+        T_proj = raise_profile_to_rov_hold(
+            system,
+            T_proj,
+            x_rov_n,
+            y_rov_n,
+            vx_rov,
+            vy_rov,
+            float(x_boat),
+            float(L),
+        )
         t_after_max = float(np.max(T_proj)) if T_proj.size > 0 else 0.0
         if (
             slack_ratio > _SLACK_RATIO_TENSION_RELAX
@@ -300,6 +352,12 @@ def project_cable_state_inplace(
         idx_t = idx_y + system.N + 1
         y_arr[0] = x_rov_n
         y_arr[1] = y_rov_n
+        if hasattr(system, "taut_rov_velocity"):
+            vx_hold, vy_hold = system.taut_rov_velocity(
+                x_rov_n, y_rov_n, vx_rov, vy_rov, float(x_boat), float(L)
+            )
+            y_arr[2] = float(vx_hold)
+            y_arr[3] = float(vy_hold)
         y_arr[idx_x:idx_y] = x_proj
         y_arr[idx_y:idx_t] = y_proj
         y_arr[idx_t : idx_t + system.N + 1] = T_proj
@@ -397,6 +455,16 @@ def repack_cable_static_equilibrium_inplace(system: Any, y: np.ndarray) -> bool:
                 )
         except Exception:
             pass
+        T_proj = raise_profile_to_rov_hold(
+            system,
+            T_proj,
+            float(x_rov),
+            float(y_rov),
+            float(y_arr[2]),
+            float(y_arr[3]),
+            float(x_boat),
+            float(L),
+        )
 
         idx_x = 6
         idx_y = idx_x + system.N + 1

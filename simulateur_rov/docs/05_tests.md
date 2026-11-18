@@ -42,6 +42,7 @@ Fichiers de tests `pytest` et scripts visuels (liste à jour du dépôt) :
 - `tests/test_cable_shared_cases_add.py`
 - `tests/test_cable_solver.py`
 - `tests/test_dae_projection.py`
+- `tests/test_cable_continuity.py`
 - `tests/test_deformer_polyline.py`
 - `tests/test_environment_current_velocity.py`
 - `tests/test_initial_conditions_modes.py`
@@ -262,7 +263,11 @@ Non-régression sur les missions `Missions/M_test_init_*` et `M_test_init_couran
 
 ### 3.19 `tests/test_dae_projection.py`
 
-Tests liés à la **projection** d'état câble et au chantier intégration contrainte (voir `docs/dae_cable_rov_spec.md`).
+Tests liés à la **projection** d'état câble et au chantier intégration contrainte (voir `docs/dae_cable_rov_spec.md`). Un test vérifie qu'à géométrie figée, `compute_derivatives` n'appelle pas `solve_equilibrium`.
+
+### 3.19bis `tests/test_cable_continuity.py`
+
+Lois continues : smoothstep, poids du mélange quasi-tendu sur 5 % de mou, temps de relaxation, pénalité quadratique de mou négatif, vitesse de surface, mélange géométrie/tension avec le même poids.
 
 ### 3.20 `tests/test_cable_shared_cases_add.py`
 
@@ -270,7 +275,7 @@ Extensions de cas partagés pour le solveur câble (import depuis `cable_shared_
 
 ### 3.21 `tests/test_simulation_dynamics.py`
 
-Intégration temporelle via ``ROVSystem.integrate`` (``solve_ivp``) : finitude des dérivées au premier pas, trajectoire courte sans commande, effet de signe de ``Fx_rov`` / ``Fy_rov``, augmentation de ``L`` sous ``dL_dt`` constant. Maillage câble réduit et pas de temps courts pour limiter le coût du solveur câble dynamique.
+Intégration temporelle via ``ROVSystem.integrate`` (RK4 à géométrie figée, un solveur de câble et une projection par pas) : finitude des dérivées au premier pas, trajectoire courte sans commande, effet de signe de ``Fx_rov`` / ``Fy_rov``, augmentation de ``L`` sous ``dL_dt`` constant. Maillage câble réduit et pas de temps courts.
 
 ## 4. Assertions de contrôle en fin d'itération
 
@@ -527,7 +532,7 @@ Les entrées sont triées par **nom** dans l'UI. Groupes typiques :
 | Normalisation du câble – unitaires | `_normalize_cable_segments`, `_normalize_cable_length` |
 | Géométrie / Normalisation – rapports graphiques | scripts `tests/test_*_visual.py` associés |
 | Initialisation missions | `test_buoyant_current_init`, `test_initial_conditions_modes`, `test_mission_init_courant_1`, `test_mission_init_regression` |
-| Simulation dynamique | `test_simulation_dynamics` (`integrate` / `solve_ivp`, pas courts) |
+| Simulation dynamique | `test_simulation_dynamics` (`integrate`, pas courts) |
 
 Pour modifier les commandes ou ajouter un test : éditer `src/tests/test_catalog.py`, puis cliquer sur **Mettre à jour** dans l'onglet Tests.
 

@@ -210,6 +210,10 @@ def _str_etat_depuis_mapping(état: Mapping[str, Any]) -> str:
 
         f" Tmax={_f(T_max)}",
 
+        f" Fy_rov={_f(état.get('fy_rov'))}",
+
+        f" Fx_rov={_f(état.get('fx_rov'))}",
+
     ]
 
     return " ".join(parts)
@@ -218,7 +222,14 @@ def _str_etat_depuis_mapping(état: Mapping[str, Any]) -> str:
 
 
 
-def str_etat_système(system: Any, y: Any, *, t: float | None = None) -> str:
+def str_etat_système(
+    system: Any,
+    y: Any,
+    *,
+    t: float | None = None,
+    fx_rov: float | None = None,
+    fy_rov: float | None = None,
+) -> str:
 
     """
 
@@ -259,6 +270,10 @@ def str_etat_système(system: Any, y: Any, *, t: float | None = None) -> str:
             "y_cable": y_cable,
 
             "T": T,
+
+            "fx_rov": fx_rov,
+
+            "fy_rov": fy_rov,
 
         }
 

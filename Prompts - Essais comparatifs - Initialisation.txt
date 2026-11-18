@@ -1,0 +1,10 @@
+Essais comparatifs - Initialisation (statique)
+On veut comparer la valeur d'un certain nombre de métriques à l'issue de l'initialisation, pour différentes combinaisons de paramètres caractéristiques de la configuration matérielle du ROV et du câble ainsi que de la mission.
+On utilise comme point de départ la mission "M_référence".
+
+Métriques à calculer :
+Tension bateau
+Tension max
+Flèche
+Trainée_câble_x (force de traînée du câble, composante horizontale)
+Trainée_ROV_x (force de traînée du ROV, composante horizontale)

@@ -215,7 +215,7 @@ def _tests_visual() -> Iterable[TestEntry]:
 
 
 def _tests_simulation_dynamics() -> Iterable[TestEntry]:
-    """Intégration temporelle (solve_ivp) — coût modéré."""
+    """Intégration temporelle (RK4 à géométrie figée) — coût modéré."""
     return [
         TestEntry(
             id="simulation_dynamics_integrate",

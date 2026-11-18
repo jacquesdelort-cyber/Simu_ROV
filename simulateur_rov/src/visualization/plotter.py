@@ -563,9 +563,19 @@ def create_velocity_plot(
             )
     
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
-    
+
+    # Plage explicite : la mise à jour incrémentale ne recalcule pas l'autorange,
+    # et l'axe restait figé sur la première fenêtre (souvent 0–20 s).
+    t_max = 0.0
+    if time_arr.size > 0:
+        finite_t = time_arr[np.isfinite(time_arr)]
+        if finite_t.size > 0:
+            t_max = float(np.max(finite_t))
+    if not np.isfinite(t_max) or t_max <= 0.0:
+        t_max = 1.0
+
     fig.update_layout(
-        xaxis_title="Temps (s)",
+        xaxis=dict(title="Temps (s)", range=[0.0, t_max], autorange=False),
         yaxis_title="Vitesse (m/s)",
         title=title,
         hovermode='x unified',
@@ -735,9 +745,6 @@ def create_dl_dt_plot(
         name='dL/dt',
         line=dict(color='red', width=2)
     ))
-    max_time = max(time) if len(time) > 0 else 0.0
-    k = max(1, int(np.ceil(max_time / 30.0)))
-    x_max = 30.0 * k
     max_val = max([abs(v) for v in dl_dt], default=0.0)
     n = max(1, int(np.ceil(max_val)))
     # Limite verticale utilisée pour l'axe Y
@@ -776,7 +783,6 @@ def create_dl_dt_plot(
     fig.update_layout(
         xaxis_title="Temps (s)",
         yaxis_title="dL/dt (m/s)",
-        xaxis=dict(range=[0.0, x_max]),
         yaxis=dict(range=[-y_range_max, y_range_max]),
         title=title,
         hovermode='x unified',
@@ -894,9 +900,6 @@ def create_tension_vs_target_plot(
                 vals.append(float(val))
         return max(vals) if vals else 0.0
 
-    max_time = _safe_max(time)
-    k = max(1, int(np.ceil(max_time / 30.0)))
-    x_max = 30.0 * k
     max_val = max(
         _safe_max(t_rupture),
         _safe_max(t_cible),
@@ -942,7 +945,6 @@ def create_tension_vs_target_plot(
             ticks="outside",
             showline=True,
             automargin=True,
-            range=[0.0, x_max],
         ),
         yaxis_title="Tension (N)",
         title=title,

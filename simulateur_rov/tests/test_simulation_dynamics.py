@@ -1,13 +1,11 @@
 """
-Tests d'intégration temporelle (``ROVSystem.integrate`` / ``solve_ivp``).
+Tests d'intégration temporelle (``ROVSystem.integrate`` : RK4 à géométrie figée).
 
 Complètent les scripts racine ``test_horizontal_movement.py`` et
 ``test_vertical_movement.py``. Convention eau : ``y <= 0`` sous la surface.
 
-Les pas de simulation sont **courts** et le maillage câble **réduit** (``N`` petit)
-pour limiter le coût du solveur câble **dynamique** invoqué à chaque évaluation
-de l'ODE. Les tolérances ``rtol`` / ``atol`` de l'intégrateur sont assouplies
-dans ces tests pour réduire le nombre d'évaluations de ``compute_derivatives``.
+Les pas de simulation sont **courts** et le maillage câble **réduit** (``N`` petit).
+Chaque pas appelle le solveur de câble une fois, en fin de pas.
 """
 from __future__ import annotations
 

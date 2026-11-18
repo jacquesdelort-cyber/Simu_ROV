@@ -4,6 +4,7 @@ import pytest
 from src.models.environment import Environment
 import src.solvers.cable_solver as cable_solver_module
 from src.solvers.cable_solver import CableSolver, BUOYANT_MIN_Y_MARGIN_M
+from src.solvers.forces import compute_cable_forces
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +31,18 @@ def _linear_reference_x(y_vals, x_boat, y_boat, x_rov, y_rov):
         return np.full_like(y_vals, float(x_boat))
     t = (y_vals - float(y_boat)) / denom
     return float(x_boat) + t * (float(x_rov) - float(x_boat))
+
+
+def test_positive_current_drags_vertical_cable_toward_positive_x():
+    """Un courant mission positif pousse le câble vers les x positifs."""
+    env = Environment({"rho_eau": 1030.0, "g": 9.81, "v_courant": "0.0:0.5"})
+    env.v_courant_raw = "0.0:0.5"
+    y = np.linspace(0.0, -20.0, 11)
+    x = np.zeros_like(y)
+    zeros = np.zeros_like(y)
+    params = {"d": 0.001, "rho_cable": 950.0, "Cx_cable": 0.9, "Cf_cable": 0.04}
+    fx, *_ = compute_cable_forces(x, y, zeros, zeros, env, params, 20.0)
+    assert float(np.sum(fx)) > 0.5
 
 
 def test_buoyant_zero_current_cable_stays_shallower_than_chord():

@@ -80,7 +80,7 @@ Autres répertoires :
 
 - empaquetage/dépaquetage de l’état
 - calcul des dérivées (couplage complet)
-- intégration temporelle via `TimeIntegrator`
+- intégration temporelle par pas RK4 à géométrie figée (`integrate`), avec un solveur de câble et une projection de longueur en fin de pas
 - intégration sur un pas avec projection câble (`integrate_span_with_projection`) lorsque l’option « intégration contrainte » est active
 
 ### 3.5 Projection d’état câble
@@ -93,11 +93,11 @@ Autres répertoires :
 
 ### 4.1 Intégrateur temporel
 
-`integrator.py` encapsule `solve_ivp` (SciPy). Utilisation de `RK45` par défaut.
+`integrator.py` encapsule `solve_ivp` (SciPy, `RK45` par défaut). `ROVSystem.integrate` ne l'utilise plus : le pas de simulation est le RK4 à géométrie figée décrit au § 4.1bis.
 
 ### 4.1bis Intégrateur avec projection (half-explicit)
 
-`projected_integrator.py` : sous-pas RK4 sur l’ODE, puis projection du câble via `state_projection` à chaque sous-pas. Paramétré depuis la mission / l’UI (`use_constrained_integrator`, `dae_projection_substeps`). Décrit plus en détail dans `03_resolution_numerique.md` (§ 1bis) et `dae_cable_rov_spec.md`.
+`projected_integrator.py` : sous-pas RK4 à géométrie de câble figée, puis un appel au solveur et une projection via `state_projection` en fin d'intervalle. Paramétré depuis la mission / l'UI (`use_constrained_integrator`, `dae_projection_substeps`). `ROVSystem.integrate` suit le même schéma. Décrit dans `03_resolution_numerique.md` (§ 1 et 1bis) et `dae_cable_rov_spec.md`. Les lois continues (smoothstep quasi-tendu, temps de relaxation, pénalité de mou négatif, vitesse de surface) sont dans `cable_continuity.py`.
 
 ### 4.2 Solveur de câble
 

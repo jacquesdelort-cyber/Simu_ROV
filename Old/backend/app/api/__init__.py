@@ -1,2 +1,0 @@
-"""API routes and WebSocket handlers"""
-

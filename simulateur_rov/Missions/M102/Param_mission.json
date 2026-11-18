@@ -1,7 +1,7 @@
 {
-    "date_sauvegarde": "2026-05-19T16:27:23.532168",
+    "date_sauvegarde": "2026-11-18T09:27:36.866573",
     "mission": "M102",
-    "description": "Position (30, -450) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV.",
+    "description": "L = 35 m, position (0, -20) m, ROV et câble avec une flottabilité légèrement positive.  \nCourant: 0.7 m/s  Les hélices du ROV (Fx et Fy) compensent pour maintenir le ROV immobile.  --> Tension cable au niveau du bateau : 20 N",
     "parameters": {
         "rov": {
             "m": 30.0,
@@ -17,15 +17,15 @@
             "rho_cable": 950.0,
             "Cx_cable": 0.9,
             "Cf_cable": 0.04,
-            "tension_rupture": 50.0
+            "tension_rupture": 60.0
         },
         "boat": {
             "m": 10000.0,
             "drag_coefficient": 0.5,
-            "dl_dt_min": -1.0,
-            "dl_dt_max": 2.0,
-            "gamma_moulinet_min": -0.5,
-            "gamma_moulinet_max": 1.0
+            "dl_dt_min": -0.81,
+            "dl_dt_max": 0.81,
+            "gamma_moulinet_min": -0.2478,
+            "gamma_moulinet_max": 0.1239
         },
         "environment": {
             "rho_eau": 1030.0,
@@ -34,6 +34,7 @@
         }
     },
     "calc_params": {
+        "dynamic_simulation": true,
         "method": "RK45",
         "rtol": 1e-05,
         "atol": 1e-07,
@@ -41,17 +42,17 @@
         "dt_max": 0.1,
         "t_final": 3600.0,
         "steps_per_update": 20,
-        "N_segments": 200,
+        "N_segments": 1000,
         "straight_blend_alpha": 1.0,
         "max_data_size": 10000,
         "excel_write_interval": 50,
         "plot_points_limit": 1000,
-        "sc_fx_rov": "(t >5:20) (t>10:-20) (t>15:0) (t>20:50) (t>25:-50) (t>30:0)   (t>35:100) (t>40:-100) (t>45:0)",
-        "sc_fy_rov": "",
+        "sc_fx_rov": "(t >0:-19.36)",
+        "sc_fy_rov": "(t >0:-9.46)",
         "sc_v_bateau": "",
         "sc_v_moulinet": "",
         "auto_L": "auto_L_min",
-        "Tcible": 5.0,
+        "Tcible": 20.0,
         "guard_profile": "soft",
         "guard_enable": true,
         "guard_tension_spike_factor": 12.0,
@@ -65,11 +66,11 @@
         "dae_projection_substeps": 4
     },
     "init_params": {
-        "x_rov_init": 30.0,
-        "y_rov_init": -400.0,
+        "x_rov_init": 3.0,
+        "y_rov_init": -20.0,
         "x_boat_init": 0.0,
-        "L_init": 403.0,
-        "v_courant": "0.0",
+        "L_init": 25.0,
+        "v_courant": "0.0:0.5",
         "cable_init_mode": "strict_static",
         "legacy_init_geometry": false
     }

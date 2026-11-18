@@ -1,14 +1,10 @@
 """Calcul des forces sur le câble"""
 import numpy as np
 
-# Convention projet (dynamique / traînée dans ``compute_cable_forces``) :
-# ``CURRENT_TO_FLUID_VX_SIGN`` relie la vitesse « mission » (``get_current_velocity`` brut)
-# à la vitesse fluide utilisée pour ``v_rel`` (voir calcul des segments).
-#
-# À part : l’init géométrique « courant quasi uniforme » (``CableSolver._enforce_uniform_current_concavity``)
-# oriente la bosse avec le **signe brut mission** (+v → côté +x par rapport à la corde bateau→ROV),
-# pour coller au graphe « Profil du courant » (v en m/s, + vers la droite).
-CURRENT_TO_FLUID_VX_SIGN = -1.0
+# Vitesse fluide = vitesse mission. Un courant positif (graphe « Profil du courant »,
+# vers la droite) pousse le câble vers les x positifs, comme la traînée du ROV.
+# Le facteur reste explicite pour les appelants historiques ; il vaut +1.
+CURRENT_TO_FLUID_VX_SIGN = 1.0
 
 
 def compute_cable_drag_force(v_rel, d, Cx_cable, rho_eau, ds):

@@ -324,3 +324,63 @@ def test_mission_init_courant_2_strict_static_s_curve_opposite_bands():
     assert np.count_nonzero(m_neg_v) >= 8
     assert float(np.mean(x_off[m_pos_v])) > 5e-4
     assert float(np.mean(x_off[m_neg_v])) < -5e-4
+
+
+def _turning_angles_deg(x_vals, y_vals):
+    dx = np.diff(np.asarray(x_vals, dtype=float))
+    dy = np.diff(np.asarray(y_vals, dtype=float))
+    ang = np.arctan2(dy, dx)
+    dang = np.diff(ang)
+    dang = (dang + np.pi) % (2.0 * np.pi) - np.pi
+    return np.abs(np.degrees(dang))
+
+
+def test_mission_exemple_loic_courant_slack_sans_dent_de_scie():
+    """
+    Câble flottant, mou important et courant uniforme : le rattrapage de longueur
+    ne doit pas planter un sommet hors courbe un segment sur deux.
+    """
+    mission = _load_mission_data("M_exemple_Loïc - Courant")
+    parameters = mission["parameters"]
+    init_params = mission["init_params"]
+    n_segments = 220
+    x_rov = float(init_params["x_rov_init"])
+    y_rov = float(init_params["y_rov_init"])
+    x_boat = float(init_params["x_boat_init"])
+    y_boat = 0.0
+    L_init = float(init_params["L_init"])
+
+    system_cur = _build_system(parameters, n_segments=n_segments)
+    system_cur.environment.v_courant_raw = str(init_params["v_courant"])
+    y0_cur = get_initial_state(
+        system_cur,
+        x_rov=x_rov,
+        y_rov=y_rov,
+        x_boat=x_boat,
+        L=L_init,
+        use_current_geometry=True,
+        cable_init_mode="strict_static",
+        legacy_init_geometry=False,
+    )
+    (xr0, yr0, _, _, _, _, x_raw, y_raw, _, _) = system_cur.unpack_state(y0_cur)
+    xc, yc, xr_f, yr_f = _finalize_cable_like_simulation_ui(
+        system_cur, x_raw, y_raw, L_init, x_boat, y_boat, xr0, yr0
+    )
+
+    assert np.isclose(float(xc[0]), x_boat, atol=1e-9)
+    assert np.isclose(float(yc[0]), y_boat, atol=1e-9)
+    assert np.isclose(float(xc[-1]), xr_f, atol=1e-9)
+    assert np.isclose(float(yc[-1]), yr_f, atol=1e-9)
+    assert np.isclose(float(xr_f), x_rov, atol=1e-6)
+    assert np.isclose(float(yr_f), y_rov, atol=1e-6)
+    assert np.all(np.asarray(yc, dtype=float) <= 1e-9)
+    assert np.isclose(_compute_length(xc, yc), L_init, rtol=2e-3)
+
+    x_ref = _linear_reference_x(yc, x_boat, y_boat, xr_f, yr_f)
+    x_off = np.asarray(xc, dtype=float) - x_ref
+    assert float(np.mean(x_off)) > 1e-3
+
+    turn_deg = _turning_angles_deg(xc, yc)
+    assert turn_deg.size > 0
+    assert float(np.median(turn_deg)) < 15.0
+    assert float(np.mean(turn_deg > 45.0)) < 0.05

@@ -24,37 +24,32 @@ format: "Markdown"
 
 ## 1. Intégration temporelle
 
-Le système est intégré par la méthode de résolution d’EDO de SciPy
-(`scipy.integrate.solve_ivp`). L’intégrateur est encapsulé dans
-`TimeIntegrator` et utilise par défaut `RK45` (Runge–Kutta adaptatif d’ordre 4/5).
-L’appel à l’intégrateur se fait dans `SystemModel.integrate()`, qui fournit au
-solveur la fonction d’EDO `system_ode(t, y)`. À chaque pas, `system_ode` appelle
-`u_func(t)` (commande) puis `compute_derivatives(t, y, u)` (dérivées).
+Le système est intégré par pas de durée au plus `dt_max`. Chaque pas est un
+Runge–Kutta 4 à **géométrie de câble figée** : `compute_derivatives` n'appelle
+pas le solveur non linéaire tant que `_freeze_cable_geometry` est vrai.
+En fin de pas, `refresh_cable_equilibrium_inplace` appelle le solveur une fois,
+puis `project_cable_state_inplace` normalise la longueur.
 
-Paramètres principaux :
+`ROVSystem.integrate` renvoie un objet aux attributs d'une solution SciPy
+(`success`, `t`, `y`, `sol`, `nfev`). `TimeIntegrator` (`RK45`, fichier
+`src/solvers/integrator.py`) reste disponible pour un appel direct ; ce n'est
+plus le chemin de `ROVSystem.integrate`.
 
-- `method` : RK45 (configurable)
-- `rtol`, `atol` : tolérances de l’intégrateur
-- `max_step` : pas de temps maximum (dt_max)
-
-Le pas de temps effectif est adaptatif, mais contraint par `max_step`.
+`dt_max` est le pas maximum entre deux résolutions de géométrie.
 
 ### 1bis. Intégration contrainte (half-explicit, chantier DAE)
 
-En complément du schéma ODE ci-dessus, une option **`use_constrained_integrator`**
-(paramètre de calcul / interface « Intégration contrainte ») active une intégration
-**half-explicit** sur chaque intervalle `[t, t+\Delta t]` de la boucle simulation :
+En complément, l'option **`use_constrained_integrator`**
+(paramètre de calcul / interface « Intégration contrainte ») utilise le même
+schéma que `ROVSystem.integrate` sur chaque intervalle `[t, t+Δt]` :
 
-- plusieurs **sous-pas RK4** (`dae_projection_substeps`, défaut 4) ;
-- après **chaque** sous-pas, **projection** du câble via `_normalize_cable_length` et
-  recalcul des tensions (`project_cable_state_inplace` dans
-  `src/models/state_projection.py`).
+- plusieurs **sous-pas RK4** (`dae_projection_substeps`, défaut 4) à géométrie figée ;
+- **une fois** en fin d'intervalle, appel du solveur de câble puis **projection**
+  (`_normalize_cable_length` et tensions, `project_cable_state_inplace`).
 
-Objectif : réduire les incohérences entre la longueur scalaire `L` et la longueur
-curviligne discrète \(\sum \| \Delta P_i \|\), et limiter les géométries aberrantes
-pendant l’intégration. Ce n’est pas encore un DAE formel avec matrice de masse
-singulière ; la spécification et les évolutions possibles sont décrites dans
-[`dae_cable_rov_spec.md`](dae_cable_rov_spec.md).
+Le rééchantillonnage n'a pas lieu à l'intérieur d'une évaluation de dérivée.
+Pendant le pas, un nœud qui traverse la surface reçoit une vitesse de rappel
+lisse (`smooth_vertical_node_velocity`), pas un clip de coordonnée.
 
 Fichiers principaux : `src/solvers/projected_integrator.py`,
 `src/models/state_projection.py`, `ROVSystem.integrate_span_with_projection`,
@@ -64,13 +59,13 @@ branche correspondante dans `simulation_thread.py`.
 
 À chaque itération (pas d’intégration) :
 
-1. L’intégrateur appelle `system_ode(t, y)`.
+1. Le pas RK4 appelle `compute_derivatives` à géométrie figée.
 2. La commande est évaluée via `u_func(t)` (incluant `dL_dt`).
 3. Dépaquetage du vecteur d’état `y` (incluant la longueur courante `L`).
-4. Résolution de la géométrie du câble selon `L` et la configuration.
-5. Calcul des forces hydrodynamiques et des tensions.
-6. Calcul des dérivées pour le ROV, le bateau et la longueur du câble.
-7. Retour des dérivées au solveur d’EDO, qui met à jour l’état.
+4. Tensions algébriques sur la polyligne déjà dans l'état (pas de solveur).
+5. Calcul des forces hydrodynamiques.
+6. Calcul des dérivées pour le ROV, le bateau, les nœuds et la longueur.
+7. En fin de pas seulement : un appel au solveur, puis la projection de longueur.
 
 Le couplage est donc fort : la géométrie du câble dépend de l’état instantané,
 et la tension influence directement la dynamique du ROV.
@@ -86,42 +81,23 @@ et les normalisations de longueur.
 
 ```
 integrate(t_span, y0, u_func, dt_max):
-    integrator.max_step = dt_max
-    define system_ode(t, y):
-        u = u_func(t)  # inclut dL_dt (commande moulinet)
-        return compute_derivatives(t, y, u)
-    return integrator.integrate(system_ode, t_span, y0)
+    t = t0, y = y0
+    tant que t < tf:
+        # sous-pas RK4, géométrie figée (pas de solveur dans f)
+        y = RK4(compute_derivatives_fige, [t, t+dt])
+        y = refresh_cable_equilibrium(y)   # un seul appel au solveur
+        y = project_cable_state(y)         # une seule normalisation de longueur
+        t = t + dt
+    return solution tabulée
 
-compute_derivatives(t, y, u):
-    # 1) Dépaquetage et contrôles
-    (x_rov, y_rov, vx_rov, vy_rov, x_boat, vx_boat,
-     x_cable, y_cable, T, L) = unpack_state(y)
-
-    # 2) Résolution de la géométrie du câble
-    if first_iteration:
-        (x_cable_new, y_cable_new, T_new) = solve_equilibrium_static(..., L)
-    else:
-        # solve_equilibrium prend en compte la dynamique et le courant
-        (x_cable_new, y_cable_new, T_new) = solve_equilibrium(..., L, courant)
-
-    # 3) Contraintes géométriques (surface) + normalisation post-clipping
-    y_cable_new = clip(y_cable_new, y <= 0)
-    if length_changed_by_clipping:
-        (x_cable_new, y_cable_new) = normalize_length(..., L)
-        y_cable_new = clip(y_cable_new, y <= 0)
-
-    # 4) Calculs de forces et tensions, puis dérivées d’état
-    dL_dt = u['dL_dt']  # prise en compte directe de la commande
-    dydt = assemble_derivatives(..., dL_dt, x_cable_new, y_cable_new, T_new)
+compute_derivatives(t, y, u)  # géométrie figée:
+    (x_rov, y_rov, ..., x_cable, y_cable, T, L) = unpack_state(y)
+    # tensions algébriques sur la polyligne de l'état, sans optimiseur
+    T_cible = tensions_catenaire(x_cable, y_cable) + penalite_mou_negatif(slack)
+    tau = tau_continu(slack / L_droite)   # 0,05 s -> 0,20 s, smoothstep
+    dT/dt = (T_cible - T) / tau
+    vy_cable = vitesse_surface_lisse(y_cable, vy_interpole)
     return dydt
-
-solve_equilibrium(..., L, courant):
-    # Configuration dynamique du câble
-    if courant != 0:
-        # itérations: forces de traînée -> mise à jour géométrie
-        # normalisation de longueur à chaque itération si nécessaire
-        normalize_length(..., L)
-    return x_cable, y_cable, T
 ```
 
 ## 4. Solveur de câble
@@ -150,14 +126,14 @@ Deux cas particuliers sont ensuite gérés finement dans `CableSolver.solve_equi
 - **cas câble légèrement plus long que la distance droite** (`r = L / L_straight`
   proche de 1) : le solveur calcule **à la fois** une caténaire et une ligne droite,
   puis effectue un **blending continu** entre les deux géométries en fonction de r.
-  Pour `r = 1`, la solution est 100 % rectiligne ; pour `r ≥ 1.01`, la solution est
-  100 % caténaire ; entre les deux, la transition est linéaire.  
+  Pour `r = 1`, la solution est 100 % rectiligne ; pour `r ≥ 1,05`, la solution est
+  100 % caténaire ; entre les deux, le poids de la droite suit un smoothstep
+  (`src/solvers/cable_continuity.py`), partagé par la géométrie et la tension.
+  Le mélange est appliqué dans `Cable.solve_equilibrium` et à l'initialisation.  
 
-Ce blending continu remplace l’ancien basculement binaire (hystérésis) et supprime
-les discontinuités numériques lorsque le câble passe progressivement d’un régime
-quasi-tendu à un régime nettement fléchi. Après le blending, la longueur est
-de nouveau renormalisée (`_normalize_cable_length`) pour garantir `Σ ds = L` et
-des segments de longueur identique.
+Ce blending continu supprime le saut de forme et de tension lorsque le câble
+passe d'un régime quasi-tendu à un régime fléchi. La longueur est rétablie
+ensuite, une fois par pas accepté, par `project_cable_state_inplace`.
 
 ### 3.2 Statique avec courant
 
@@ -188,11 +164,12 @@ les vitesses et les forces, puis applique une relaxation temporelle sur les
 tensions :
 
 ```
-dT/dt = (T_new - T) / tau_tension
+dT/dt = (T_cible - T) / tau
 ```
 
-Le temps de relaxation est ajusté pour améliorer la stabilité et la réponse
-lorsque le ROV remonte alors qu’il devrait descendre.
+`tau` est une fonction lisse du mou relatif : 0,05 s câble tendu, 0,20 s
+à partir de 5 % de mou (`continuous_tau_tension`). Il n'y a plus de bascule
+de `tau` selon le signe de la vitesse du ROV.
 
 ## 5. Normalisation de la longueur du câble
 
@@ -607,23 +584,29 @@ for i in range(N):
 
 Contraintes imposées à chaque étape :
 
-- **Surface** : `y_rov <= 0` et `y_cable <= 0`
-- **Correction de points proches de la surface** : points à moins de 1 cm de la surface sont déplacés
-- **Longueur exacte** : renormalisation systématique pour garantir `L(t) = L(0) + somme des dL/dt`
-- **Segments de longueur égale** : rééchantillonnage pour garantir `ds = L(t) / N` pour tous les segments
-- **Extrémités** : premier point au bateau (s=0), dernier point au ROV (s=L(t))
+- **Surface** : `y_rov <= 0` en fin de pas (projection). Pendant le pas, la vitesse
+  verticale des nœuds proches de la surface est atténuée par un smoothstep, et un
+  nœud au-dessus de l'eau reçoit une vitesse de rappel proportionnelle à la
+  pénétration (`smooth_vertical_node_velocity`).
+- **Longueur exacte** : une renormalisation par pas accepté, dans
+  `project_cable_state_inplace`, pas à l'intérieur du second membre.
+- **Segments de longueur égale** : le même rééchantillonnage, une fois par pas.
+- **Extrémités** : premier point au bateau, dernier point au ROV.
 
 ### 6.2 Contrainte de slack
 
-**Contrainte critique** : Le slack (`L(t) - D_straight`) doit toujours être >= 0.
+Si le mou `L - D_straight` devient négatif, la tension cible au ROV reçoit un
+supplément `T_statique * min(5, (déficit / (0,02 L))²)`. Ce terme est nul à
+mou nul, ainsi que sa dérivée. La tension qui entre dans l'équation du ROV
+reste l'état relaxé `T[-1]` :
 
-Si le slack devient négatif :
-1. La tension au ROV (`T_rov_target`) est augmentée proportionnellement au déficit de slack
-2. La tension est utilisée directement dans les équations du mouvement (pas de délai d'adaptation)
-3. Le taux de changement de tension (`dT_dt[-1]`) est forcé à une adaptation très rapide
-4. La force de tension tire le ROV vers le bateau pour réduire `D_straight` et ramener slack >= 0
+```
+dT/dt = (T_cible - T) / tau(slack)
+```
 
-Cette contrainte garantit que le câble ne peut jamais être "tendu" au-delà de sa longueur physique.
+`tau` vaut 0,05 s quand le câble est tendu et 0,20 s à partir de 5 % de mou,
+avec un raccord smoothstep. L'accélération du ROV est multipliée par un facteur
+qui vaut 1 pour un mou positif et 0 quand le déficit atteint 2 % de `L`.
 
 Limites principales :
 
