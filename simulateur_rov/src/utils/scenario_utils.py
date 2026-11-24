@@ -8,7 +8,11 @@ import numpy as np
 from src.utils.logger import trace_print
 
 _ANSI_RESET = "\033[0m"
-_ANSI_RED = "\033[91m" 
+_ANSI_RED = "\033[91m"
+_ANSI_GREEN = "\033[92m"
+_ANSI_YELLOW = "\033[93m"
+_ANSI_BLUE = "\033[94m"
+_ANSI_CYAN = "\033[96m" 
 
 
 def contrôle_câble(
@@ -2527,12 +2531,12 @@ def auto_L_8(
 def consigne_moulinet(
     
     t: float, # Le temps exprimé en secondes
-    y_rov: float, # La profondeur du rov exprimée en mètres. ELle doit être négative
-    T_boat: float, # La tension du câble au niveau du bateau exprimée en Newtons. Elle doit être positive.
-    L: float, # La longueur de câble entre le bateau et le ROV exprimée en mètres
+    y_rov: float| None = None, # La profondeur du rov exprimée en mètres. ELle doit être négative
+    T_boat: float| None = None, # La tension du câble au niveau du bateau exprimée en Newtons. Elle doit être positive.
+    L: float| None = None, # La longueur de câble entre le bateau et le ROV exprimée en mètres
+    L_straight: float | None = None, # La distance en ligne droite bateau-ROV exprimée en mètres.
     T_rupture: float = 60.0, # La tension de rupture du câble exprimée en Newtons. 
     T_cible: float = 20.0, # La tension cible du câble au niveau du bateau exprimée en Newtons
-    L_straight: float | None = None, # La distance en ligne droite bateau-ROV exprimée en mètres.
     dL_dt_max: float = 0.81,  # La consigne maximale de vitesse du moulinet exprimée en m/s
     dL_dt_min: float = -0.81, # La consigne minimale de vitesse du moulinet exprimée en m/s
     d2L_dt2_min: float = -0.2478, # Décélération limite du fil (en m/s2)
@@ -2588,20 +2592,20 @@ def consigne_moulinet(
 
     # Contrôle de vraisemblance sur les paramètres d'entrée:
 
-    if y_rov > 0 :
+    if y_rov is not None and y_rov > 0 :
         return 0.0, "ERR_Y_ROV_STRICTEMENT_POSITIF"
-    if T_boat < 0:
+    if T_boat is not None and T_boat < 0:
         return 0.0, "ERR_T_BOAT_NEGATIF"
-    if L < 0:
+    if L is not None and L < 0:
         return 0.0, "ERR_L_NEGATIF"
+    if L_straight is not None and L_straight < 0:
+        return 0.0, "ERR_L_STRAIGHT_NEGATIF"
     if T_rupture <= 5.0:
         return 0.0, "ERR_T_RUPTURE_TROP_FAIBLE"
     if T_cible <= 2.0:
         return 0.0, "ERR_T_CIBLE_TROP_FAIBLE"
     if T_cible > T_rupture*2/3:
         return 0.0, "ERR_T_CIBLE_SUPERIEURE_A_66%_T_RUPTURE"
-    if L_straight is not None and L_straight < 0:
-        return 0.0, "ERR_L_STRAIGHT_NEGATIF"
     if dL_dt_max <= dL_dt_min:
         return 0.0, "ERR_D_L_DT_MAX_INFERIEUR_A_D_L_DT_MIN"
     if K <= 0:
@@ -2625,17 +2629,23 @@ def consigne_moulinet(
     if not hasattr(consigne_moulinet, "_history"):
         consigne_moulinet._history = []
     history = consigne_moulinet._history
+
     # 0n insère une nouvelle entrée en début d'historique
     history.insert(
         0,
         {
             "t": float(t),
-            "y_rov": float(y_rov),
-            "L": float(L),
-            "L_straight": None if L_straight is None else float(L_straight),
-            "T_boat": float(T_boat),
+            "dt": None,    
+            "y_rov": float(y_rov) if y_rov is not None else None,
             "dy_rov": None,
             "vy_rov": None,
+            "L": float(L) if L is not None else None,
+            "dL": None,
+            "dL_dt": None,
+            "L_straight": float(L_straight) if L_straight is not None else None,
+            "dL_straight_dt": None,
+            "dL_straight_dt_prev": None,
+            "T_boat": float(T_boat),
             "slack": slack,
             "consigne": None,
         },
@@ -2652,15 +2662,45 @@ def consigne_moulinet(
     curr = history[0]
     prev = history[1]
     
+    # Historique de t et dt
     dt= curr["t"] - prev["t"]
+    curr["dt"] = dt
     if dt <= 0:
         return 0.0, "ERR_DT_NON_POSITIF"
 
-    # Calcul de dL_dt
+    # Historique de y_rov et insertion dans le dictionnaire curr.
+    dy_rov = None
+    vy_rov = None
+    prev_y_rov = prev.get("y_rov")
+    if y_rov is not None and prev_y_rov is not None:
+        dy_rov = (y_rov - prev_y_rov)/dt
+        curr["dy_rov"] = dy_rov
+    if dy_rov is not None  and dt > 0:
+        vy_rov = dy_rov / dt
+        curr["vy_rov"] = vy_rov
+
+    # Historique de L
+    dL = None
     dL_dt = None
     prev_L = prev.get("L")
-    if prev_L is not None:
-        dL_dt = (L - prev_L)/dt
+    if L is not None and prev_L is not None:
+        dL = L - prev_L
+        curr["dL"] = dL
+    if dL is not None and dt > 0:
+        dL_dt = dL / dt
+        curr["dL_dt"] = dL_dt
+
+    # Historique de L_straight
+    dL_straight = None
+    dL_straight_dt = None
+    prev_L_straight = prev.get("L_straight")
+    if L_straight is not None and prev_L_straight is not None:
+        dL_straight = L_straight - prev_L_straight
+        curr["dL_straight"] = dL_straight
+    if dL_straight is not None and dt > 0:
+        dL_straight_dt = dL_straight / dt
+        curr["dL_straight_dt"] = dL_straight_dt
+
 
     # Matrice de consigne.
     # matrice_consigne[i_slack][i_T_boat] 
@@ -2673,6 +2713,7 @@ def consigne_moulinet(
     # i_slack = 5: Slack significativement en dessous du slack cible
     # i_slack = 6: Slack très en dessous du slack cible
     # i_slack = 7: Slack en dessous du slack min - On est en mode straight, ou presque.
+    # i_slack = 8: Slack unknown - On ne connait pas le slack.
 
     # i_T_boat = 0: Tension en dessous de la tension min
     # i_T_boat = 1: Très en dessous de la cible
@@ -2700,6 +2741,7 @@ def consigne_moulinet(
         [ 0.25,  0.25,  0.25,  0.25, 0.50, 0.50, 0.75, 1.00],
         [ 0.50,  0.50,  0.50,  0.50, 0.50, 0.50, 0.75, 1.00],  
         [ 0.50,  0.50,  0.50,  0.50, 0.50, 0.75, 0.75, 1.00],  
+        [-1.00, -1.00, -1.00,  0.00, 0.00, 1.00, 1.00, 1.00],  
     ]                                                         
 
     # Impact de la tension sur la future consigne
@@ -2734,9 +2776,9 @@ def consigne_moulinet(
     # Cas dégradé: on ne connait pas L_straight.
     if L_straight is None:
         # On ne connait pas L_straight, donc on en connait pas le slack.
-        # On retient une valeur par défaut i_slack = 3 : Juste au dessus du slack cible - OK.
-        i_slack = 3
-        exp = "L_STRAIGHT_UNKNOWN_SLACK_OK_ASSUMED"
+            # On retient une valeur par défaut i_slack = 0 : Juste au dessus du slack cible - OK.
+        i_slack = 8
+        exp = "L_STRAIGHT_UNKNOWN"
 
     # Cas nominal, on connait L_straight
     else :
@@ -2774,7 +2816,7 @@ def consigne_moulinet(
         else:
             i_slack = 0    # Slack en dessus du slack max - Le câble est totalement détendu.
 
-        exp = "MAIN"
+        exp = f"{_ANSI_GREEN}L_STRAIGHT_KNOWN{_ANSI_RESET}"
 
     # Calcul de la consigne brute souhaitée
     mat = matrice_consigne[i_slack][i_T_boat]
@@ -2782,6 +2824,16 @@ def consigne_moulinet(
         consigne = dL_dt_max * mat
     else:
         consigne = abs(dL_dt_min) *mat 
+    exp = exp + f" - Matrice_consigne {mat:.2f} --> Consigne brute: {consigne:.2f}"
+
+    # Prise en compte de la vitesse du ROV
+    if dL_straight_dt is not None:
+        consigne = consigne + dL_straight_dt
+        exp = exp + f"{_ANSI_GREEN} + dL_straight_dt {dL_straight_dt:.2f}{_ANSI_RESET}"
+    else:
+        if vy_rov is not None:
+            consigne = consigne - vy_rov
+            exp = exp + f"{_ANSI_CYAN} - vy_rov {vy_rov:.2f}{_ANSI_RESET}"
 
     # Lissage de la consigne
     m_consigne = _moyenne_glissante(history, "consigne", N)
@@ -2813,7 +2865,12 @@ def consigne_moulinet(
     # Enregistrement de la consigne
 
     curr["consigne"] = consigne
-    print(f"dt: {dt:.2f}, Slack: {slack:.2f} ({slack_min:.2f}, {slack_cible:.2f}, {slack_max:.2f}, Tension: {T_boat:.2f}, i_slack: {i_slack}, i_T_boat: {i_T_boat}, consigne: {consigne:.2f} "+exp)
+    if slack is not None:
+        slack_str = f"Slack: {slack:.2f} ({slack_min:.2f}, {slack_cible:.2f}, {slack_max:.2f})"
+    else:
+        slack_str = "Slack: UNKNOWN"
+
+    print(f"dt: {dt:.2f}, {slack_str}, Tension: {T_boat:.2f}, i_slack: {i_slack}, i_T_boat: {i_T_boat}, {exp} --> consigne: {consigne:.2f} ")
     return consigne, exp
     
 
@@ -2860,6 +2917,6 @@ def auto_L_min(
         and not x_rov is None and not y_rov is None and not z_rov is None):
             L_straight = math.hypot(x_rov - x_boat, y_rov - y_boat, z_rov - z_boat)
 
-    ret , exp = consigne_moulinet(t, y_rov, T_boat, L, T_rupture= Trupt, T_cible= Tcible, L_straight= L_straight, K= 10, N= 10)
+    ret , exp = consigne_moulinet(t, y_rov=y_rov, T_boat=T_boat, L=L, L_straight= L_straight, T_rupture= Trupt, T_cible= Tcible, K= 10, N= 10)
     return ret, exp
 

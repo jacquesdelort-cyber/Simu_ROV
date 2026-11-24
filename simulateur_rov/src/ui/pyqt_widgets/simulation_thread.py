@@ -1118,8 +1118,20 @@ class SimulationThread(QThread):
                 data_excel_ws = data_excel_wb.active
                 data_excel_ws.title = "Data"
                 
-                # Créer les en-têtes (toutes les clés du dictionnaire)
-                data_excel_headers = sorted(data.keys())
+                # t et les durées de pas en tête, puis les clés déjà présentes.
+                cycle_excel_headers = [
+                    "t",
+                    "journal_ms",
+                    "commande_ms",
+                    "integration_ms",
+                    "projection_ms",
+                    "bilan_ms",
+                    "total_ms",
+                    "plus_long",
+                ]
+                data_excel_headers = cycle_excel_headers + [
+                    key for key in sorted(data.keys()) if key not in cycle_excel_headers
+                ]
                 for col_idx, header in enumerate(data_excel_headers, 1):
                     data_excel_ws.cell(row=1, column=col_idx, value=header)
                 
@@ -1259,7 +1271,21 @@ class SimulationThread(QThread):
                 except Exception as e_nf:
                     trace_print(1, f"[NON_FINITE] stage={stage_name} t={t_val:.2f} step={step_val} inspect_error={e_nf}")
             
+            def _cycle_report(t_sim, parts):
+                total = sum(parts.values())
+                if total <= 0.0:
+                    return
+                name, dur = max(parts.items(), key=lambda kv: kv[1])
+                detail = "  ".join(f"{k}={v * 1000.0:.1f}" for k, v in parts.items())
+                trace_print(
+                    10,
+                    f"[CYCLE] t={t_sim:.2f} s  total={total * 1000.0:.1f} ms  "
+                    f"plus long={name} {dur * 1000.0:.1f} ms "
+                    f"({100.0 * dur / total:.0f}%)  {detail}",
+                )
+
             while t_current < t_final and not self._stop_requested:
+                t_cycle_journal0 = time.perf_counter()
                 # DEBUG: résumé d'état au début du pas
                 try:
                     # Niveau 10 : avec trace_print(level), le message s'affiche si level >= TRACE_LEVEL
@@ -1300,6 +1326,7 @@ class SimulationThread(QThread):
                 except Exception:
                     pass
                 trace_print(8, f"\n{_ANSI_YELLOW}[DEBUG] simulation_thread: LOOP : t_current={t_current:.2f} {_ANSI_RESET} ")
+                t_cycle_journal1 = time.perf_counter()
                 # Attendre si en pause
                 while self._paused and not self._stop_requested:
                     time.sleep(0.1)
@@ -1310,7 +1337,8 @@ class SimulationThread(QThread):
                 
                 if self._stop_requested:
                     break
-                
+
+                t_cycle_cmd0 = time.perf_counter()
                 # Calculer le pas suivant AVANT les calculs de commandes pour que auto_L_7
                 # puisse afficher le temps auquel la commande sera appliquée
                 t_next = min(t_current + dt, t_final)
@@ -1644,6 +1672,7 @@ class SimulationThread(QThread):
                     break
 
                 # t_next et dt_used ont déjà été calculés au début de l'itération
+                t_cycle_integ0 = time.perf_counter()
                 # Intégrer un pas (avec réduction adaptative si nécessaire)
                 try:
                     trace_print(7, f"[DEBUG] simulation_thread: INTÉGRATION : step_count={step_count}")
@@ -1886,6 +1915,7 @@ class SimulationThread(QThread):
                     # pour que toutes les opérations (auto_L_7, intégration, vérification invariants) utilisent
                     # le même temps dans une même itération
                     
+                    t_cycle_proj0 = time.perf_counter()
                     # Décoder l'état
                     (x_rov, y_rov, vx_rov, vy_rov,
                      x_boat, vx_boat, x_cable, y_cable, T, L) = system.unpack_state(y_current)
@@ -2016,6 +2046,7 @@ class SimulationThread(QThread):
                     except Exception:
                         pass
 
+                    t_cycle_bilan0 = time.perf_counter()
                     # DEBUG: Traçage de L après intégration et comparaison avec L_current
                     # Récupérer la commande dL_dt qui a été utilisée pour cette intégration
                     # Note: u_func est défini dans la portée de run(), donc on peut l'utiliser
@@ -2591,23 +2622,6 @@ class SimulationThread(QThread):
                     # sont maintenant mis à jour juste après la construction de shared_context
                     # pour garantir la cohérence avec les données utilisées par l'UI et les invariants
 
-                    # Sauvegarder la ligne dans le fichier Excel data (seulement toutes les N itérations)
-                    excel_write_interval = int(self.calc_params.get('excel_write_interval', 50))
-                    if data_excel_ws is not None and data_excel_headers is not None and step_count % excel_write_interval == 0:
-                        try:
-                            row_values = extract_data_row(data)
-                            for col_idx, header in enumerate(data_excel_headers, 1):
-                                value = row_values.get(header)
-                                data_excel_ws.cell(row=data_excel_row, column=col_idx, value=value)
-                            
-                            data_excel_row += 1
-                            
-                            # Sauvegarder périodiquement (toutes les 50 itérations)
-                            if step_count % 50 == 0 and data_excel_path:
-                                data_excel_wb.save(data_excel_path)
-                        except Exception as e:
-                            trace_print(8, f"[DATA EXCEL] Erreur écriture ligne {data_excel_row}: {e}")
-                    
                     step_count += 1
                     
                     # Incrémenter le temps à la toute fin de l'itération pour que toutes les opérations
@@ -2619,6 +2633,45 @@ class SimulationThread(QThread):
                     max_data_size = int(self.calc_params.get('max_data_size', 10000))
                     if step_count % 1000 == 0:
                         trim_data(data, max_data_size)
+
+                    cycle_parts = {
+                        "journal": t_cycle_journal1 - t_cycle_journal0,
+                        "commande": t_cycle_integ0 - t_cycle_cmd0,
+                        "integration": t_cycle_proj0 - t_cycle_integ0,
+                        "projection": t_cycle_bilan0 - t_cycle_proj0,
+                        "bilan": time.perf_counter() - t_cycle_bilan0,
+                    }
+                    _cycle_report(t_next, cycle_parts)
+
+                    # Une ligne toutes les N itérations. step_count vient d'être incrémenté.
+                    excel_write_interval = int(self.calc_params.get('excel_write_interval', 50))
+                    if (
+                        data_excel_ws is not None
+                        and data_excel_headers is not None
+                        and (step_count - 1) % excel_write_interval == 0
+                    ):
+                        try:
+                            row_values = extract_data_row(data)
+                            total_s = sum(cycle_parts.values())
+                            row_values["t"] = float(t_next)
+                            row_values["journal_ms"] = cycle_parts["journal"] * 1000.0
+                            row_values["commande_ms"] = cycle_parts["commande"] * 1000.0
+                            row_values["integration_ms"] = cycle_parts["integration"] * 1000.0
+                            row_values["projection_ms"] = cycle_parts["projection"] * 1000.0
+                            row_values["bilan_ms"] = cycle_parts["bilan"] * 1000.0
+                            row_values["total_ms"] = total_s * 1000.0
+                            row_values["plus_long"] = max(cycle_parts, key=cycle_parts.get)
+                            for col_idx, header in enumerate(data_excel_headers, 1):
+                                data_excel_ws.cell(
+                                    row=data_excel_row,
+                                    column=col_idx,
+                                    value=row_values.get(header),
+                                )
+                            data_excel_row += 1
+                            if data_excel_path and (step_count - 1) % 50 == 0:
+                                data_excel_wb.save(data_excel_path)
+                        except Exception as e:
+                            trace_print(8, f"[DATA EXCEL] Erreur écriture ligne {data_excel_row}: {e}")
                     
                 except Exception as e:
                     self.error_occurred.emit(f"Erreur lors de l'intégration: {str(e)}")

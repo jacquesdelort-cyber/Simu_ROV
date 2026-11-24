@@ -1,5 +1,5 @@
 {
-    "date_sauvegarde": "2026-04-22T14:38:18.012540",
+    "date_sauvegarde": "2026-11-18T21:18:20.651003",
     "mission": "M_test_init_courant_5",
     "description": "L = 410 m, position (30, -400) m, ROV avec une flottabilité légèrement positive. \nDes petits AR horizontaux du ROV puis remontée.  Courant à -200 m : 1 m/s",
     "parameters": {
@@ -34,6 +34,7 @@
         }
     },
     "calc_params": {
+        "dynamic_simulation": true,
         "method": "RK45",
         "rtol": 1e-05,
         "atol": 1e-07,
@@ -50,7 +51,7 @@
         "sc_fy_rov": "(t>5:-2) (t>15:-25)  (y<-425:-50)  (y<-450:-75) (y<-495:-8.83) (:e1) (e2:-15) (y<-500:e3) (:0) (e3>15:50 ) (y>-10:15)  (:e4) (y>-1:10)(y > -0.01:ex) (ex> 10: x)",
         "sc_v_bateau": "(e4:1 )  (l<5:0)",
         "sc_v_moulinet": "",
-        "auto_L": "auto_L_7",
+        "auto_L": "auto_L_min",
         "Tcible": 5.0,
         "guard_profile": "soft",
         "guard_enable": true,

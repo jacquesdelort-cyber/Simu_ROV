@@ -1294,7 +1294,7 @@ class CableSolver:
         - y <= 0 pour tous les points
         - ds_max / ds_target <= k_max
         """
-        trace_print(1, "\n[DEBUG] Initialisation du câble : prise en compte du courant (solve_equilibrium_static_with_current).")
+        trace_print(5, "\n[DEBUG] Initialisation du câble : prise en compte du courant (solve_equilibrium_static_with_current).")
         
         if L <= 0:
             return np.array([x_rov, x_boat]), np.array([y_rov, 0.0]), np.array([0.0, 0.0])
@@ -4442,11 +4442,15 @@ class CableSolver:
             (self.rho_cable - self.environment.rho_eau) * self.A_cable * self.environment.g
         )
         if weight_per_unit_dyn < 0.0:
+            # Même géométrie que l'équilibre statique sous courant. La chaînette
+            # sans courant laissait une verticale droite dès que L dépasse
+            # le trajet surface puis verticale.
             trace_print(
                 5,
-                "[DEBUG] solve_equilibrium_dynamic : câble flottant (w<0), chaînette pendante sans optimisation.",
+                "[DEBUG] solve_equilibrium_dynamic : câble flottant (w<0), "
+                "géométrie statique sous courant.",
             )
-            return self._pure_catenary_equilibrium_buoyant_cable(
+            return self.solve_equilibrium_static_with_current(
                 x_rov, y_rov, x_boat, L, rov_m=rov_m, rov_vol=rov_vol
             )
         

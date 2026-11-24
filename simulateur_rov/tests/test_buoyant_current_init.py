@@ -97,6 +97,39 @@ def test_skew_buoyant_profile_varies_with_depth_layers():
     assert abs(off_pos - off_neg) > 1e-2
 
 
+def _submerged_x(x_cable, y_cable, y_rov, y_top=-20.0):
+    """Abscisses de la partie immergée, hors du mou posé à la surface et de l'extrémité ROV."""
+    x = np.asarray(x_cable, dtype=float)
+    y = np.asarray(y_cable, dtype=float)
+    mask = (y < y_top) & (y > float(y_rov) + 20.0)
+    return x[mask]
+
+
+def test_dynamic_buoyant_above_manhattan_bulges_with_positive_current():
+    """L > Manhattan : le courant positif à mi-profondeur déporte la verticale vers +x."""
+    x_rov, y_rov, x_boat, L = 43.0, -365.0, 0.0, 462.0
+    prev_x = np.linspace(x_boat, x_rov, 81)
+    prev_y = np.linspace(0.0, y_rov, 81)
+
+    straight = _make_buoyant_solver("0.0", n_segments=80)
+    x0, y0, _ = straight.solve_equilibrium_dynamic(
+        x_rov, y_rov, 0.0, 0.0, x_boat, 0.0, L, prev_x, prev_y
+    )
+    x_sub0 = _submerged_x(x0, y0, y_rov)
+    assert x_sub0.size > 10
+    assert float(np.std(x_sub0)) < 1.0
+    assert float(np.max(x_sub0) - np.min(x_sub0)) < 2.0
+
+    curved = _make_buoyant_solver("0.0:0.0  200:1.0  400:0.0", n_segments=80)
+    x1, y1, _ = curved.solve_equilibrium_dynamic(
+        x_rov, y_rov, 0.0, 0.0, x_boat, 0.0, L, prev_x, prev_y
+    )
+    band = (np.asarray(y1) <= -150.0) & (np.asarray(y1) >= -250.0)
+    assert np.any(band)
+    assert float(np.mean(np.asarray(x1)[band])) > x_rov + 1.0
+    assert float(np.std(_submerged_x(x1, y1, y_rov))) > 1.0
+
+
 def test_static_with_current_avoids_points_below_rov_for_buoyant():
     solver = _make_buoyant_solver("0.0:0.0 100:1.0 200:0.0 300:-1.0 400:0.0", n_segments=260)
     x_rov, y_rov, x_boat, L = 30.0, -400.0, 0.0, 430.0
